@@ -187,6 +187,50 @@ export function QualityTrendChart({
           Visual={QualityTrendVisual}
           componentProps={{ model, visibleSeries }}
         />
+        {/* Per-point hit strips: native `title` works before/without hydration;
+            pointer handlers still drive the rich tooltip when the island mounts. */}
+        {geometry.domainIndexes.map((modelIndex, domainPosition) => {
+          const point = model.points[modelIndex];
+          if (!point) {
+            return null;
+          }
+          const x = geometry.xFor(modelIndex);
+          const prevX =
+            domainPosition === 0
+              ? geometry.margin.left
+              : (geometry.xFor(geometry.domainIndexes[domainPosition - 1]!) +
+                  x) /
+                2;
+          const nextX =
+            domainPosition === geometry.domainIndexes.length - 1
+              ? geometry.width - geometry.margin.right
+              : (x +
+                  geometry.xFor(geometry.domainIndexes[domainPosition + 1]!)) /
+                2;
+          const leftPct = (prevX / geometry.width) * 100;
+          const widthPct = ((nextX - prevX) / geometry.width) * 100;
+          const scoreValue = point.values.score;
+          const title = [
+            point.label,
+            scoreValue == null
+              ? "Нет данных"
+              : formatQualityScore(scoreValue),
+            reviewCountLabel(point.sampleSize)
+          ].join(" · ");
+
+          return (
+            <span
+              key={`hit-${point.id}`}
+              aria-hidden="true"
+              title={title}
+              data-slot="quality-trend-hit"
+              data-point-id={point.id}
+              className="absolute inset-y-0 z-20"
+              style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
+              onPointerEnter={() => setActiveIndex(modelIndex)}
+            />
+          );
+        })}
         {activePoint && activePosition ? (
           <span
             aria-hidden="true"

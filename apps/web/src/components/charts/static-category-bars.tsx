@@ -140,6 +140,7 @@ export function StaticCategoryBarPlot({
               data-href={bar.href}
               aria-label={categoryBarDrillLabel(bar.label, bar.value)}
               aria-describedby={activeKey === bar.key ? tooltipId : undefined}
+              title={`${bar.label}: ${bar.value}`}
               className="absolute inset-y-0 z-10 -translate-x-1/2 rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
               style={{
                 left: `${((bar.x + bar.width / 2) / plot.width) * 100}%`,

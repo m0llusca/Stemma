@@ -358,6 +358,7 @@ export function InteractiveSparklineChart({
             const controlProps = {
               "aria-label": point.href ? `${point.tooltip}. Открыть проверки` : point.tooltip,
               "aria-describedby": isActive ? tooltipId : undefined,
+              title: point.tooltip,
               className: pointControlClass,
               style: {
                 left: `${region.left}%`,

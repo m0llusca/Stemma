@@ -261,15 +261,16 @@ export function QualityTrendVisual({
             data-segment-count={previousSegments.length}
           >
             {previousSegments.map((segment, index) => (
-              <Curve
+              <polyline
                 key={`segment-${index}`}
-                type="linear"
-                points={segment}
                 fill="none"
                 stroke="var(--color-previous)"
                 strokeWidth={1.5}
                 strokeDasharray="6 5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
                 vectorEffect="non-scaling-stroke"
+                points={segment.map((point) => `${point.x},${point.y}`).join(" ")}
               />
             ))}
             {/* Endpoint diamonds only — a marker on every day turns a flat

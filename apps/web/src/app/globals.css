@@ -727,10 +727,12 @@
 
 /* Recharts `<Curve>` does not forward `pathLength` to the DOM. Forcing
    `stroke-dasharray: 1` permanently turns solid/dashed series into 1px crumbs
-   (broken «прошлый период» stairs + disconnected score dots). Fade instead. */
+   (broken «прошлый период» stairs + disconnected score dots). Fade instead.
+   Do NOT set `opacity: 0` outside the keyframe — if the enter animation is
+   skipped or cancelled (blocked HMR, reduced-motion edge cases), series stay
+   invisible forever and only markers remain. */
 [data-animation-active="true"] .recharts-curve,
 [data-animation-active="true"] polyline {
-  opacity: 0;
   animation: qc-chart-line-fade var(--motion-duration-spring-enter)
     var(--motion-ease-spring-panel) both;
 }
@@ -755,7 +757,6 @@
 
 [data-animation-active="true"] rect[data-point-id],
 [data-animation-active="true"] rect[data-marker] {
-  opacity: 0;
   animation: qc-chart-mark-fade calc(var(--motion-duration-spring-enter) * 0.75)
     var(--motion-ease-spring-panel) both;
   animation-delay: 90ms;
