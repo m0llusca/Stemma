@@ -88,12 +88,12 @@ async function buildAppNav({ resolveSignals }: { resolveSignals: boolean }) {
       <AppNavShell
         {...shellProps}
         pulseSlot={
-          <Suspense fallback={null}>
+          <Suspense key="nav-pulse-slot" fallback={null}>
             <AppNavPulseSignal user={snapshot.user} />
           </Suspense>
         }
         demoMenuSlot={
-          <Suspense fallback={null}>
+          <Suspense key="nav-demo-menu-slot" fallback={null}>
             <AppNavDemoMenuSignal user={snapshot.user} />
           </Suspense>
         }

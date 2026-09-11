@@ -5,21 +5,21 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Activity,
   Bell,
-  BookMarked,
+  BookOpen,
+  BookOpenCheck,
+  ChartColumn,
   ChartSpline,
+  CircleEqual,
   ClipboardCheck,
-  ClipboardPen,
-  Gavel,
-  GraduationCap,
-  HeartPulse,
+  ClipboardList,
+  Gauge,
   Menu,
-  MessageSquareText,
-  MessagesSquare,
+  MessageSquare,
+  MessageSquareReply,
   Scale,
   Search,
   Settings2,
   SlidersHorizontal,
-  TrendingUp,
   X,
   type LucideIcon
 } from "lucide-react";
@@ -87,27 +87,30 @@ type AppNavShellProps = {
   canTakeNextCase?: boolean;
 };
 
-/** Idle (outline-ish) glyphs for primary area nav. */
+/**
+ * Idle glyphs for primary area nav — product metaphor first, morph-friendly pairs
+ * second (same Lucide family / shared silhouette when possible).
+ */
 const areaIcons = {
-  today: Activity,
-  feedback: MessageSquareText,
-  review: ClipboardCheck,
+  today: Gauge,
+  feedback: MessageSquare,
+  review: ClipboardList,
   calibration: Scale,
-  coaching: GraduationCap,
-  analytics: TrendingUp,
+  coaching: BookOpen,
+  analytics: ChartColumn,
   settings: SlidersHorizontal
 } satisfies Record<ShellNavAreaIcon, LucideIcon>;
 
 /**
- * Active/hover morph targets — related Lucide shapes Morphicons can interpolate
- * toward so the top-nav areas morph on route active and pointer/focus hover.
+ * Active/hover morph targets — related Lucide shapes Morphicons interpolate toward.
+ * Avoid medical (HeartPulse), courtroom (Gavel), and multi-thread chat metaphors.
  */
 const areaActiveIcons = {
-  today: HeartPulse,
-  feedback: MessagesSquare,
-  review: ClipboardPen,
-  calibration: Gavel,
-  coaching: BookMarked,
+  today: Activity,
+  feedback: MessageSquareReply,
+  review: ClipboardCheck,
+  calibration: CircleEqual,
+  coaching: BookOpenCheck,
   analytics: ChartSpline,
   settings: Settings2
 } satisfies Record<ShellNavAreaIcon, LucideIcon>;
