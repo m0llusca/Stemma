@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import type { ChartSeries } from "@/lib/charts/contracts";
 import { cn } from "@/lib/utils";
@@ -68,6 +69,7 @@ export function ChartLegendControls<TKey extends string>({
   currentHref: string;
   ariaLabel?: string;
 }) {
+  const router = useRouter();
   const visible = new Set(visibleSeries);
   const orderedKeys = series.map((item) => item.key);
 
@@ -89,8 +91,8 @@ export function ChartLegendControls<TKey extends string>({
             onClick={() => {
               // Series visibility is presentation state owned by the URL. A
               // native replaceState commits it even when the App Router drops
-              // navigation commits on a fresh page load (Next 16.2.x); the
-              // parent chart re-renders from the updated search params.
+              // navigation commits on a fresh page load (Next 16.2.x); refresh
+              // pulls the new search params into client hooks.
               window.history.replaceState(
                 null,
                 "",
@@ -101,6 +103,7 @@ export function ChartLegendControls<TKey extends string>({
                   item.key
                 )
               );
+              router.refresh();
             }}
           >
             <span
