@@ -1,0 +1,18 @@
+{
+  "name": "Stemma",
+  "install": "bash .cursor/setup/install.sh",
+  "start": "bash .cursor/setup/start.sh",
+  "terminals": [
+    {
+      "name": "web-dev",
+      "command": "cd apps/web && npm run dev",
+      "description": "Next.js dev server for the Stemma web app on http://localhost:3000"
+    }
+  ],
+  "ports": [
+    {
+      "name": "web",
+      "port": 3000
+    }
+  ]
+}
