@@ -659,7 +659,9 @@
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    /* Drop transform after enter so the layer does not trap stacking and
+       hide absolute ChartTooltipStatus overlays painted earlier in the DOM. */
+    transform: none;
   }
 }
 

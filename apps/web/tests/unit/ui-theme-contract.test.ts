@@ -303,6 +303,14 @@ describe("canonical UI theme contract", () => {
     expect(statKpiSource).toContain('data-qc-motion="kpi-bump"');
     expect(statKpiSource).toContain('data-qc-motion="hover-lift"');
     expect(chartContainerSource).toContain('data-qc-motion="chart-enter"');
+    const tooltipStatusSource = readFileSync(
+      resolve(appRoot, "src/components/charts/chart-tooltip-status.tsx"),
+      "utf8"
+    );
+    expect(tooltipStatusSource).toContain("z-20");
+    expect(globals).toMatch(
+      /@keyframes\s+qc-chart-enter[\s\S]*to\s*\{[\s\S]*transform:\s*none/
+    );
     expect(packageJson).toMatch(/["']@stemma\/kinetics["']\s*:\s*["']file:/);
     expect(packageJson).not.toMatch(/["']kinetics["']\s*:/);
     expect(packageJson).not.toMatch(/@kinetics\//);

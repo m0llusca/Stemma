@@ -10,7 +10,6 @@ import {
   ChartEnter,
   ChartGoalBadge,
   ChartScaleFooter,
-  SCORE_OVER_TIME_MIN_HEIGHT_CLASS,
   SCORE_OVER_TIME_PLOT_HEIGHT
 } from "@/components/charts/chart-visual-preset";
 import {
@@ -149,14 +148,14 @@ export function InteractiveSparklineChart({
       </div>
 
       <div
-        className={`relative ${SCORE_OVER_TIME_MIN_HEIGHT_CLASS} overflow-visible rounded-lg border border-border bg-card px-2.5 pb-3 pt-10`}
+        className="relative overflow-visible rounded-lg border border-border bg-card px-2.5 pb-3 pt-8"
         ref={plotRef}
       >
         <svg
           viewBox={`0 0 ${chart.width} ${chart.height}`}
-          width="100%"
+          width={plotWidth ?? "100%"}
           height={chart.height}
-          className="block overflow-visible"
+          className="pointer-events-none block overflow-visible"
           preserveAspectRatio="xMidYMid meet"
           role="img"
           aria-label="Тренд средней оценки"
