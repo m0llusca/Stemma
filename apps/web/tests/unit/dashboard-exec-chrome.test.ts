@@ -20,9 +20,10 @@ describe("dashboard exec chrome", () => {
     expect(source).toContain("dashboardSkeletonVariantForRole(user.role)");
     expect(source).toContain("variant={skeletonVariant}");
     expect(source.indexOf("requirePagePermission")).toBeLessThan(source.indexOf("<Suspense"));
-    expect(loadingSource).toContain("resolveDashboardSkeletonVariant");
-    expect(loadingSource).toContain("variant={variant}");
-    expect(loadingSource).not.toContain('variant="dashboard"');
+    // Route loading stays sync (ops skeleton) so soft nav is not gated on auth.
+    // Exec shape is applied by the page Suspense fallback after role resolves.
+    expect(loadingSource).not.toContain("resolveDashboardSkeletonVariant");
+    expect(loadingSource).toContain('variant="dashboard"');
   });
 
   it("keeps the Recharts drill chart on ExecRiskHome only — Agent and VIEWER stay chartless", () => {

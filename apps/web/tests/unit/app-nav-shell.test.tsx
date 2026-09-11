@@ -1,8 +1,12 @@
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AppNavPulseChrome } from "@/components/app-nav-pulse-chrome";
 import { AppNavShell } from "@/components/app-nav-shell";
-import { resetAccountMenuExpandedForTests } from "@/components/auth/demo-role-switch";
+import {
+  DemoRoleSwitchMenu,
+  resetAccountMenuExpandedForTests
+} from "@/components/auth/demo-role-switch";
 import { analystMineOverdueHref } from "@/lib/auth/role-home";
 import { buildShellNavigation, visibleTopNavAreas } from "@/lib/shell/navigation";
 
@@ -42,12 +46,12 @@ const baseProps = {
   navigation,
   // AppNav всегда передает роль-фильтрованный список — тест повторяет это.
   areas: visibleTopNavAreas("ADMIN"),
-  pulseItems: [
+  pulseSlot: <AppNavPulseChrome items={[
     { href: "/reviews?qaStatus=QUEUED", label: "Очередь", value: 4 },
     { href: "/reviews?status=reviewed&riskLevel=HIGH_OR_CRITICAL", label: "Риск", value: 1, tone: "risk" as const },
     { href: "/coaching", label: "Обучение", value: 0, tone: "neutral" as const }
-  ],
-  user: { name: "Админ", email: "admin@example.com" },
+  ]} />,
+  user: { name: "Админ", email: "admin@example.com", roleLabel: "Администратор" },
   // Explicit gate — production always passes this; default is fail-closed.
   canTakeNextCase: true
 };
@@ -127,15 +131,19 @@ describe("app nav shell", () => {
     render(
       <AppNavShell
         {...baseProps}
-        pulseItems={[
-          { href: "/reviews?qaStatus=QUEUED", label: "Очередь", value: 0 },
-          {
-            href: "/reviews?status=reviewed&riskLevel=HIGH_OR_CRITICAL",
-            label: "Риск",
-            value: 0,
-            tone: "neutral"
-          }
-        ]}
+        pulseSlot={
+          <AppNavPulseChrome
+            items={[
+              { href: "/reviews?qaStatus=QUEUED", label: "Очередь", value: 0 },
+              {
+                href: "/reviews?status=reviewed&riskLevel=HIGH_OR_CRITICAL",
+                label: "Риск",
+                value: 0,
+                tone: "neutral"
+              }
+            ]}
+          />
+        }
       />
     );
 
@@ -275,21 +283,6 @@ describe("app nav shell", () => {
     {
       surface: "⌘K",
       run: () => runCommandTakeNext()
-    },
-    {
-      surface: "pulse «Взять следующий»",
-      run: () => fireEvent.click(screen.getByRole("button", { name: "Взять следующий" }))
-    },
-    {
-      surface: "pulse menu",
-      run: () => {
-        fireEvent.click(screen.getByRole("button", { name: "Рабочий пульс" }));
-        fireEvent.click(
-          within(screen.getByRole("menu", { name: "Рабочий пульс" })).getByRole("menuitem", {
-            name: "Взять следующий"
-          })
-        );
-      }
     }
   ] as const)(
     "runs $surface through takeNextReview with the current queue filters",
@@ -304,12 +297,24 @@ describe("app nav shell", () => {
     }
   );
 
+  it("does not expose Take next in the nav pulse chrome", () => {
+    render(<AppNavShell {...baseProps} />);
+
+    expect(screen.queryByRole("button", { name: "Взять следующий" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Рабочий пульс" }));
+    expect(
+      within(screen.getByRole("menu", { name: "Рабочий пульс" })).queryByRole("menuitem", {
+        name: "Взять следующий"
+      })
+    ).toBeNull();
+  });
+
   it("does not substitute /reviews?status=unreviewed when take-next runs off the queue", () => {
     window.history.replaceState(null, "", "/dashboard");
     mocks.pathname = "/dashboard";
     render(<AppNavShell {...baseProps} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Взять следующий" }));
+    runCommandTakeNext();
 
     expectTakeNextFormData(null);
   });
@@ -317,7 +322,6 @@ describe("app nav shell", () => {
   it("hides every take-next surface when the reviewer cannot write reviews", () => {
     render(<AppNavShell {...baseProps} canTakeNextCase={false} />);
 
-    // Pulse chrome first — opening ⌘K inerts the rest of the page.
     expect(screen.queryByRole("button", { name: "Взять следующий" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Рабочий пульс" }));
     expect(
@@ -333,19 +337,19 @@ describe("app nav shell", () => {
     expect(screen.queryByRole("option", { name: /Взять следующий/ })).toBeNull();
   });
 
-  it("hides pulse chrome when there are no pulse items and take-next is gated off", () => {
-    render(<AppNavShell {...baseProps} pulseItems={[]} canTakeNextCase={false} />);
+  it("hides pulse chrome when there are no pulse items", () => {
+    render(<AppNavShell {...baseProps} pulseSlot={null} canTakeNextCase={false} />);
 
     expect(screen.queryByLabelText("Рабочий пульс")).toBeNull();
     expect(screen.queryByRole("button", { name: "Рабочий пульс" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Взять следующий" })).toBeNull();
   });
 
-  it("keeps take-next pulse chrome when pulse items are empty but write is allowed", () => {
-    render(<AppNavShell {...baseProps} pulseItems={[]} canTakeNextCase />);
+  it("hides empty pulse chrome even when take-next write is allowed (CTA is page/⌘K only)", () => {
+    render(<AppNavShell {...baseProps} pulseSlot={null} canTakeNextCase />);
 
-    expect(screen.getByRole("button", { name: "Рабочий пульс" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Взять следующий" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Рабочий пульс" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Взять следующий" })).toBeNull();
   });
 
   it("moves a highlighted result with Up/Down and activates it with Enter", () => {
@@ -412,14 +416,13 @@ describe("app nav shell", () => {
     expect(destinations).toEqual([
       "/reviews?qaStatus=QUEUED",
       "/reviews?status=reviewed&riskLevel=HIGH_OR_CRITICAL",
-      "/coaching",
-      null
+      "/coaching"
     ]);
     expect(destinations).not.toContain("/reviews?status=unreviewed");
     expect(within(menu).getByRole("menuitem", { name: "Очередь: 4" })).toBeInTheDocument();
     expect(within(menu).getByRole("menuitem", { name: "Риск: 1" })).toBeInTheDocument();
     expect(within(menu).getByRole("menuitem", { name: "Обучение: 0" })).toBeInTheDocument();
-    expect(within(menu).getByRole("menuitem", { name: "Взять следующий" })).toBeInTheDocument();
+    expect(within(menu).queryByRole("menuitem", { name: "Взять следующий" })).toBeNull();
   });
 
   it("uses 44px-capable shadcn targets for the logo and direct navigation actions", () => {
@@ -432,10 +435,6 @@ describe("app nav shell", () => {
     for (const link of within(areaNav()).getAllByRole("link")) {
       expect(link).toHaveAttribute("data-slot", "button");
     }
-    expect(screen.getByRole("button", { name: "Взять следующий" })).toHaveAttribute(
-      "data-slot",
-      "button"
-    );
   });
 
   it("submits logout through a native post form inside the identity menu", () => {
@@ -462,6 +461,26 @@ describe("app nav shell", () => {
     // Area menu is closed until the trigger is activated (account details
     // keeps a role=menu panel in the tree; jsdom does not hide it).
     expect(queryAreaMenu()).toBeNull();
+  });
+
+  it("morphs top-bar Menu/Search/account chevron and area icons through Morphicons", () => {
+    render(<AppNavShell {...baseProps} />);
+
+    const sections = screen.getByRole("button", { name: "Разделы" });
+    expect(sections.querySelector('[data-slot="morph-icon"]')).not.toBeNull();
+
+    const search = screen.getByRole("button", { name: "Поиск или команда" });
+    expect(search.querySelector('[data-slot="morph-icon"]')).not.toBeNull();
+
+    const account = screen.getByRole("button", { name: /Профиль:/ });
+    expect(account.querySelector('[data-slot="disclosure-morph-chevron"]')).not.toBeNull();
+    expect(account.querySelector('[data-slot="morph-icon"]')).not.toBeNull();
+
+    const areaLinks = within(areaNav()).getAllByRole("link");
+    expect(areaLinks.length).toBeGreaterThan(0);
+    for (const link of areaLinks) {
+      expect(link.querySelector('[data-slot="morph-icon"]')).not.toBeNull();
+    }
   });
 
   it("derives the compact menu and full navigation from the same active-area contract", () => {
@@ -571,7 +590,7 @@ describe("app nav shell", () => {
     render(
       <AppNavShell
         {...baseProps}
-        demoSwitcher={{
+        demoMenuSlot={<DemoRoleSwitchMenu switcher={{
           currentUserId: "user-1",
           roleLabel: "Администратор",
           users: [
@@ -588,7 +607,7 @@ describe("app nav shell", () => {
               optionLabel: "Оператор · Демо"
             }
           ]
-        }}
+        }} />}
       />
     );
 
@@ -602,7 +621,8 @@ describe("app nav shell", () => {
     render(
       <AppNavShell
         {...baseProps}
-        demoSwitcher={{
+        user={{ name: "Иван", email: "ivan@example.com", roleLabel: "Оператор" }}
+        demoMenuSlot={<DemoRoleSwitchMenu switcher={{
           currentUserId: "user-1",
           roleLabel: "Оператор",
           users: [
@@ -619,7 +639,7 @@ describe("app nav shell", () => {
               optionLabel: "Анна QA · Проверяющий · Демо"
             }
           ]
-        }}
+        }} />}
       />
     );
 
@@ -640,7 +660,8 @@ describe("app nav shell", () => {
     render(
       <AppNavShell
         {...baseProps}
-        demoSwitcher={{
+        user={{ name: "Иван Петров", email: "ivan@example.com", roleLabel: "Оператор" }}
+        demoMenuSlot={<DemoRoleSwitchMenu switcher={{
           currentUserId: "user-1",
           roleLabel: "Оператор",
           users: [
@@ -657,7 +678,7 @@ describe("app nav shell", () => {
               optionLabel: "Анна QA · Проверяющий · Демо"
             }
           ]
-        }}
+        }} />}
       />
     );
 
@@ -676,7 +697,7 @@ describe("app nav shell", () => {
     render(
       <AppNavShell
         {...baseProps}
-        demoSwitcher={{
+        demoMenuSlot={<DemoRoleSwitchMenu switcher={{
           currentUserId: "user-1",
           roleLabel: "Администратор",
           users: [
@@ -693,7 +714,7 @@ describe("app nav shell", () => {
               optionLabel: "Анна QA · Проверяющий · Демо"
             }
           ]
-        }}
+        }} />}
       />
     );
 

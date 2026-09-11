@@ -44,12 +44,12 @@ vi.mock("@/components/charts/recharts-visuals.client", () => ({
       <g
         data-series="down"
         data-direction="negative"
-        data-animation-active="false"
+        data-animation-active="true"
       />
       <g
         data-series="up"
         data-direction="positive"
-        data-animation-active="false"
+        data-animation-active="true"
       />
     </svg>
   )
@@ -118,18 +118,18 @@ describe("SparklineChart", () => {
     const axis = container.querySelector('[data-slot="sparkline-axis"]');
     const scale = container.querySelector('[data-slot="sparkline-scale"]');
 
-    expect(svg).toHaveAttribute("height", "200");
+    expect(svg).toHaveAttribute("height", "132");
     expect(svg).toHaveAttribute("width", "100%");
     expect(svg).toHaveAttribute("preserveAspectRatio", "xMidYMid meet");
     expect(svg).not.toHaveAttribute("aria-hidden");
     expect(chartRoot).toBeInTheDocument();
     expect(chartRoot).toHaveAttribute("data-qc-motion", "chart-enter");
-    expect(path).toHaveAttribute("d", "M 12.0 100.0 L 348.0 14.0");
+    expect(path).toHaveAttribute("d", "M 12.0 66.0 L 348.0 12.0");
     expect(path).toHaveAttribute("fill", "none");
     expect(path).toHaveAttribute("stroke", "var(--chart-1)");
     expect(path).toHaveAttribute("stroke-width", "2");
-    expect(circles[0]).toHaveAttribute("cy", "100");
-    expect(circles[1]).toHaveAttribute("cy", "14");
+    expect(circles[0]).toHaveAttribute("cy", "66");
+    expect(circles[1]).toHaveAttribute("cy", "12");
     expect(circles[0]).toHaveAttribute("r", "3");
     expect(circles[1]).toHaveAttribute("r", "4");
     expect(circles[0]).toHaveAttribute("fill", "var(--chart-1)");
@@ -158,11 +158,11 @@ describe("SparklineChart", () => {
 
     expect(screen.getByRole("img", { name: "Тренд средней оценки" })).toHaveAttribute(
       "viewBox",
-      "0 0 360 200"
+      "0 0 360 132"
     );
     expect(container.querySelector('[data-slot="sparkline-line"]')).toHaveAttribute(
       "d",
-      "M 12.0 186.0 L 348.0 14.0"
+      "M 12.0 120.0 L 348.0 12.0"
     );
   });
 
@@ -202,11 +202,11 @@ describe("SparklineChart", () => {
 
     expect(screen.getByRole("img", { name: "Тренд средней оценки" })).toHaveAttribute(
       "viewBox",
-      "0 0 720 200"
+      "0 0 720 132"
     );
     expect(container.querySelector('[data-slot="sparkline-line"]')).toHaveAttribute(
       "d",
-      "M 12.0 186.0 L 708.0 14.0"
+      "M 12.0 120.0 L 708.0 12.0"
     );
 
     unmount();
@@ -560,7 +560,9 @@ describe("RankedDriverChart", () => {
       "data-direction",
       "positive"
     );
-    expect(container.querySelectorAll("[data-animation-active=true]")).toHaveLength(0);
+    expect(
+      container.querySelectorAll("[data-animation-active=true]").length
+    ).toBeGreaterThan(0);
 
     fireEvent.focus(plot);
     expect(screen.getByRole("tooltip")).toHaveTextContent("Freshdesk");

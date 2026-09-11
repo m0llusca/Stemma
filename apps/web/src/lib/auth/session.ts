@@ -165,10 +165,15 @@ export async function getValidAuthSession(token: string | undefined): Promise<
     return null;
   }
 
-  await prisma.authSession.update({
-    where: { id: session.id },
-    data: { lastSeenAt: new Date() }
-  });
+  // Soft-nav and layout remounts hit this path often; skip writes within 60s
+  // so section switches do not serialize on a session UPDATE every request.
+  const now = new Date();
+  if (now.getTime() - session.lastSeenAt.getTime() >= 60_000) {
+    await prisma.authSession.update({
+      where: { id: session.id },
+      data: { lastSeenAt: now }
+    });
+  }
 
   return session;
 }

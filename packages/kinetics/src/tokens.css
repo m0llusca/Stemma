@@ -1,0 +1,41 @@
+/**
+ * Kinetics spring catalog — first-party packaging for Stemma.
+ * Source of values: https://kinetics.colorion.co/#library (published springs).
+ * Colorion ships a gallery, not an npm package; we own this token surface.
+ *
+ * Import from the app stylesheet:
+ *   @import "@stemma/kinetics/tokens.css";
+ */
+
+:root {
+  --motion-duration-spring: 400ms;
+  --motion-duration-spring-enter: 550ms;
+  --motion-duration-spring-panel: 450ms;
+  --motion-duration-spring-glide: 400ms;
+  --motion-duration-morph: 350ms;
+  --motion-duration-shimmer: 1.5s;
+  --motion-ease-spring-overshoot: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --motion-ease-spring-toast: cubic-bezier(0.18, 1.25, 0.4, 1);
+  --motion-ease-spring-panel: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-ease-spring-glide: cubic-bezier(0.65, 0, 0.35, 1);
+  --motion-ease-spring-gentle: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --motion-scale-kpi-bump: 1.08;
+  --motion-distance-kpi-bump: 0.125rem;
+  --motion-scale-hover-lift: 1.01;
+  --motion-distance-hover-lift: -0.125rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-duration-spring: 1ms;
+    --motion-duration-spring-enter: 1ms;
+    --motion-duration-spring-panel: 1ms;
+    --motion-duration-spring-glide: 1ms;
+    --motion-duration-morph: 1ms;
+    --motion-duration-shimmer: 1ms;
+    --motion-scale-kpi-bump: 1;
+    --motion-distance-kpi-bump: 0px;
+    --motion-scale-hover-lift: 1;
+    --motion-distance-hover-lift: 0px;
+  }
+}

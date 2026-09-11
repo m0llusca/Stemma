@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { kineticsStyle } from "@stemma/kinetics";
 import { useMemo, useState } from "react";
 import { Columns3, Grid2x2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -97,7 +98,7 @@ function CellBody({ cell }: { cell: CriterionMatrixCell }) {
       <span className="h-1 w-full overflow-hidden rounded-full bg-background/40" aria-hidden="true">
         <span
           className="block h-full rounded-full bg-current opacity-80"
-          style={{ width: `${score == null ? 0 : clampPercent(score)}%` }}
+          style={{ width: `${score == null ? 0 : clampPercent(score)}%`, ...kineticsStyle("width", "overshoot") }}
         />
       </span>
     </span>

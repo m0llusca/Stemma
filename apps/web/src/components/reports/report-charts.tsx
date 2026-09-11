@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { BarChart3, Inbox } from "lucide-react";
+import { kineticsStyle } from "@stemma/kinetics";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -27,6 +28,14 @@ import { cn } from "@/lib/utils";
 export type ChartDatum = {
   label: string;
   value: number;
+  detail?: string;
+  href?: string;
+};
+
+/** Sparkline points may leave calendar days empty without collapsing the week. */
+export type SparklineDatum = {
+  label: string;
+  value: number | null;
   detail?: string;
   href?: string;
 };
@@ -89,7 +98,10 @@ function PercentProgressBar({ value, label }: { value: number; label: string }) 
         className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-muted"
         role="progressbar"
       >
-        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${percent}%` }} />
+        <div
+          className="h-full rounded-full bg-primary"
+          style={{ width: `${percent}%`, ...kineticsStyle("width", "overshoot") }}
+        />
       </div>
     </div>
   );
@@ -131,7 +143,7 @@ export function ChartPanel({
 }
 
 export function SparklineChart(props: {
-  points: ChartDatum[];
+  points: SparklineDatum[];
   target?: number;
   annotation?: string;
 }) {
@@ -173,7 +185,7 @@ export function HorizontalBarChart({
               </p>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-              <div className="h-full rounded-full bg-primary" style={{ width: `${percent}%` }} />
+              <div className="h-full rounded-full bg-primary" style={{ width: `${percent}%`, ...kineticsStyle("width", "overshoot") }} />
             </div>
             {row.detail ? <p className="text-xs text-muted-foreground">{row.detail}</p> : null}
           </div>
@@ -259,7 +271,7 @@ export function RankedList({
               <p className="text-xs text-muted-foreground">{[row.detail, row.meta].filter(Boolean).join(", ")}</p>
             ) : null}
             <div className="h-0.5 overflow-clip rounded-full bg-border/60" aria-hidden="true">
-              <span className="block h-full rounded-full bg-primary" style={{ width: `${clampPercent(row.value)}%` }} />
+              <span className="block h-full rounded-full bg-primary" style={{ width: `${clampPercent(row.value)}%`, ...kineticsStyle("width", "overshoot") }} />
             </div>
           </div>
           {row.href ? (
@@ -298,7 +310,7 @@ export function StackedBar({ segments }: { segments: StackedSegment[] }) {
             key={segment.label}
             title={`${segment.label}: ${segment.value}`}
             className={cn("h-full min-w-0", riskStackToneBySeverity[segment.severity])}
-            style={{ width: `${(segment.value / total) * 100}%` }}
+            style={{ width: `${(segment.value / total) * 100}%`, ...kineticsStyle("width", "overshoot") }}
           />
         ))}
       </div>

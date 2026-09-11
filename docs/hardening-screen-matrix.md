@@ -80,7 +80,7 @@ Repeat under each role. VIEWER has no `AppNav`.
 | Account menu | identity, logout, **«Сменить роль»** (DEMO) → lands on new role home | — | n/a | — | #117: menu↔X / chevron if wired |
 | Top-nav | only areas from the table above; no dead href; no forbidden page from a visible item | — | n/a | — | |
 | ⌘K | modes for this role; **Взять следующий** writers only; Exec: overdue + quarter analytics, no Take next; Agent: **Перейти к обучению**, no Take next / overdue | — | n/a | — | |
-| Ops pulse | **Очередь** / **Риск** + pulse **Взять следующий** — Admin/Lead/QA only. Exec/Agent: absent, not disabled-looking | — | n/a | n/a | |
+| Ops pulse | **Очередь** / **Риск** (/ **Обучение**) badges — Admin/Lead/QA. No pulse **Взять следующий** (page/⌘K only). Exec/Agent: absent or coaching-only, not disabled-looking | — | n/a | n/a | |
 
 ---
 
@@ -247,6 +247,6 @@ Close [#116](https://github.com/m0llusca/Stemma/issues/116) only when: this matr
 - [ux-queue-hotkeys-contract.md](ux-queue-hotkeys-contract.md) — j/k, Enter toggles module, finalize_next, Take next = one path
 - [#125](https://github.com/m0llusca/Stemma/issues/125) — P1 `aria-expanded` sync on review disclosure (split from #118)
 - [research-kinetics-recharts.md](research-kinetics-recharts.md) — Exec = static SVG bars; drill SoT; no vanity
-- [research-morphicons.md](research-morphicons.md) — #117 adopt: Morphicons on CopyButton + accordion/score chevron (supersedes #108 reject)
+- [research-morphicons.md](research-morphicons.md) — #117 adopt + top-nav follow-on: CopyButton, accordion/score chevron, account Menu/Search morphs (supersedes #108 reject)
 - [ux-agent-feedback-contract.md](ux-agent-feedback-contract.md) — self-review pack
 - [semantic-status-colors.md](semantic-status-colors.md) — probe-before-save, cert ≠ step

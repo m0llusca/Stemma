@@ -2,10 +2,14 @@
 
 import type { MouseEvent } from "react";
 import { useEffect, useRef } from "react";
+import {
+  kineticsDurationMs,
+  prefersReducedMotion
+} from "@stemma/kinetics";
 import { cn } from "@/lib/utils";
 
 /** How long the target message keeps the transient highlight attribute. */
-const HIGHLIGHT_MS = 1200;
+const HIGHLIGHT_MS = kineticsDurationMs.feedbackFlash;
 const EVIDENCE_FLASH_ATTR = "data-evidence-flash";
 
 type EvidenceJumpLinkProps = {
@@ -47,11 +51,8 @@ export function EvidenceJumpLink({ messageId, timeLabel, className }: EvidenceJu
     }
 
     event.preventDefault();
-    const prefersReducedMotion =
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     target.scrollIntoView({
-      behavior: prefersReducedMotion ? "auto" : "smooth",
+      behavior: prefersReducedMotion() ? "auto" : "smooth",
       block: "center"
     });
 

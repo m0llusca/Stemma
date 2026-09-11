@@ -8,6 +8,10 @@ const globalsPath = resolve(appRoot, "src/app/globals.css");
 const legacyThemePath = resolve(appRoot, "src/app/styles/theme.css");
 const legacyComponentsDir = resolve(appRoot, "src/app/styles/components");
 const globals = readFileSync(globalsPath, "utf8");
+const kineticsTokens = readFileSync(
+  resolve(appRoot, "node_modules/@stemma/kinetics/src/tokens.css"),
+  "utf8"
+);
 
 const themeIds = [
   "graphite",
@@ -225,15 +229,16 @@ describe("canonical UI theme contract", () => {
       ).toContain(selector);
     }
     expect(globals).toContain("--motion-duration-feedback: 90ms;");
-    expect(globals).toContain("--motion-ease-spring-gentle:");
-    expect(globals).toContain("--motion-ease-spring-overshoot:");
-    expect(globals).toContain("--motion-ease-spring-toast:");
-    expect(globals).toContain("--motion-ease-spring-panel:");
-    expect(globals).toContain("--motion-ease-spring-glide:");
-    expect(globals).toContain("--motion-duration-spring:");
-    expect(globals).toContain("--motion-duration-spring-enter:");
-    expect(globals).toContain("--motion-duration-morph:");
-    expect(globals).toContain("--motion-duration-shimmer:");
+    expect(kineticsTokens).toContain("--motion-ease-spring-gentle:");
+    expect(globals).toContain('@import "@stemma/kinetics/tokens.css"');
+    expect(kineticsTokens).toContain("--motion-ease-spring-overshoot:");
+    expect(kineticsTokens).toContain("--motion-ease-spring-toast:");
+    expect(kineticsTokens).toContain("--motion-ease-spring-panel:");
+    expect(kineticsTokens).toContain("--motion-ease-spring-glide:");
+    expect(kineticsTokens).toContain("--motion-duration-spring:");
+    expect(kineticsTokens).toContain("--motion-duration-spring-enter:");
+    expect(kineticsTokens).toContain("--motion-duration-morph:");
+    expect(kineticsTokens).toContain("--motion-duration-shimmer:");
     expect(globals).toMatch(
       /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*--motion-duration-standard:\s*1ms/
     );
@@ -256,15 +261,33 @@ describe("canonical UI theme contract", () => {
     expect(globals).toMatch(
       /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*\[data-qc-motion="chart-enter"\][\s\S]*animation:\s*none/
     );
+    expect(globals).toMatch(
+      /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*\[data-animation-active="true"\]\s*\.recharts-curve[\s\S]*animation:\s*none/
+    );
+    expect(globals).toMatch(
+      /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*svg\[data-animation-active="true"\]\s*rect\[data-slot="category-bar"\][\s\S]*animation:\s*none/
+    );
     expect(globals).not.toMatch(
       /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*transform:\s*none/
     );
   });
 
-  it("adopts Kinetics spring patterns as CSS tokens wired to real surfaces, not an npm package", () => {
+  it("adopts Kinetics via first-party @stemma/kinetics package tokens wired to real surfaces", () => {
     expect(globals).toContain("@keyframes qc-skeleton-shimmer");
     expect(globals).toContain("@keyframes qc-kpi-bump");
     expect(globals).toContain("@keyframes qc-chart-enter");
+    expect(globals).toContain("@keyframes qc-chart-bar-grow-y");
+    expect(globals).toContain("@keyframes qc-chart-bar-grow-x");
+    expect(globals).toContain("@keyframes qc-chart-line-draw");
+    expect(globals).toContain("@keyframes qc-chart-line-fade");
+    expect(globals).toContain("@keyframes qc-chart-mark-in");
+    expect(globals).toContain("@keyframes qc-chart-mark-fade");
+    expect(globals).toContain('[data-animation-active="true"] .recharts-curve');
+    expect(globals).toContain("qc-chart-line-fade");
+    expect(globals).not.toMatch(
+      /\[data-animation-active="true"\]\s*\.recharts-curve[\s\S]{0,120}stroke-dasharray:\s*1/
+    );
+    expect(globals).toContain('svg[data-animation-active="true"] rect[data-slot="category-bar"]');
     expect(globals).toContain('[data-sonner-toast].cn-toast');
     expect(globals).toContain("var(--motion-ease-spring-toast)");
     expect(globals).toContain('[data-qc-motion="kpi-bump"]');
@@ -290,13 +313,53 @@ describe("canonical UI theme contract", () => {
     expect(badgeSource).toContain("--motion-duration-morph");
     expect(badgeSource).toContain("--motion-ease-spring-gentle");
     expect(accordionSource).toContain("DisclosureMorphChevron");
+    expect(accordionSource).toContain("--motion-duration-spring-panel");
     expect(morphIconSource).toContain('reducedMotion = "user"');
-    expect(morphIconSource).toContain('spring = "snappy"');
+    expect(morphIconSource).toContain("kineticsMorphSpring");
+    expect(morphIconSource).toContain('from "@stemma/kinetics"');
     expect(tabsSource).toContain("--motion-ease-spring-glide");
     expect(statKpiSource).toContain('data-qc-motion="kpi-bump"');
+    expect(statKpiSource).toContain('data-qc-motion="hover-lift"');
     expect(chartContainerSource).toContain('data-qc-motion="chart-enter"');
-    expect(packageJson).not.toMatch(/["']kinetics["']/);
+    const tooltipStatusSource = readFileSync(
+      resolve(appRoot, "src/components/charts/chart-tooltip-status.tsx"),
+      "utf8"
+    );
+    expect(tooltipStatusSource).toContain("z-50");
+    const chartEnterKeyframes =
+      globals.match(/@keyframes\s+qc-chart-enter\s*\{[\s\S]*?\n\}/)?.[0] ?? "";
+    expect(chartEnterKeyframes).toMatch(/to\s*\{\s*opacity:\s*1/);
+    // Opacity-only enter — a lasting transform stacking context hid tooltips.
+    expect(chartEnterKeyframes).not.toMatch(/transform:/);
+    expect(packageJson).toMatch(/["']@stemma\/kinetics["']\s*:\s*["']file:/);
+    expect(packageJson).not.toMatch(/["']kinetics["']\s*:/);
     expect(packageJson).not.toMatch(/@kinetics\//);
+    expect(globals).toContain('@import "@stemma/kinetics/tokens.css"');
+    expect(globals).toContain('[data-qc-motion="hover-lift"]');
+    const progressSource = readFileSync(resolve(appRoot, "src/components/ui/progress.tsx"), "utf8");
+    const checkboxSource = readFileSync(resolve(appRoot, "src/components/ui/checkbox.tsx"), "utf8");
+    const sheetSource = readFileSync(resolve(appRoot, "src/components/ui/sheet.tsx"), "utf8");
+    const dialogSource = readFileSync(resolve(appRoot, "src/components/ui/dialog.tsx"), "utf8");
+    const alertDialogSource = readFileSync(
+      resolve(appRoot, "src/components/ui/alert-dialog.tsx"),
+      "utf8"
+    );
+    const evidenceJumpSource = readFileSync(
+      resolve(appRoot, "src/components/review/evidence-jump-link.tsx"),
+      "utf8"
+    );
+    const reportChartsSource = readFileSync(
+      resolve(appRoot, "src/components/reports/report-charts.tsx"),
+      "utf8"
+    );
+    expect(progressSource).toContain("--motion-ease-spring-overshoot");
+    expect(checkboxSource).toContain("--motion-duration-spring");
+    expect(sheetSource).toContain("--motion-duration-spring-enter");
+    expect(dialogSource).toContain("--motion-duration-spring-enter");
+    expect(alertDialogSource).toContain("--motion-duration-spring-enter");
+    expect(evidenceJumpSource).toContain("prefersReducedMotion");
+    expect(evidenceJumpSource).toContain("kineticsDurationMs.feedbackFlash");
+    expect(reportChartsSource).toContain('kineticsStyle("width", "overshoot")');
     expect(packageJson).toMatch(/["']morphicons["']\s*:\s*["']1\.7\.1["']/);
     expect(createRequire(resolve(appRoot, "package.json")).resolve("morphicons/react")).toMatch(
       /morphicons[/\\]dist[/\\]react\.js$/

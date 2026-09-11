@@ -95,9 +95,9 @@ export function PrimaryScorePanel({
   const visibleModel = visibleTrendModel(model, liveSeries);
 
   return (
-    <div className="flex min-w-0 flex-col gap-2">
-      <div className="flex items-center gap-1 px-1">
-        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+    <div className="flex min-w-0 flex-col gap-2.5">
+      <div className="flex items-center gap-1.5 rounded-md border border-border/80 bg-muted/30 px-2.5 py-1.5">
+        <span className="text-[0.7rem] font-semibold uppercase tracking-wider text-muted-foreground">
           Средняя оценка за период
         </span>
         <HelpTooltip

@@ -188,23 +188,7 @@ export function RankedDriverChart({
             setActiveIndex(null);
           }
         }}
-      >
-        {activePoint ? (
-          <ChartTooltipStatus
-            id={tooltipId}
-            label={activePoint.label}
-            detail={activePoint.detail}
-            lines={[
-              { label: "Изменение", value: signedDeltaLabel(activePoint) },
-              {
-                label: "Выборка",
-                value: reviewCountLabel(activePoint.sampleSize)
-              }
-            ]}
-            className="absolute right-3 top-3 max-w-64"
-          />
-        ) : null}
-        {activePoint && activePosition ? (
+      >        {activePoint && activePosition ? (
           <span
             aria-hidden="true"
             data-slot="ranked-selected-marker"
@@ -221,6 +205,22 @@ export function RankedDriverChart({
           Visual={RankedDriverVisual}
           componentProps={{ model, height }}
         />
+
+        {activePoint ? (
+          <ChartTooltipStatus
+            id={tooltipId}
+            label={activePoint.label}
+            detail={activePoint.detail}
+            lines={[
+              { label: "Изменение", value: signedDeltaLabel(activePoint) },
+              {
+                label: "Выборка",
+                value: reviewCountLabel(activePoint.sampleSize)
+              }
+            ]}
+            className="absolute right-3 top-3 max-w-64"
+          />
+        ) : null}
       </div>
     </div>
   );

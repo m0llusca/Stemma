@@ -95,7 +95,7 @@ export function PageShell({
       )}
 
       {children != null ? (
-        <div data-slot="page-shell-content" className="flex min-w-0 flex-col gap-6">
+        <div data-slot="page-shell-content" className="flex min-w-0 flex-col gap-7">
           {children}
         </div>
       ) : null}

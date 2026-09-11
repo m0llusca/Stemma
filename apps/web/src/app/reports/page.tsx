@@ -1303,42 +1303,44 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
       ) : null}
 
       {reportView === "overview" ? (
+        // Stack columns (trend→distribution | drivers→sentiment) instead of
+        // two row-paired grids — avoids the empty left void under the trend
+        // chart when the right column is taller. gap-5 tightens section rhythm.
         <section
-          aria-label="Динамика качества и факторы"
-          className="grid items-start gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]"
+          aria-label="Динамика качества, распределение и факторы"
+          className="grid items-start gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]"
         >
-          <PrimaryScorePanel
-            finalizedCount={finalizedCount}
-            previousCount={previousReviews.length}
-            model={qualityTrendModel}
-            visibleSeries={visibleTrendSeries}
-            view={chartView}
-            currentHref={currentChartHref}
-            periodLabel={formatPeriod(period)}
-          />
-          <PeriodMovementPanel
-            negativeItems={deteriorationItems}
-            positiveItems={improvementItems}
-            driverItems={driverStackItems}
-            view={chartView}
-            currentHref={currentChartHref}
-            periodLabel={formatPeriod(period)}
-          />
-        </section>
-      ) : null}
-
-      {reportView === "overview" ? (
-        <section
-          aria-label="Распределение оценок и связь с CSAT"
-          className="grid items-start gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]"
-        >
-          <ScoreDistributionPanel
-            bundle={scoreDistributionBundle}
-            view={chartView}
-            currentHref={currentChartHref}
-            periodLabel={formatPeriod(period)}
-          />
-          <SentimentCorrelationPanel correlation={sentimentCorrelation} actionHref={reportReviewHref(period)} />
+          <div className="flex min-w-0 flex-col gap-5">
+            <PrimaryScorePanel
+              finalizedCount={finalizedCount}
+              previousCount={previousReviews.length}
+              model={qualityTrendModel}
+              visibleSeries={visibleTrendSeries}
+              view={chartView}
+              currentHref={currentChartHref}
+              periodLabel={formatPeriod(period)}
+            />
+            <ScoreDistributionPanel
+              bundle={scoreDistributionBundle}
+              view={chartView}
+              currentHref={currentChartHref}
+              periodLabel={formatPeriod(period)}
+            />
+          </div>
+          <div className="flex min-w-0 flex-col gap-5">
+            <PeriodMovementPanel
+              negativeItems={deteriorationItems}
+              positiveItems={improvementItems}
+              driverItems={driverStackItems}
+              view={chartView}
+              currentHref={currentChartHref}
+              periodLabel={formatPeriod(period)}
+            />
+            <SentimentCorrelationPanel
+              correlation={sentimentCorrelation}
+              actionHref={reportReviewHref(period)}
+            />
+          </div>
         </section>
       ) : null}
 

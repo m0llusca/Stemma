@@ -1,12 +1,12 @@
 export const CATEGORY_BAR_VIEWBOX = Object.freeze({
   width: 520,
-  height: 240
+  height: 180
 });
 
 export const CATEGORY_BAR_MARGIN = Object.freeze({
   left: 8,
   right: 8,
-  top: 28,
+  top: 22,
   bottom: 8
 });
 

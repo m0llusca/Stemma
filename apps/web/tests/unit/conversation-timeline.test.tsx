@@ -180,13 +180,37 @@ describe("ConversationTimeline", () => {
     const cardHeader = container.querySelector<HTMLElement>('[data-slot="card-header"]');
     const customer = container.querySelector<HTMLElement>('[data-party="CUSTOMER"]');
     const human = container.querySelector<HTMLElement>('[data-party="HUMAN_AGENT"]');
+    const ai = container.querySelector<HTMLElement>('[data-party="AI_AGENT"]');
     const system = container.querySelector<HTMLElement>('[data-party="SYSTEM"]');
 
     expect(cardHeader).toHaveClass("flex", "flex-wrap");
     expect(
       customer?.querySelector('[data-slot="conversation-message-header"]')
     ).toHaveClass("flex", "flex-wrap");
+    expect(
+      human?.querySelector('[data-slot="conversation-message-header"]')
+    ).toHaveClass("justify-end");
+    expect(customer).toHaveAttribute("data-align", "start");
+    expect(human).toHaveAttribute("data-align", "end");
+    expect(
+      customer?.querySelector('[data-slot="conversation-message-avatar"]')
+    ).toHaveClass("self-start");
+    expect(
+      human?.querySelector('[data-slot="conversation-message-avatar"]')
+    ).toHaveClass("self-start");
 
+    expect(customer).toHaveAttribute("data-align", "start");
+    expect(customer).toHaveAttribute("data-lane", "customer");
+    expect(human).toHaveAttribute("data-align", "end");
+    expect(human).toHaveAttribute("data-lane", "agent");
+    expect(ai).toHaveAttribute("data-align", "end");
+    expect(ai).toHaveAttribute("data-lane", "agent");
+    expect(system).toHaveAttribute("data-align", "center");
+    expect(system).toHaveAttribute("data-lane", "system");
+
+    const customerSurface = customer?.querySelector(
+      '[data-slot="conversation-message-surface"][data-variant="bubble"]'
+    );
     const agentSurface = human?.querySelector(
       '[data-slot="conversation-message-surface"][data-variant="bubble"]'
     );
@@ -195,12 +219,17 @@ describe("ConversationTimeline", () => {
     );
     const longMessageBody = screen.getByText(/очень-длинная-ссылка-без-разрывов/);
 
+    expect(customerSurface).toHaveClass("max-w-prose");
     expect(agentSurface).toHaveClass("max-w-prose");
     expect(systemSurface).toBeInTheDocument();
     expect(systemSurface).toHaveAttribute("data-variant", "plain");
     expect(systemSurface).not.toHaveAttribute("data-variant", "bubble");
     expect(longMessageBody).toHaveClass("whitespace-pre-wrap", "break-words");
     expect(longMessageBody).not.toHaveClass("break-all");
+    expect(container.querySelector('[data-slot="conversation-chat"]')).toHaveAttribute(
+      "aria-label",
+      "Сообщения диалога"
+    );
   });
 
   it("flashes an evidence target and lets its action select the active evidence field", () => {

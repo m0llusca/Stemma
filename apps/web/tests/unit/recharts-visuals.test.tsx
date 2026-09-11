@@ -228,13 +228,13 @@ describe("lean Recharts visuals", () => {
             visibleSeries={["score", "previous", "target", "volume"]}
           />
         ),
-        classes: ["aspect-[720/320]", "w-full"]
+        classes: ["aspect-[720/280]", "w-full"]
       },
       {
         component: (
           <task6Visuals.ScoreDistributionVisual model={distributionModel} />
         ),
-        classes: ["aspect-[560/260]", "w-full"]
+        classes: ["aspect-[560/200]", "w-full"]
       },
       {
         component: <task6Visuals.ReasonTrendVisual model={reasonModel} />,
@@ -299,7 +299,112 @@ describe("lean Recharts visuals", () => {
       "data-tone",
       "neutral"
     );
-    expect(container.querySelector("[data-animation-active=true]")).not.toBeInTheDocument();
+    expect(container.querySelector("[data-animation-active=true]")).toBeInTheDocument();
+  });
+
+  it("connects score null gaps into one continuous segment and trims trailing empty days", () => {
+    const gapModel: typeof qualityModel = {
+      ...qualityModel,
+      points: [
+        qualityModel.points[0],
+        {
+          id: "one-b",
+          label: "2 июля",
+          sortKey: "1b",
+          values: { score: 84, previous: 81, target: 90, volume: 8 }
+        },
+        {
+          id: "gap",
+          label: "3 июля",
+          sortKey: "1c",
+          values: { score: null, previous: null, target: 90, volume: 0 }
+        },
+        qualityModel.points[1],
+        {
+          id: "two-b",
+          label: "9 июля",
+          sortKey: "2b",
+          values: { score: 89, previous: 85, target: 90, volume: 13 }
+        },
+        {
+          id: "trailing-empty",
+          label: "10 июля",
+          sortKey: "3",
+          values: { score: null, previous: 85, target: 90, volume: 0 }
+        }
+      ]
+    };
+    const { container } = render(
+      <QualityTrendVisual
+        model={gapModel}
+        visibleSeries={["score", "previous", "volume"]}
+      />
+    );
+
+    expect(container.querySelector('[data-series="score"]')).toHaveAttribute(
+      "data-segment-count",
+      "1"
+    );
+    expect(container.querySelector('[data-series="score"]')).toHaveAttribute(
+      "data-connect-nulls",
+      "true"
+    );
+    expect(
+      container.querySelectorAll('[data-series="score"] path')
+    ).toHaveLength(1);
+    expect(container.querySelector('[data-series="previous"]')).toHaveAttribute(
+      "data-segment-count",
+      "1"
+    );
+    expect(
+      container.querySelectorAll('[data-slot="x-axis-tick"]')
+    ).not.toHaveLength(0);
+    expect(container.textContent).not.toContain("10 июля");
+    const volumeBars = container.querySelectorAll(
+      '[data-series="volume"] .recharts-rectangle'
+    );
+    expect(volumeBars.length).toBeGreaterThan(0);
+    for (const bar of volumeBars) {
+      expect(Number(bar.getAttribute("height"))).toBeLessThan(120);
+    }
+  });
+
+  it("connects score across one missing day in a three-day seam", () => {
+    const threeDayModel: typeof qualityModel = {
+      ...qualityModel,
+      points: [
+        {
+          id: "2026-07-01",
+          label: "01.07",
+          sortKey: "2026-07-01",
+          values: { score: 72, previous: 78, target: 90, volume: 1 }
+        },
+        {
+          id: "2026-07-02",
+          label: "02.07",
+          sortKey: "2026-07-02",
+          values: { score: null, previous: 78, target: 90, volume: 0 }
+        },
+        {
+          id: "2026-07-03",
+          label: "03.07",
+          sortKey: "2026-07-03",
+          values: { score: 86, previous: 78, target: 90, volume: 1 }
+        }
+      ]
+    };
+
+    const { container } = render(
+      <QualityTrendVisual model={threeDayModel} visibleSeries={["score"]} />
+    );
+
+    expect(container.querySelector('[data-series="score"]')).toHaveAttribute(
+      "data-segment-count",
+      "1"
+    );
+    expect(
+      container.querySelectorAll('[data-series="score"] [data-point-id]')
+    ).toHaveLength(2);
   });
 
   it("thins dense daily x-axis labels to a non-colliding schedule", () => {
@@ -392,94 +497,7 @@ describe("lean Recharts visuals", () => {
     expect(ticks[3]).toHaveTextContent("01.07");
   });
 
-  it("keeps null quality values as visible line discontinuities", () => {
-    const gapModel: typeof qualityModel = {
-      ...qualityModel,
-      points: [
-        qualityModel.points[0],
-        {
-          id: "one-b",
-          label: "2 июля",
-          sortKey: "1b",
-          values: { score: 84, previous: 81, target: 90, volume: 8 }
-        },
-        {
-          id: "gap",
-          label: "3 июля",
-          sortKey: "1c",
-          values: { score: null, previous: null, target: 90, volume: 0 }
-        },
-        qualityModel.points[1],
-        {
-          id: "two-b",
-          label: "9 июля",
-          sortKey: "2b",
-          values: { score: 89, previous: 85, target: 90, volume: 13 }
-        }
-      ]
-    };
-    const { container } = render(
-      <QualityTrendVisual
-        model={gapModel}
-        visibleSeries={["score", "previous"]}
-      />
-    );
-
-    expect(container.querySelector('[data-series="score"]')).toHaveAttribute(
-      "data-segment-count",
-      "2"
-    );
-    expect(
-      container.querySelectorAll('[data-series="score"] path')
-    ).toHaveLength(2);
-    expect(container.querySelector('[data-series="previous"]')).toHaveAttribute(
-      "data-segment-count",
-      "2"
-    );
-    expect(
-      container.querySelectorAll('[data-series="previous"] path')
-    ).toHaveLength(2);
-  });
-
-  it("renders two score segments around one missing day in a three-day seam", () => {
-    const threeDayModel: typeof qualityModel = {
-      ...qualityModel,
-      points: [
-        {
-          id: "2026-07-01",
-          label: "01.07",
-          sortKey: "2026-07-01",
-          values: { score: 72, previous: 78, target: 90, volume: 1 }
-        },
-        {
-          id: "2026-07-02",
-          label: "02.07",
-          sortKey: "2026-07-02",
-          values: { score: null, previous: 78, target: 90, volume: 0 }
-        },
-        {
-          id: "2026-07-03",
-          label: "03.07",
-          sortKey: "2026-07-03",
-          values: { score: 86, previous: 78, target: 90, volume: 1 }
-        }
-      ]
-    };
-
-    const { container } = render(
-      <QualityTrendVisual model={threeDayModel} visibleSeries={["score"]} />
-    );
-
-    expect(container.querySelector('[data-series="score"]')).toHaveAttribute(
-      "data-segment-count",
-      "2"
-    );
-    expect(
-      container.querySelectorAll('[data-series="score"] [data-point-id]')
-    ).toHaveLength(2);
-  });
-
-  it("renders ranked negative and positive bars without animation", () => {
+  it("renders ranked negative and positive bars with series animation on", () => {
     const { container } = render(
       <RankedDriverVisual model={driverModel} height={220} />
     );
@@ -501,7 +519,14 @@ describe("lean Recharts visuals", () => {
       "263"
     );
     expect(container.querySelectorAll(".recharts-rectangle")).toHaveLength(2);
-    expect(container.querySelector("[data-animation-active=true]")).not.toBeInTheDocument();
+    expect(container.querySelector('[data-series="down"]')).toHaveAttribute(
+      "data-animation-active",
+      "true"
+    );
+    expect(container.querySelector('[data-series="up"]')).toHaveAttribute(
+      "data-animation-active",
+      "true"
+    );
   });
 
   it("never hard-clips ranked category labels: overlong labels ellipsis-truncate at a word boundary with the full label in a title", () => {
@@ -569,7 +594,7 @@ describe("lean Recharts visuals", () => {
     }
   });
 
-  it("all Task 6 visuals disable animation", () => {
+  it("all Task 6 visuals enable series animation", () => {
     const { container } = render(
       <>
         <task6Visuals.ScoreDistributionVisual model={distributionModel} />
@@ -579,10 +604,10 @@ describe("lean Recharts visuals", () => {
       </>
     );
 
-    expect(container.querySelectorAll('[data-animation-active="false"]')).toHaveLength(
+    expect(container.querySelectorAll('[data-animation-active="true"]')).toHaveLength(
       4
     );
-    expect(container.querySelector("[data-animation-active=true]")).toBeNull();
+    expect(container.querySelector("[data-animation-active=false]")).toBeNull();
   });
 
   it("distribution preserves a zero bar without removing its label", () => {
@@ -595,6 +620,7 @@ describe("lean Recharts visuals", () => {
       container.querySelector('[data-point-id="bucket-0"]')
     ).toHaveAttribute("height", "0");
     expect(container).toHaveTextContent("0-50");
+    expect(container.querySelectorAll('[data-slot="y-axis-tick"]')).toHaveLength(3);
   });
 
   it("AI and reason lines break at null gaps", () => {

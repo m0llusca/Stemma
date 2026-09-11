@@ -10,7 +10,6 @@ import {
   ChartEnter,
   ChartGoalBadge,
   ChartScaleFooter,
-  SCORE_OVER_TIME_MIN_HEIGHT_CLASS,
   SCORE_OVER_TIME_PLOT_HEIGHT
 } from "@/components/charts/chart-visual-preset";
 import {
@@ -20,20 +19,20 @@ import {
   sparklinePath
 } from "@/lib/charts/sparkline-geometry";
 import { formatQualityScore, formatQualityScoreDelta, qualityScoreDelta } from "@/lib/score-display";
-import type { ChartDatum } from "@/components/reports/report-charts";
+import type { SparklineDatum } from "@/components/reports/report-charts";
 import { reportPageLocalLinkProps } from "@/lib/reports/report-evidence-links";
 
-type SparklinePoint = ChartDatum & {
+type SparklinePoint = SparklineDatum & {
   x: number;
-  y: number;
+  y: number | null;
   xPercent: number;
-  yPercent: number;
+  yPercent: number | null;
   delta: number | null;
   tooltip: string;
 };
 
 type InteractiveSparklineChartProps = {
-  points: ChartDatum[];
+  points: SparklineDatum[];
   target?: number;
   annotation?: string;
 };
@@ -50,8 +49,15 @@ function pointDeltaLabel(delta: number | null) {
   return `${formatQualityScoreDelta(delta)} к предыдущей точке`;
 }
 
-function buildTooltip(point: ChartDatum, delta: number | null) {
-  return [point.label, formatQualityScore(point.value), point.detail, pointDeltaLabel(delta)].filter(Boolean).join(", ");
+function buildTooltip(point: SparklineDatum, delta: number | null) {
+  return [
+    point.label,
+    point.value == null ? "нет данных" : formatQualityScore(point.value),
+    point.detail,
+    pointDeltaLabel(delta)
+  ]
+    .filter(Boolean)
+    .join(", ");
 }
 
 export function InteractiveSparklineChart({
@@ -93,7 +99,18 @@ export function InteractiveSparklineChart({
       target
     });
     const nextPoints = geometry.mapped.map((point, index): SparklinePoint => {
-      const delta = index === 0 ? null : qualityScoreDelta(point.value, points[index - 1].value);
+      let previousValue: number | null = null;
+      for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+        const candidate = points[cursor]?.value;
+        if (candidate != null) {
+          previousValue = candidate;
+          break;
+        }
+      }
+      const delta =
+        point.value == null || previousValue == null
+          ? null
+          : qualityScoreDelta(point.value, previousValue);
 
       return {
         ...point,
@@ -101,7 +118,6 @@ export function InteractiveSparklineChart({
         tooltip: buildTooltip(point, delta)
       };
     });
-
     return {
       height: geometry.height,
       max: geometry.max,
@@ -120,8 +136,11 @@ export function InteractiveSparklineChart({
     return <p className="text-sm text-muted-foreground">Нет завершенных проверок за выбранный период.</p>;
   }
 
-  const firstPoint = chart.points[0];
-  const lastPoint = chart.points[chart.points.length - 1];
+  const firstPoint =
+    chart.points.find((point) => point.value != null) ?? chart.points[0];
+  const lastPoint =
+    [...chart.points].reverse().find((point) => point.value != null) ??
+    chart.points[chart.points.length - 1];
   const hitRegions = sparklineHitRegions(chart.points.map((point) => point.xPercent));
   const targetBandY = chart.targetY == null ? null : Math.max(0, Math.min(chart.height, chart.targetY));
   const gridTicks = [0, 0.5, 1];
@@ -135,32 +154,33 @@ export function InteractiveSparklineChart({
         <div>
           <p className="text-xs font-medium text-muted-foreground">Начало периода</p>
           <strong className="mt-0.5 block text-lg font-semibold tabular-nums text-foreground">
-            {formatQualityScore(firstPoint.value)}
+            {firstPoint.value == null ? "—" : formatQualityScore(firstPoint.value)}
           </strong>
           <span className="text-xs text-muted-foreground">{firstPoint.label}</span>
         </div>
         <div className="text-right">
           <p className="text-xs font-medium text-muted-foreground">Последняя точка</p>
           <strong className="mt-0.5 block text-lg font-semibold tabular-nums text-foreground">
-            {formatQualityScore(lastPoint.value)}
+            {lastPoint.value == null ? "—" : formatQualityScore(lastPoint.value)}
           </strong>
           <span className="text-xs text-muted-foreground">{lastPoint.label}</span>
         </div>
       </div>
 
       <div
-        className={`relative ${SCORE_OVER_TIME_MIN_HEIGHT_CLASS} overflow-visible rounded-lg border border-border bg-card px-2.5 pb-3 pt-10`}
+        className="relative overflow-visible rounded-lg border border-border bg-card px-2.5 pb-2 pt-3"
         ref={plotRef}
       >
         <svg
           viewBox={`0 0 ${chart.width} ${chart.height}`}
-          width="100%"
+          width={plotWidth ?? "100%"}
           height={chart.height}
-          className="block overflow-visible"
+          className="pointer-events-none block overflow-visible"
           preserveAspectRatio="xMidYMid meet"
           role="img"
           aria-label="Тренд средней оценки"
           focusable="false"
+          data-animation-active="true"
         >
           {gridTicks.map((ratio) => {
             const y = chart.padY + (1 - ratio) * (chart.height - chart.padY * 2);
@@ -219,6 +239,7 @@ export function InteractiveSparklineChart({
           <path
             d={chart.path}
             data-slot="sparkline-line"
+            pathLength={1}
             fill="none"
             stroke={CHART_SERIES_STROKE}
             strokeLinecap="round"
@@ -227,7 +248,17 @@ export function InteractiveSparklineChart({
             vectorEffect="non-scaling-stroke"
           />
           {chart.points.map((point, index) => {
-            const isLatest = index === chart.points.length - 1;
+            if (point.y == null) {
+              return null;
+            }
+
+            const isLatest =
+              index ===
+              chart.points.reduce(
+                (last, candidate, candidateIndex) =>
+                  candidate.y != null ? candidateIndex : last,
+                -1
+              );
 
             return (
               <g key={`${point.label}:${index}`}>
@@ -237,6 +268,7 @@ export function InteractiveSparklineChart({
                   cy={point.y}
                   r={isLatest ? CHART_MARKER_RADIUS_LAST : CHART_MARKER_RADIUS}
                   data-slot="sparkline-point"
+                  data-point-id={`${point.label}:${index}`}
                   fill={CHART_SERIES_STROKE}
                   stroke={CHART_SERIES_STROKE}
                   strokeWidth={CHART_SERIES_STROKE_WIDTH}
@@ -253,8 +285,15 @@ export function InteractiveSparklineChart({
             className="right-2.5 top-2"
           />
         ) : null}
-        <div className="pointer-events-none absolute inset-x-2.5 bottom-3 h-[200px]">
+        <div
+          className="pointer-events-none absolute inset-x-2.5 bottom-2"
+          style={{ height: chart.height }}
+        >
           {chart.points.map((point, index) => {
+            if (point.y == null || point.yPercent == null) {
+              return null;
+            }
+
             const showPoint = () => setActiveIndex(index);
             const hidePoint = () => setActiveIndex(null);
             const isActive = index === activeIndex;
@@ -300,7 +339,7 @@ export function InteractiveSparklineChart({
                   <span
                     id={tooltipId}
                     role="tooltip"
-                    className="pointer-events-none absolute z-10 grid w-[min(210px,calc(100vw-48px))] gap-0.5 rounded-lg border border-primary/40 bg-popover px-2.5 py-2 text-left shadow-md"
+                    className="pointer-events-none absolute z-50 grid w-[min(210px,calc(100vw-48px))] gap-0.5 rounded-lg border border-primary/40 bg-popover px-2.5 py-2 text-left shadow-md"
                     style={{ top: `${point.yPercent}%`, ...tooltipStyle }}
                   >
                     <strong className="text-xs font-semibold leading-tight text-popover-foreground">
@@ -319,6 +358,7 @@ export function InteractiveSparklineChart({
             const controlProps = {
               "aria-label": point.href ? `${point.tooltip}. Открыть проверки` : point.tooltip,
               "aria-describedby": isActive ? tooltipId : undefined,
+              title: point.tooltip,
               className: pointControlClass,
               style: {
                 left: `${region.left}%`,

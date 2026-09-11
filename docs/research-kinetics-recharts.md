@@ -36,7 +36,7 @@
 
 ## Kinetics
 
-Не npm-зависимость. Каталог spring CSS / React / prompt-паттернов.
+Публичного npm у Colorion Kinetics нет (gallery-only). First-party пакет `@stemma/kinetics` держит spring-токены и хелперы; registry `kinetics` — чужой accelerometer-пакет, не ставить.
 
 Слой motion поверх shadcn **base-nova**, не замена DS. В проекте уже `tw-animate-css` и sonner — вторую motion-систему не заводим.
 
@@ -44,7 +44,7 @@
 
 ### Adopted tokens (phase 2)
 
-Скопированы только spring-значения (duration / cubic-bezier) в `apps/web/src/app/globals.css`. React-демо Kinetics и пакет не ставим. Июльский provenance-аудит банил Shimmer Skeleton как чужой код; здесь — независимый token-backed shimmer на `--muted` / `--card`.
+Spring-значения живут в `@stemma/kinetics/tokens.css` (импорт из `globals.css`). React-демо Colorion не вендорим. Июльский provenance-аудит банил Shimmer Skeleton как чужой код; здесь — независимый token-backed shimmer на `--muted` / `--card`.
 
 | Pattern | Tokens | Surface |
 | --- | --- | --- |
@@ -54,11 +54,22 @@
 | Skeleton shimmer | `--motion-duration-shimmer`, `qc-skeleton-shimmer` | `[data-slot="skeleton"][data-qc-motion="static-loop"]` |
 | Status pill morph | `--motion-duration-morph`, `--motion-ease-spring-gentle` | `Badge` / `Chip` / `StatusBadge` |
 | Admin accordion | `--motion-ease-spring-panel`; chevron is Morphicons | `Accordion` panel; trigger uses `DisclosureMorphChevron` |
-| Icon morph swap (#117) | `morphicons` + `reducedMotion="user"` | CopyButton Copy↔Check; accordion / score-module chevron |
+| Icon morph swap (#117) | `morphicons` + `reducedMotion="user"` | CopyButton Copy↔Check; accordion / score-module chevron; top-nav Menu↔X, Search↔X, account ChevronDown↔Up |
 | Tab-pill glide (optional) | `--motion-ease-spring-glide` | `TabsTrigger`, `PageShell` tabs |
 | Chart enter (#109) | `--motion-duration-spring-enter`, `--motion-ease-spring-panel`, `qc-chart-enter` | `[data-qc-motion="chart-enter"]` on `StaticChartContainer` / score sparkline |
+| Progress spring | `--motion-duration-spring`, `--motion-ease-spring-overshoot` | `Progress` indicator |
+| Checkbox / radio settle | `--motion-duration-spring`, `--motion-ease-spring-overshoot` | `Checkbox` / `RadioGroup` indicators |
+| Toggle glide | `--motion-duration-spring-glide`, `--motion-ease-spring-glide` | `Toggle` |
+| Sheet enter | `--motion-duration-spring-enter`, `--motion-ease-spring-panel` | `Sheet` overlay + content |
+| Dialog / alert enter | `--motion-duration-spring-enter`, `--motion-ease-spring-panel` | `Dialog` / `AlertDialog` overlay + content |
+| Hover lift | `--motion-scale-hover-lift`, `--motion-distance-hover-lift` | `[data-qc-motion="hover-lift"]` on `StatKpi` cards |
+| Accordion trigger | `--motion-duration-spring-panel`, `--motion-ease-spring-panel` | `AccordionTrigger` |
+| Evidence jump (JS) | `prefersReducedMotion()`, `kineticsDurationMs.feedbackFlash` | `EvidenceJumpLink` scroll + flash |
+| Inline bars (JS) | `kineticsStyle("width", "overshoot")` | report / analytics / criterion / review width fills |
+| Icon morph (JS) | `kineticsMorphSpring` | `MorphIcon` default spring |
+| Package | `@stemma/kinetics` | tokens.css + JS helpers; not Colorion React demos |
 
-`prefers-reduced-motion: reduce` обнуляет duration-токены до `1ms`, гасит skeleton / KPI / chart-enter / toast animation и снимает shimmer `background-image`. Recharts `isAnimationActive` остаётся `false`. Unit lock: `apps/web/tests/unit/ui-theme-contract.test.ts`.
+`prefers-reduced-motion: reduce` обнуляет duration-токены до `1ms`, гасит skeleton / KPI / chart-enter / toast / series-entrance animation и снимает shimmer `background-image`. Series animation on by default (`data-animation-active="true"`, `AnimatedRectangle` / CSS draw+grow); the hook flips Recharts `isAnimationActive` off under reduced motion. Unit lock: `apps/web/tests/unit/ui-theme-contract.test.ts`.
 
 ## Кто видит графики
 
@@ -86,7 +97,7 @@ Non-empty Exec: static client import → `StaticChartContainer` + first-paint SV
 
 ~~LIVE blank wrapper / eternal pending~~ — fixed (#113).
 
-#109 / #119 visual contract: «Цель» HTML badge outside the plot (`ChartGoalBadge`, chip + tabular-nums, no SVG rotate); score-over-time sparkline uses padded 1:1 geometry + `preserveAspectRatio="xMidYMid meet"` so markers stay circular; footer Мин/Цель/Макс is `ChartScaleFooter` (`text-sm tabular-nums`); Exec / Lead SLA bars share `StaticCategoryBarPlot` (static SVG rects, HTML axis labels); report rich plots lock CSS aspect to the viewBox so `preserveAspectRatio="none"` does not squash ticks/markers; `data-qc-motion="chart-enter"` on `StaticChartContainer` / score sparkline; Recharts `isAnimationActive` stays false.
+#109 / #119 visual contract: «Цель» HTML badge outside the plot (`ChartGoalBadge`, chip + tabular-nums, no SVG rotate); score-over-time sparkline uses padded 1:1 geometry + `preserveAspectRatio="xMidYMid meet"` so markers stay circular; footer Мин/Цель/Макс is `ChartScaleFooter` (`text-sm tabular-nums`); Exec / Lead SLA bars share `StaticCategoryBarPlot` (static SVG rects, HTML axis labels); report rich plots lock CSS aspect to the viewBox so `preserveAspectRatio="none"` does not squash ticks/markers; `data-qc-motion="chart-enter"` on `StaticChartContainer` / score sparkline; series entrance on (`data-animation-active="true"` + `AnimatedRectangle` / CSS).
 
 ## Тесты
 

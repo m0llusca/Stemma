@@ -47,7 +47,7 @@ function ProgressIndicator({
       data-slot="progress-indicator"
       data-qc-motion="feedback"
       className={cn(
-        "h-full bg-primary transition-transform duration-[var(--motion-duration-standard)] ease-[var(--motion-ease-decelerate)]",
+        "h-full bg-primary transition-transform duration-[var(--motion-duration-spring)] ease-[var(--motion-ease-spring-overshoot)]",
         className
       )}
       {...props}

@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -40,7 +40,7 @@ describe("ExecRiskChart", () => {
     const surface = container.querySelector("svg.recharts-surface");
     const rects = [...container.querySelectorAll("svg.recharts-surface rect[data-key]")];
 
-    expect(chart).toHaveClass("h-[240px]");
+    expect(chart).toHaveClass("h-[180px]");
     expect(chart).toHaveAttribute("data-qc-motion", "chart-enter");
     expect(container.querySelector('[data-slot="category-bar-x-axis"]')).toHaveTextContent(
       "Просрочено SLA"
@@ -48,12 +48,12 @@ describe("ExecRiskChart", () => {
     expect(container.querySelector('[data-slot="category-bar-y-axis"]')).toBeInTheDocument();
     expect(container.querySelector("svg.recharts-surface text")).not.toBeInTheDocument();
     expect(chart).toHaveAttribute("data-initial-width", "520");
-    expect(chart).toHaveAttribute("data-initial-height", "240");
+    expect(chart).toHaveAttribute("data-initial-height", "180");
     expect(container.querySelector(".recharts-wrapper")).not.toBeInTheDocument();
     expect(container.querySelector(".recharts-responsive-container")).not.toBeInTheDocument();
     expect(surface).toBeInTheDocument();
-    expect(surface).toHaveAttribute("viewBox", "0 0 520 240");
-    expect(surface).toHaveAttribute("data-animation-active", "false");
+    expect(surface).toHaveAttribute("viewBox", "0 0 520 180");
+    expect(surface).toHaveAttribute("data-animation-active", "true");
     expect(rects).toHaveLength(bars.length);
     expect(rects.every((rect) => Number(rect.getAttribute("width")) > 0)).toBe(true);
     expect(rects.every((rect) => Number(rect.getAttribute("height")) > 0)).toBe(true);
@@ -76,6 +76,20 @@ describe("ExecRiskChart", () => {
     );
     expect(container.innerHTML).not.toContain(EMPTY_TRIAGE_IMPOSTOR_HREF);
     expect(container.innerHTML).not.toContain("status=unreviewed");
+  });
+
+  it("shows hover values on the SLA drill hit targets", () => {
+    const { container } = render(<ExecRiskChart bars={bars} />);
+    const overdue = screen.getByRole("link", {
+      name: categoryBarDrillLabel("Просрочено SLA", 6)
+    });
+
+    fireEvent.pointerEnter(overdue);
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Просрочено SLA");
+    expect(screen.getByRole("tooltip")).toHaveTextContent("6");
+    expect(container.querySelector('[data-slot="chart"]')).toContainElement(
+      screen.getByRole("tooltip")
+    );
   });
 
   it("drills a bar through the same href as the KPI tile", () => {
@@ -101,7 +115,7 @@ describe("ExecRiskChart", () => {
     expect(plotSource).toContain("StaticChartContainer");
     expect(plotSource).toContain("svg");
     expect(plotSource).toContain('className="recharts-surface');
-    expect(plotSource).toContain('data-animation-active="false"');
+    expect(plotSource).toContain('data-animation-active="true"');
     expect(chartSource).not.toContain("from \"recharts\"");
     expect(plotSource).not.toContain("from \"recharts\"");
     expect(chartSource).not.toContain("BarChart");

@@ -98,7 +98,7 @@ export function readDisclosureOpen(host: Element | null): boolean | null {
 
 /**
  * ChevronDown ↔ ChevronUp via Morphicons. Used on accordion / score-module
- * disclosures only (#117 UX-ACCEPT). Not for queue chrome or account menu.
+ * disclosures and shell account-menu triggers (top-nav follow-on to #117).
  *
  * First paint reads the live SoT (controlled `open`, disclosure context,
  * details.open / aria-expanded). MorphIcon mounts only after that seed so a

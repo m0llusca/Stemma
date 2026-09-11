@@ -54,6 +54,15 @@ vi.mock("@/lib/user-actions", () => ({
 
 import { resetAccountMenuExpandedForTests } from "@/components/auth/demo-role-switch";
 
+// Base UI dialog / cmdk rely on APIs missing from jsdom.
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+vi.stubGlobal("ResizeObserver", ResizeObserverStub);
+Element.prototype.scrollIntoView = vi.fn();
+
 function mockCurrentUser(role = "ADMIN") {
   mocks.getCurrentUser.mockResolvedValue({
     id: "user-1",
@@ -78,7 +87,7 @@ describe("app nav", () => {
   });
 
   it("renders the primary product areas as top-nav links", async () => {
-    const { AppNav } = await import("@/components/app-nav");
+    const { AppNavForTests: AppNav } = await import("@/components/app-nav");
 
     render(await AppNav());
 
@@ -87,6 +96,19 @@ describe("app nav", () => {
       .getAllByRole("link")
       .map((link) => link.textContent);
     expect(labels).toEqual(["Сегодня", "Проверки", "Калибровка", "Обучение", "Аналитика", "Настройки"]);
+  });
+
+  
+  it("returns shell chrome without awaiting work-pulse counters", async () => {
+    const { AppNav } = await import("@/components/app-nav");
+    const tree = await AppNav();
+
+    expect(isValidElement(tree) && tree.type === Suspense).toBe(true);
+    // Pulse/demo stay as nested async signals — not resolved before return.
+    expect(mocks.prisma.conversation.count).not.toHaveBeenCalled();
+    expect(mocks.prisma.review.count).not.toHaveBeenCalled();
+    expect(mocks.prisma.trainingAssignment.count).not.toHaveBeenCalled();
+    expect(mocks.getDemoRoleSwitcher).not.toHaveBeenCalled();
   });
 
   it("wraps the search-params-backed shell in a Suspense boundary", async () => {
@@ -109,7 +131,7 @@ describe("app nav", () => {
       email: "qa@example.com",
       workspace: {}
     });
-    const { AppNav } = await import("@/components/app-nav");
+    const { AppNavForTests: AppNav } = await import("@/components/app-nav");
 
     render(await AppNav());
 
@@ -137,7 +159,7 @@ describe("app nav", () => {
       email: "lead@example.com",
       workspace: {}
     });
-    const { AppNav } = await import("@/components/app-nav");
+    const { AppNavForTests: AppNav } = await import("@/components/app-nav");
 
     render(await AppNav());
 
@@ -150,7 +172,7 @@ describe("app nav", () => {
 
   it("shows a support agent only permitted areas including its feedback page", async () => {
     mockCurrentUser("SUPPORT_AGENT");
-    const { AppNav } = await import("@/components/app-nav");
+    const { AppNavForTests: AppNav } = await import("@/components/app-nav");
 
     render(await AppNav());
 
@@ -169,7 +191,7 @@ describe("app nav", () => {
 
   it("hides the take-next-case shortcut from roles without reviews:write", async () => {
     mockCurrentUser("SUPPORT_AGENT");
-    const { AppNav } = await import("@/components/app-nav");
+    const { AppNavForTests: AppNav } = await import("@/components/app-nav");
 
     render(await AppNav());
 
@@ -179,7 +201,7 @@ describe("app nav", () => {
 
   it("surfaces coaching pulse only for a support agent, not ops queue", async () => {
     mockCurrentUser("SUPPORT_AGENT");
-    const { AppNav } = await import("@/components/app-nav");
+    const { AppNavForTests: AppNav } = await import("@/components/app-nav");
 
     render(await AppNav());
 
@@ -202,7 +224,7 @@ describe("app nav", () => {
 
   it("keeps exec on risk pulse without take-next or training chrome", async () => {
     mockCurrentUser("EXEC");
-    const { AppNav } = await import("@/components/app-nav");
+    const { AppNavForTests: AppNav } = await import("@/components/app-nav");
 
     render(await AppNav());
 
@@ -221,7 +243,7 @@ describe("app nav", () => {
 
   it("renders no workspace chrome for a viewer holding state", async () => {
     mockCurrentUser("VIEWER");
-    const { AppNav } = await import("@/components/app-nav");
+    const { AppNavForTests: AppNav } = await import("@/components/app-nav");
 
     expect(await AppNav()).toBeNull();
     expect(mocks.prisma.conversation.count).not.toHaveBeenCalled();
@@ -230,18 +252,24 @@ describe("app nav", () => {
     expect(mocks.getDemoRoleSwitcher).not.toHaveBeenCalled();
   });
 
-  it("keeps the take-next-case shortcut for reviewers", async () => {
-    const { AppNav } = await import("@/components/app-nav");
+  it("keeps take-next available via ⌘K for reviewers, not the nav pulse chrome", async () => {
+    const { AppNavForTests: AppNav } = await import("@/components/app-nav");
 
     render(await AppNav());
 
-    expect(screen.getByRole("button", { name: "Взять следующий" })).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "Взять следующий" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Взять следующий" })).toBeNull();
+
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    const dialog = screen.getByRole("dialog", { name: "Поиск и команды" });
+    const input = screen.getByPlaceholderText(/Найти раздел/);
+    fireEvent.change(input, { target: { value: "следующий кейс" } });
+    expect(within(dialog).getByRole("option", { name: /Взять следующий/ })).not.toBeNull();
   });
 
   it("keeps the demo switcher hidden when demo auth is disabled", async () => {
     mocks.getDemoRoleSwitcher.mockResolvedValue(null);
-    const { AppNav } = await import("@/components/app-nav");
+    const { AppNavForTests: AppNav } = await import("@/components/app-nav");
 
     render(await AppNav());
 
@@ -270,7 +298,7 @@ describe("app nav", () => {
         }
       ]
     });
-    const { AppNav } = await import("@/components/app-nav");
+    const { AppNavForTests: AppNav } = await import("@/components/app-nav");
 
     render(await AppNav());
 
@@ -290,7 +318,7 @@ describe("app nav", () => {
 
   it("keeps the risk pulse badge neutral when the count is 0", async () => {
     mocks.prisma.review.count.mockResolvedValue(0);
-    const { AppNav } = await import("@/components/app-nav");
+    const { AppNavForTests: AppNav } = await import("@/components/app-nav");
 
     render(await AppNav());
 
@@ -304,7 +332,7 @@ describe("app nav", () => {
 
   it("marks the risk pulse destructive only when the count is above 0", async () => {
     mocks.prisma.review.count.mockResolvedValue(3);
-    const { AppNav } = await import("@/components/app-nav");
+    const { AppNavForTests: AppNav } = await import("@/components/app-nav");
 
     render(await AppNav());
 
@@ -316,7 +344,7 @@ describe("app nav", () => {
   });
 
   it("queries the work-pulse counters for the global nav", async () => {
-    const { AppNav } = await import("@/components/app-nav");
+    const { AppNavForTests: AppNav } = await import("@/components/app-nav");
 
     await AppNav();
 
@@ -332,7 +360,7 @@ describe("app nav", () => {
   it("renders no workspace chrome while the unauthenticated login shell is up", async () => {
     const { AuthRequiredError } = await import("@/lib/current-user");
     mocks.getCurrentUser.mockRejectedValue(new AuthRequiredError());
-    const { AppNav } = await import("@/components/app-nav");
+    const { AppNavForTests: AppNav } = await import("@/components/app-nav");
 
     expect(await AppNav()).toBeNull();
     // No chrome also means no pulse queries for an anonymous visitor.
@@ -344,7 +372,7 @@ describe("app nav", () => {
   it("renders no workspace chrome on /auth/* even when demo fallback impersonates a user", async () => {
     mocks.isAuthEntryRequest.mockResolvedValue(true);
     mockCurrentUser();
-    const { AppNav } = await import("@/components/app-nav");
+    const { AppNavForTests: AppNav } = await import("@/components/app-nav");
 
     expect(await AppNav()).toBeNull();
     expect(mocks.getCurrentUser).not.toHaveBeenCalled();
@@ -356,7 +384,7 @@ describe("app nav", () => {
 
   it("propagates non-auth failures instead of silently dropping the nav", async () => {
     mocks.getCurrentUser.mockRejectedValue(new Error("database is down"));
-    const { AppNav } = await import("@/components/app-nav");
+    const { AppNavForTests: AppNav } = await import("@/components/app-nav");
 
     await expect(AppNav()).rejects.toThrow("database is down");
   });

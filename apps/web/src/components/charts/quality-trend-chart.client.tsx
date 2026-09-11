@@ -122,6 +122,7 @@ export function QualityTrendChart({
     }
   }
 
+
   function handlePointer(event: PointerEvent<HTMLDivElement>) {
     const index = geometry.pointIndexFromClientX(
       event.clientX,
@@ -182,6 +183,67 @@ export function QualityTrendChart({
           }
         }}
       >
+        <DeferredChartVisual
+          Visual={QualityTrendVisual}
+          componentProps={{ model, visibleSeries }}
+        />
+        {/* Per-point hit strips: native `title` works before/without hydration;
+            pointer handlers still drive the rich tooltip when the island mounts. */}
+        {geometry.domainIndexes.map((modelIndex, domainPosition) => {
+          const point = model.points[modelIndex];
+          if (!point) {
+            return null;
+          }
+          const x = geometry.xFor(modelIndex);
+          const prevX =
+            domainPosition === 0
+              ? geometry.margin.left
+              : (geometry.xFor(geometry.domainIndexes[domainPosition - 1]!) +
+                  x) /
+                2;
+          const nextX =
+            domainPosition === geometry.domainIndexes.length - 1
+              ? geometry.width - geometry.margin.right
+              : (x +
+                  geometry.xFor(geometry.domainIndexes[domainPosition + 1]!)) /
+                2;
+          const leftPct = (prevX / geometry.width) * 100;
+          const widthPct = ((nextX - prevX) / geometry.width) * 100;
+          const scoreValue = point.values.score;
+          const title = [
+            point.label,
+            scoreValue == null
+              ? "Нет данных"
+              : formatQualityScore(scoreValue),
+            reviewCountLabel(point.sampleSize)
+          ].join(" · ");
+
+          return (
+            <span
+              key={`hit-${point.id}`}
+              aria-hidden="true"
+              title={title}
+              data-slot="quality-trend-hit"
+              data-point-id={point.id}
+              className="absolute inset-y-0 z-20"
+              style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
+              onPointerEnter={() => setActiveIndex(modelIndex)}
+            />
+          );
+        })}
+        {activePoint && activePosition ? (
+          <span
+            aria-hidden="true"
+            data-slot="quality-selected-marker"
+            data-point-id={activePoint.id}
+            data-marker-series={activeMark?.series}
+            className="pointer-events-none absolute z-40 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-primary ring-3 ring-primary/45 shadow-sm"
+            style={{
+              left: `${activePosition.left}%`,
+              top: `${activePosition.top}%`
+            }}
+          />
+        ) : null}
         {activePoint ? (
           <ChartTooltipStatus
             id={tooltipId}
@@ -207,23 +269,6 @@ export function QualityTrendChart({
             className="absolute left-3 top-3 max-w-64"
           />
         ) : null}
-        {activePoint && activePosition ? (
-          <span
-            aria-hidden="true"
-            data-slot="quality-selected-marker"
-            data-point-id={activePoint.id}
-            data-marker-series={activeMark?.series}
-            className="pointer-events-none absolute z-10 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-primary ring-3 ring-primary/45 shadow-sm"
-            style={{
-              left: `${activePosition.left}%`,
-              top: `${activePosition.top}%`
-            }}
-          />
-        ) : null}
-        <DeferredChartVisual
-          Visual={QualityTrendVisual}
-          componentProps={{ model, visibleSeries }}
-        />
       </div>
     </div>
   );

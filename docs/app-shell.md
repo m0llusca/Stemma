@@ -36,7 +36,7 @@ When `QC_DEMO_AUTH=enabled`, the account/profile menu lists the same seeded DEMO
 
 Top-nav **«Проверки»** is writer/dashboard roles (`DASHBOARD_ROLES` / `canSeeReviewsQueueNav`), not any `reviews:read`. Ops pulse **«Очередь»** / **«Риск»** is `reviews:write` only (`canSeeOpsQueuePulse`). SUPPORT_AGENT and EXEC both hold `reviews:read`; chrome must not sell the ops queue. Agent keeps coaching pulse. EXEC risk signals stay on `ExecRiskHome`, not the topbar. The risk chart loads via client island (`exec-risk-chart-island.client.tsx`) with a static import of `exec-risk-chart.client` (`StaticChartContainer` + SVG bars); do not put `dynamic({ ssr: false })` in the RSC or the island.
 
-⌘K, pulse, queue page, next-case preview, and workbench **finalize_next** share one Take verb: **«Взять следующий»**. They are actions, not nav hrefs. Same `takeNextReview` path — and the same `reviews:write` / `canTakeNextCase` write-gate. Readers must not see those CTAs (a leaked submit hits `error.tsx`). Saved views: create / rename / delete = `reviews:write`; apply stays for readers. [ux-queue-hotkeys-contract.md](ux-queue-hotkeys-contract.md).
+⌘K, queue page, next-case preview, and workbench **finalize_next** share one Take verb: **«Взять следующий»**. They are actions, not nav hrefs. Same `takeNextReview` path — and the same `reviews:write` / `canTakeNextCase` write-gate. The top-nav pulse chrome shows queue/risk/coaching badges only (no Take next button). Readers must not see write CTAs (a leaked submit hits `error.tsx`). Saved views: create / rename / delete = `reviews:write`; apply stays for readers. [ux-queue-hotkeys-contract.md](ux-queue-hotkeys-contract.md).
 
 Top-nav **«Настройки»** → `/admin` when `canAccessAdminHub` (any of `adminHubPermissions`). QA unlocks the hub via `reports:manage`; rail and hub cards show **report schedules** only. Overview for that role is accent («Доступные разделы»), not a cert-green «Настройки в рабочем состоянии». [semantic-status-colors.md](semantic-status-colors.md).
 
@@ -55,6 +55,8 @@ After a long absence, `WelcomeBackBanner` offers an explicit reset via `welcomeB
 ## Async Signals
 
 Sidebar and topbar counters or alerts should be non-blocking. Load them in isolated async signal components so the shell can render if a count, health probe, or optional widget fails. Signal failures should degrade to neutral copy or be omitted; they should not block the page shell.
+
+`AppNav` follows this for work-pulse badges and the demo role-switch menu: `getShellSnapshot()` paints the chrome first, then `pulseSlot` / `demoMenuSlot` stream behind nested `Suspense`. Do not `await` those queries in `AppNav` before returning the shell — that re-blocks soft section navigation. Unit tests that need a resolved tree use `AppNavForTests`.
 
 ## Loading Boundaries
 

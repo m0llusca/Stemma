@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import type { KeyboardEvent } from "react";
+import { useId, useState, type KeyboardEvent } from "react";
 import {
   EXEC_RISK_CHART_MIN_HEIGHT_CLASS
 } from "@/components/charts/chart-visual-preset";
+import { ChartTooltipStatus } from "@/components/charts/chart-tooltip-status";
 import {
   StaticChartContainer,
   type ChartConfig
@@ -50,8 +51,11 @@ export function StaticCategoryBarPlot({
   bars: readonly CategoryBarDatum[];
   config?: ChartConfig;
 }) {
+  const tooltipId = useId();
+  const [activeKey, setActiveKey] = useState<string | null>(null);
   const plot = buildCategoryBarPlot(bars);
   const columnTemplate = `repeat(${Math.max(bars.length, 1)}, minmax(0, 1fr))`;
+  const activeBar = plot.bars.find((bar) => bar.key === activeKey) ?? null;
 
   return (
     <div data-slot="static-category-bars" className="grid min-w-0 gap-2">
@@ -92,7 +96,7 @@ export function StaticCategoryBarPlot({
             tabIndex={-1}
             viewBox={`0 0 ${plot.width} ${plot.height}`}
             preserveAspectRatio="none"
-            data-animation-active="false"
+            data-animation-active="true"
           >
             {plot.ticks.map((tick) => {
               const y =
@@ -115,8 +119,10 @@ export function StaticCategoryBarPlot({
             {plot.bars.map((bar) => (
               <rect
                 key={bar.key}
+                data-slot="category-bar"
                 data-key={bar.key}
                 data-href={bar.href}
+                data-slot="category-bar"
                 x={bar.x}
                 y={bar.y}
                 width={bar.width}
@@ -127,20 +133,6 @@ export function StaticCategoryBarPlot({
             ))}
           </svg>
           {plot.bars.map((bar) => (
-            <span
-              key={`${bar.key}:value`}
-              aria-hidden="true"
-              data-slot="category-bar-value"
-              className="pointer-events-none absolute -translate-x-1/2 text-[11px] font-semibold tabular-nums text-foreground"
-              style={{
-                left: `${((bar.x + bar.width / 2) / plot.width) * 100}%`,
-                top: `${Math.max(4, ((bar.y - 16) / plot.height) * 100)}%`
-              }}
-            >
-              {bar.value}
-            </span>
-          ))}
-          {plot.bars.map((bar) => (
             <Link
               key={`${bar.key}:drill`}
               href={bar.href}
@@ -148,14 +140,33 @@ export function StaticCategoryBarPlot({
               data-key={bar.key}
               data-href={bar.href}
               aria-label={categoryBarDrillLabel(bar.label, bar.value)}
-              className="absolute inset-y-0 -translate-x-1/2 rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              aria-describedby={activeKey === bar.key ? tooltipId : undefined}
+              title={`${bar.label}: ${bar.value}`}
+              className="absolute inset-y-0 z-10 -translate-x-1/2 rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
               style={{
                 left: `${((bar.x + bar.width / 2) / plot.width) * 100}%`,
                 width: `${Math.max(12, (bar.width / plot.width) * 100)}%`
               }}
               onKeyDown={activateLinkOnSpace}
+              onFocus={() => setActiveKey(bar.key)}
+              onBlur={() => setActiveKey(null)}
+              onPointerEnter={() => setActiveKey(bar.key)}
+              onPointerLeave={() => setActiveKey(null)}
             />
           ))}
+          {activeBar ? (
+            <ChartTooltipStatus
+              id={tooltipId}
+              label={activeBar.label}
+              lines={[
+                {
+                  label: "Проверки",
+                  value: String(activeBar.value)
+                }
+              ]}
+              className="absolute left-3 top-3 max-w-56"
+            />
+          ) : null}
         </StaticChartContainer>
       </div>
       <div

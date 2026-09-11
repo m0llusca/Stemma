@@ -17,9 +17,24 @@ const morphiconsReactFromApp = `./${path
   .split(path.sep)
   .join("/")}`;
 
+/** Monorepo root so Turbopack can resolve `file:../../packages/kinetics`
+ *  (symlink target lives outside `apps/web`; without this, CSS import panics:
+ *  "leaves the filesystem root"). */
+const monorepoRoot = path.resolve(appRoot, "../..");
+
 const nextConfig: NextConfig = {
-  transpilePackages: ["morphicons"],
+  transpilePackages: ["morphicons", "@stemma/kinetics"],
+  // Dev client (HMR + /_next/*) rejects cross-origin hosts by default. Without
+  // this, 127.0.0.1 and Cloudflare tunnels get ERR_INVALID_HTTP_RESPONSE on
+  // `/_next/hmr`, React never hydrates, and chart tooltips stay dead.
+  allowedDevOrigins: [
+    "127.0.0.1",
+    "localhost",
+    "*.trycloudflare.com",
+    "*.cloudflare.com"
+  ],
   turbopack: {
+    root: monorepoRoot,
     resolveAlias: {
       "morphicons/react": morphiconsReactFromApp
     }

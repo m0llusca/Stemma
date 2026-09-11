@@ -6,7 +6,7 @@
 
 **Shipped (verify in code, not here):**
 
-- Take next = one path and one verb («Взять следующий»: queue / preview / `finalize_next` / ⌘K / pulse). No impostor `/reviews?status=unreviewed`. → [ux-queue-hotkeys-contract.md](ux-queue-hotkeys-contract.md)
+- Take next = one path and one verb («Взять следующий»: queue / preview / `finalize_next` / ⌘K). No impostor `/reviews?status=unreviewed`. Top-nav pulse is badges only. → [ux-queue-hotkeys-contract.md](ux-queue-hotkeys-contract.md)
 - Status chip = `reviewStateLabels` on queue + next-case preview. → same contract
 - Connection/channel/catalog green only after `live_certified`. → [semantic-status-colors.md](semantic-status-colors.md)
 - Role homes: Analyst «Сегодня» = Мои+просрочено; Agent brand → `/self-review`; Lead «Сегодня» = `/dashboard`; Exec «Сегодня» = risk/SLA on `/dashboard` (ops chrome hidden). → [app-shell.md](app-shell.md)

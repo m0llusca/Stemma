@@ -3,7 +3,8 @@
 **Verdict: implement.** Isolated PR. Supersedes the #108 reject note.
 
 Roman (2026-09-09): implement, not defer. Parent epic: #116.
-Marques UX-ACCEPT: **exactly 2** surfaces — CopyButton + accordion/score-module chevron. Account-menu chevron is later, not in this spike.
+Marques UX-ACCEPT (#117 spike): CopyButton + accordion/score-module chevron.
+Top-nav follow-on: account-menu chevron, sections Menu↔X, command Search↔X.
 
 ## Provenance
 
@@ -15,22 +16,26 @@ Marques UX-ACCEPT: **exactly 2** surfaces — CopyButton + accordion/score-modul
 | Site | https://www.morphicons.com/ |
 | Icon data | `lucide-react@0.468.0` (ISC) — same package the rest of the app imports |
 
-Kinetics itself has no LICENSE ([audit](memory/2026-07-28-kinetics-evilcharts-provenance-audit.md)); we still do not copy Kinetics React demos. Morphicons is a separate MIT npm package, so the Kinetics license bar is met.
+Colorion Kinetics has no public npm (gallery-only); Stemma ships first-party `@stemma/kinetics` for spring tokens only and still does not copy Colorion React demos ([audit](memory/2026-07-28-kinetics-evilcharts-provenance-audit.md)). Morphicons remains a separate MIT npm package.
 
 Call sites import from `lucide-react` (already on the stand). `asMorphIcon` unwraps those components to the flat `IconNode` Morphicons consumes. Do not add a bare `lucide` package.
 
-## Surfaces (this spike)
+## Surfaces
 
 | Surface | Morph | Notes |
 | --- | --- | --- |
-| CopyButton | Copy ↔ Check | Required ACCEPT |
-| Accordion / score-module chevron | ChevronDown ↔ ChevronUp | Required ACCEPT: `Accordion` + review/scorecard modules |
+| CopyButton | Copy ↔ Check | #117 ACCEPT |
+| Accordion / score-module chevron | ChevronDown ↔ ChevronUp | #117 ACCEPT: `Accordion` + review/scorecard modules |
+| Top-nav account menu | ChevronDown ↔ ChevronUp | `AccountMenuDisclosure` / `DemoAccountMenu` (controlled via `DisclosureOpenProvider`) |
+| Top-nav sections trigger | Menu ↔ X | Mobile/compact area menu open state |
+| Top-nav command trigger | Search ↔ X | Command palette open state |
+| Top-nav primary areas | idle ↔ active glyph | Hover/focus/active: Gauge↔Activity, MessageSquare↔MessageSquareReply, ClipboardList↔ClipboardCheck, Scale↔CircleEqual, BookOpen↔BookOpenCheck, ChartColumn↔ChartSpline, SlidersHorizontal↔Settings2 |
 
 ## Out of scope (no morph spam)
 
 - Queue chrome (`QueueNextCasePreview`, saved-view chevrons, Take next)
 - Chart chrome (#119)
-- Nav Menu↔X / every top-bar icon
+- Static top-bar chrome (brand, pulse Activity, Bell) — Take next is page/⌘K only, not pulse
 - Select / combobox / calendar / native-select chevrons
 - Blanket replace of `lucide-react`
 

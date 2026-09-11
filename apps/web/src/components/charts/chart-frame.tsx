@@ -76,15 +76,18 @@ export function ChartFrame({
       : `${sample.size} из ${sample.denominator}`;
   const hasLowSample = sample.minimum != null && sample.size < sample.minimum;
 
+  // Avoid h-full: in report overview grids a stretched card would inflate
+  // empty white space below the plot when the sibling column is taller.
+  // Height follows content; equal-height pairing is opt-in at the call site.
   return (
-    <Card aria-labelledby={headingId} size="sm" className="h-full gap-0 py-0">
+    <Card aria-labelledby={headingId} size="sm" className="gap-0 py-0">
       <CardHeader className="border-b py-4">
         <CardTitle id={headingId}>{model.title}</CardTitle>
         {model.description ? <CardDescription>{model.description}</CardDescription> : null}
         <CardAction>
           <ChartViewLinks currentHref={currentHref} view={view} labelledBy={headingId} />
         </CardAction>
-        <div className="col-span-full flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+        <div className="col-span-full mt-1 flex flex-wrap gap-x-3 gap-y-1 border-t border-border/70 pt-2 text-xs text-muted-foreground">
           <span>Период: {periodLabel}</span>
           <span>Единицы: {units}</span>
           <span>Выборка: {sampleLabel}</span>

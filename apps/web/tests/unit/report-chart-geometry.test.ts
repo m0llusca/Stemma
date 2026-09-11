@@ -252,6 +252,92 @@ describe("Task 6 shared plot geometry", () => {
     expect(reason.lineSegments("previous")).toHaveLength(1);
   });
 
+  it("quality trend connects nulls, trims empty edges, and caps volume height", () => {
+    const model = buildChartModel({
+      id: "quality-trim",
+      title: "Качество",
+      description: "Тренд.",
+      series: [
+        {
+          key: "score" as const,
+          label: "Баллы",
+          unit: "quality-score" as const,
+          tone: "primary" as const
+        },
+        {
+          key: "previous" as const,
+          label: "База",
+          unit: "quality-score" as const,
+          tone: "secondary" as const
+        },
+        {
+          key: "target" as const,
+          label: "Цель",
+          unit: "quality-score" as const,
+          tone: "reference" as const
+        },
+        {
+          key: "volume" as const,
+          label: "Проверки",
+          unit: "count" as const,
+          tone: "secondary" as const
+        }
+      ],
+      points: [
+        {
+          id: "lead-empty",
+          label: "01.07",
+          sortKey: "0",
+          values: { score: null, previous: 70, target: 90, volume: 0 }
+        },
+        {
+          id: "a",
+          label: "02.07",
+          sortKey: "1",
+          values: { score: 72, previous: 70, target: 90, volume: 2 }
+        },
+        {
+          id: "gap",
+          label: "03.07",
+          sortKey: "2",
+          values: { score: null, previous: 70, target: 90, volume: 0 }
+        },
+        {
+          id: "b",
+          label: "04.07",
+          sortKey: "3",
+          values: { score: 88, previous: 70, target: 90, volume: 5 }
+        },
+        {
+          id: "trail-empty",
+          label: "05.07",
+          sortKey: "4",
+          values: { score: null, previous: 70, target: 90, volume: 0 }
+        }
+      ],
+      emptyTitle: "Нет данных"
+    });
+
+    expect(geometryModule.qualityTrendDomainIndexes(model.points)).toEqual([
+      1, 2, 3
+    ]);
+
+    const quality = geometryModule.buildQualityTrendGeometry(model, [
+      "score",
+      "volume"
+    ]);
+    expect(quality.lineSegments("score")).toHaveLength(1);
+    expect(quality.lineSegments("score")[0]).toHaveLength(2);
+    expect(quality.domainIndexes).toEqual([1, 2, 3]);
+    const maxVolumeHeight =
+      quality.plotHeight * geometryModule.QUALITY_TREND_VOLUME_HEIGHT_FRACTION;
+    expect(quality.plotHeight - (quality.yForVolume(5) - quality.margin.top)).toBeCloseTo(
+      maxVolumeHeight,
+      5
+    );
+    expect(maxVolumeHeight).toBeLessThan(quality.plotHeight * 0.5);
+  });
+
   it("agreement geometry shares the 80 percent reference coordinate", () => {
     const result = expectedAgreementGeometry();
 
@@ -354,7 +440,7 @@ describe("Task 6 shared plot geometry", () => {
       220
     );
 
-    expect(quality).toMatchObject({ width: 720, height: 320 });
+    expect(quality).toMatchObject({ width: 720, height: 280 });
     expect(ranked).toMatchObject({ width: 440, zeroX: 263 });
   });
 });

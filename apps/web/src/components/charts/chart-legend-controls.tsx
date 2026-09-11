@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import type { ChartSeries } from "@/lib/charts/contracts";
 import { cn } from "@/lib/utils";
@@ -54,7 +55,7 @@ const markerClassByKey: Record<string, string> = {
   score: "border-chart-1",
   previous: "border-chart-2 border-dashed",
   target: "border-chart-4 border-dotted",
-  volume: "border-chart-3"
+  volume: "h-2.5 w-1.5 rounded-[1px] border-0 bg-chart-3/35"
 };
 
 export function ChartLegendControls<TKey extends string>({
@@ -68,6 +69,7 @@ export function ChartLegendControls<TKey extends string>({
   currentHref: string;
   ariaLabel?: string;
 }) {
+  const router = useRouter();
   const visible = new Set(visibleSeries);
   const orderedKeys = series.map((item) => item.key);
 
@@ -76,6 +78,7 @@ export function ChartLegendControls<TKey extends string>({
       {series.map((item) => {
         const pressed = visible.has(item.key);
         const isLastVisible = pressed && visible.size === 1;
+        const isVolume = item.key === "volume";
 
         return (
           <Button
@@ -88,8 +91,8 @@ export function ChartLegendControls<TKey extends string>({
             onClick={() => {
               // Series visibility is presentation state owned by the URL. A
               // native replaceState commits it even when the App Router drops
-              // navigation commits on a fresh page load (Next 16.2.x); the
-              // parent chart re-renders from the updated search params.
+              // navigation commits on a fresh page load (Next 16.2.x); refresh
+              // pulls the new search params into client hooks.
               window.history.replaceState(
                 null,
                 "",
@@ -100,12 +103,13 @@ export function ChartLegendControls<TKey extends string>({
                   item.key
                 )
               );
+              router.refresh();
             }}
           >
             <span
               aria-hidden="true"
               className={cn(
-                "w-4 border-t-2",
+                isVolume ? "shrink-0" : "w-4 border-t-2",
                 markerClassByKey[item.key] ?? "border-foreground"
               )}
             />

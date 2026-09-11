@@ -43,6 +43,7 @@
     "@base-ui/react": "^1.6.0",
     "@node-saml/node-saml": "^5.1.0",
     "@prisma/client": "6.19.3",
+    "@stemma/kinetics": "file:../../packages/kinetics",
     "@tailwindcss/postcss": "^4.3.3",
     "@trpc/server": "^11.17.0",
     "@ydbjs/auth": "^6.3.0",

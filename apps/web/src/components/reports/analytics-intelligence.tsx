@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { kineticsStyle } from "@stemma/kinetics";
 import type { ReactNode } from "react";
 import { AlertTriangle, Grid2x2 } from "lucide-react";
 import { ChartFrame } from "@/components/charts/chart-frame";
@@ -172,7 +173,7 @@ export function MetricInsightStrip({
                   >
                     <span
                       className="block h-full rounded-full bg-primary"
-                      style={{ width: `${progress}%` }}
+                      style={{ width: `${progress}%`, ...kineticsStyle("width", "overshoot") }}
                     />
                   </div>
                 </div>
@@ -326,7 +327,7 @@ export function CriterionHeatmapPanel({
                       >
                         <span
                           className="block h-full rounded-full bg-current opacity-80"
-                          style={{ width: `${progress ?? 0}%` }}
+                          style={{ width: `${progress ?? 0}%`, ...kineticsStyle("width", "overshoot") }}
                         />
                       </span>
                     </div>
