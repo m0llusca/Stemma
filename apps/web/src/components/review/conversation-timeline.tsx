@@ -92,7 +92,7 @@ function renderPinList(
   }
 
   return (
-    <ul className="mt-1.5 flex w-full flex-col gap-1.5">
+    <ul className="mt-1 flex w-full flex-col gap-2">
       {messagePins.map((pin) => {
         const isResolved = pin.resolvedAt !== null;
         const canMutate = canManagePins || pin.author.id === currentUserId;
@@ -101,7 +101,7 @@ function renderPinList(
           <li
             key={pin.id}
             className={cn(
-              "rounded-lg border border-border bg-muted/40 px-2.5 py-2",
+              "rounded-lg border border-border bg-muted/40 p-3",
               isResolved && "opacity-80"
             )}
           >
@@ -115,11 +115,11 @@ function renderPinList(
               </time>
               {isResolved ? <Badge variant="secondary">Закрыта</Badge> : null}
             </div>
-            <p className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground">
+            <p className="mt-1.5 whitespace-pre-wrap break-words text-sm text-foreground">
               {pin.body}
             </p>
             {canMutate ? (
-              <div className="mt-1.5 flex flex-wrap gap-2">
+              <div className="mt-2 flex flex-wrap gap-2">
                 <form action={toggleCoachingPinResolved}>
                   <input type="hidden" name="pinId" value={pin.id} />
                   <Button type="submit" size="xs" variant="outline">
@@ -138,31 +138,6 @@ function renderPinList(
         );
       })}
     </ul>
-  );
-}
-
-function MessageMeta({
-  message,
-  align
-}: {
-  message: Message;
-  align: "start" | "end";
-}) {
-  return (
-    <MessageFooter
-      className={cn(
-        "gap-1.5",
-        align === "end" ? "justify-end" : "justify-start"
-      )}
-    >
-      <time
-        className="whitespace-nowrap font-mono text-[11px] text-muted-foreground tabular-nums"
-        dateTime={message.sentAt.toISOString()}
-      >
-        {formatTimestamp(message.sentAt)}
-      </time>
-      <EvidenceMessageButton messageId={message.id} />
-    </MessageFooter>
   );
 }
 
@@ -187,15 +162,20 @@ export function ConversationTimeline({
   }
 
   return (
-    <Card className="overflow-clip py-0">
+    <Card className="overflow-clip py-0" data-slot="conversation-chat-card">
       <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 space-y-0 border-b border-border bg-muted/30 px-4 py-3">
         <CardTitle className="text-base">Таймлайн диалога</CardTitle>
         <Badge variant="secondary" className="font-normal tabular-nums">
           {formatMessageCount(messages.length)}
         </Badge>
       </CardHeader>
-      <CardContent className="px-3 py-3 sm:px-4">
-        <MessageGroup className="gap-2.5" data-slot="conversation-chat">
+      <CardContent className="bg-muted/15 px-3 py-5 sm:px-5">
+        <MessageGroup
+          className="gap-5"
+          data-slot="conversation-chat"
+          role="log"
+          aria-label="Сообщения диалога"
+        >
           {messages.map((message) => {
             const isHighlighted = highlightedMessages.has(message.id);
             const messagePins = pinsByMessage.get(message.id) ?? [];
@@ -217,13 +197,13 @@ export function ConversationTimeline({
                   data-slot="conversation-message"
                   data-party={message.participantType}
                   data-align="center"
+                  data-lane="system"
                   className={cn(
                     flashClass,
-                    "flex flex-col items-center gap-1",
                     isHighlighted && "rounded-lg bg-primary/5 ring-1 ring-primary/20"
                   )}
                 >
-                  <Marker variant="separator" className="py-0.5">
+                  <Marker variant="separator" className="py-1">
                     <MarkerContent className="max-w-[min(100%,36rem)] text-center text-xs">
                       <span
                         data-slot="conversation-message-avatar"
@@ -232,13 +212,10 @@ export function ConversationTimeline({
                       >
                         {initials(message.authorName)}
                       </span>
-                      <span
-                        data-slot="conversation-message-content"
-                        className="inline-flex max-w-full flex-col items-center gap-0.5"
-                      >
+                      <span data-slot="conversation-message-content" className="inline-flex max-w-full flex-col items-center gap-1">
                         <span
                           data-slot="conversation-message-header"
-                          className="inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5"
+                          className="inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1"
                         >
                           <span className="font-medium text-foreground">{message.authorName}</span>
                           <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
@@ -255,9 +232,9 @@ export function ConversationTimeline({
                       </span>
                     </MarkerContent>
                   </Marker>
-                  <div className="flex flex-wrap items-center justify-center gap-1.5">
+                  <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
                     <time
-                      className="whitespace-nowrap font-mono text-[11px] text-muted-foreground tabular-nums"
+                      className="whitespace-nowrap font-mono text-xs text-muted-foreground tabular-nums"
                       dateTime={message.sentAt.toISOString()}
                     >
                       {formatTimestamp(message.sentAt)}
@@ -266,7 +243,7 @@ export function ConversationTimeline({
                   </div>
                   {renderPinList(messagePins, canManagePins, currentUserId)}
                   {canCoach && conversationId ? (
-                    <div className="flex justify-center">
+                    <div className="mt-2 flex justify-center">
                       <CoachingPinComposer conversationId={conversationId} messageId={message.id} />
                     </div>
                   ) : null}
@@ -280,16 +257,18 @@ export function ConversationTimeline({
                 id={`msg-${message.id}`}
                 data-slot="conversation-message"
                 data-party={message.participantType}
+                data-lane={isAgent ? "agent" : "customer"}
                 align={align}
                 className={cn(
                   flashClass,
-                  isHighlighted && "rounded-lg bg-primary/5 p-1.5 ring-1 ring-primary/20"
+                  isAgent ? "pl-8 sm:pl-16" : "pr-8 sm:pr-16",
+                  isHighlighted && "rounded-lg bg-primary/5 p-2 ring-1 ring-primary/20"
                 )}
               >
                 <MessageAvatar
                   data-slot="conversation-message-avatar"
                   className={cn(
-                    "size-8 border text-xs font-semibold",
+                    "size-8 border text-xs font-semibold group-has-data-[slot=message-footer]/message:translate-y-0",
                     "group-data-[party=CUSTOMER]/message:border-border group-data-[party=CUSTOMER]/message:bg-muted group-data-[party=CUSTOMER]/message:text-muted-foreground",
                     "group-data-[party=HUMAN_AGENT]/message:border-primary/30 group-data-[party=HUMAN_AGENT]/message:bg-primary/10 group-data-[party=HUMAN_AGENT]/message:text-primary",
                     "group-data-[party=AI_AGENT]/message:border-(--ai-border) group-data-[party=AI_AGENT]/message:bg-(--ai-soft) group-data-[party=AI_AGENT]/message:text-(--ai-ink)"
@@ -299,18 +278,21 @@ export function ConversationTimeline({
                   {initials(message.authorName)}
                 </MessageAvatar>
 
-                <MessageContent data-slot="conversation-message-content">
+                <MessageContent
+                  data-slot="conversation-message-content"
+                  className="max-w-[min(100%,36rem)] gap-1.5"
+                >
                   <MessageHeader
                     data-slot="conversation-message-header"
                     className={cn(
-                      "flex min-w-0 flex-wrap text-sm",
-                      isAgent ? "justify-end text-right" : "justify-start text-left"
+                      "flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 px-1 text-sm",
+                      isAgent && "justify-end text-right"
                     )}
                   >
                     <span className="min-w-0 break-words font-semibold text-foreground">
                       {message.authorName}
                     </span>
-                    <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
+                    <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
                       {participantLabels[message.participantType]}
                     </span>
                     {isAiAuthored ? <Chip tone="ai">ИИ</Chip> : null}
@@ -339,7 +321,7 @@ export function ConversationTimeline({
                     <BubbleContent
                       data-slot="conversation-message-surface"
                       data-variant="bubble"
-                      className="max-w-prose space-y-1.5"
+                      className="max-w-prose space-y-2 shadow-xs"
                     >
                       {isAiAuthored ? (
                         <p className="flex min-w-0 flex-wrap items-baseline gap-1.5 break-words text-xs text-muted-foreground">
@@ -353,12 +335,25 @@ export function ConversationTimeline({
                     </BubbleContent>
                   </Bubble>
 
-                  <MessageMeta message={message} align={align} />
+                  <MessageFooter
+                    className={cn(
+                      "flex flex-wrap items-center gap-2 px-1",
+                      isAgent ? "justify-end" : "justify-start"
+                    )}
+                  >
+                    <time
+                      className="whitespace-nowrap font-mono text-xs text-muted-foreground tabular-nums"
+                      dateTime={message.sentAt.toISOString()}
+                    >
+                      {formatTimestamp(message.sentAt)}
+                    </time>
+                    <EvidenceMessageButton messageId={message.id} />
+                  </MessageFooter>
 
                   {renderPinList(messagePins, canManagePins, currentUserId)}
 
                   {canCoach && conversationId ? (
-                    <div className="w-full">
+                    <div className="mt-1 w-full">
                       <CoachingPinComposer conversationId={conversationId} messageId={message.id} />
                     </div>
                   ) : null}
