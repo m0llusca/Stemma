@@ -169,7 +169,8 @@ describe("admin list columns and copy wiring", () => {
     // System hub prefers Phase D evidence for row badges (catalog is fallback only).
     expect(systemPage).toContain("integrationCertBySource");
     expect(systemPage).toContain("integrationStatusLabel(integration.status, certificationStatus)");
-    expect(systemPage).toContain("phaseDReport.integrations.filter((item) => isLiveCertified(item.status))");
+    expect(systemPage).toContain("phaseDReport.integrations.filter((item) => item.configured)");
+    expect(systemPage).toContain("configuredPhaseDIntegrations.filter((item) => isLiveCertified(item.status))");
   });
 
   it("keeps list/detail pre-cert wording aligned with the connect wizard", () => {

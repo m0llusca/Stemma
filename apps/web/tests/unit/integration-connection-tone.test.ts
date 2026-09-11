@@ -107,10 +107,12 @@ describe("admin connection chip wiring", () => {
       'tone: integrationRiskCount > 0 ? "danger" : integrations.length > 0 ? "success" : "neutral"'
     );
     expect(systemPage).not.toContain('tone: providerWarnings > 0 ? "warning" : "success"');
-    expect(systemPage).toContain("hubStripTone(ssoHubTone)");
-    expect(systemPage).toContain("hubStripTone(integrationsHubTone)");
-    expect(systemPage).toContain("phaseDReport.summary.liveCertified > 0 ? \"success\" : \"neutral\"");
-    expect(systemPage).toContain("providerTone(provider.status, identityCertById.get(provider.id))");
+    expect(systemPage).toContain("ssoStripTone");
+    expect(systemPage).toContain("adminHubAccessTone({ liveSsoCount, providerWarningCount: providerWarnings })");
+    expect(systemPage).toContain("adminHubIntegrationsTone({");
+    expect(systemPage).toContain("liveCertifiedCount: liveCertifiedIntegrations");
+    expect(systemPage).toContain('phaseDReport.summary.liveCertified > 0 ? "success" : "neutral"');
+    expect(systemPage).toContain("providerTone(provider.status, identityCertByProviderId.get(provider.id))");
   });
 
   it("does not green channel chips from active alone", () => {
