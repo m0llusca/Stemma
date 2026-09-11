@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { kineticsStyle } from "@stemma/kinetics";
 import { Inbox, MessageSquareWarning, Scale } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -228,7 +229,7 @@ export function SentimentCorrelationPanel({
                           row.key === "positive" && "bg-emerald-500/70",
                           row.key === "neutral" && "bg-muted-foreground/40"
                         )}
-                        style={{ width: `${row.count > 0 ? Math.max(6, widthPercent) : 0}%` }}
+                        style={{ width: `${row.count > 0 ? Math.max(6, widthPercent) : 0}%`, ...kineticsStyle("width", "overshoot") }}
                       />
                     </div>
                     <p className="text-xs tabular-nums text-muted-foreground">

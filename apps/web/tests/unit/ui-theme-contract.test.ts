@@ -295,8 +295,10 @@ describe("canonical UI theme contract", () => {
     expect(badgeSource).toContain("--motion-duration-morph");
     expect(badgeSource).toContain("--motion-ease-spring-gentle");
     expect(accordionSource).toContain("DisclosureMorphChevron");
+    expect(accordionSource).toContain("--motion-duration-spring-panel");
     expect(morphIconSource).toContain('reducedMotion = "user"');
-    expect(morphIconSource).toContain('spring = "snappy"');
+    expect(morphIconSource).toContain("kineticsMorphSpring");
+    expect(morphIconSource).toContain('from "@stemma/kinetics"');
     expect(tabsSource).toContain("--motion-ease-spring-glide");
     expect(statKpiSource).toContain('data-qc-motion="kpi-bump"');
     expect(statKpiSource).toContain('data-qc-motion="hover-lift"');
@@ -314,11 +316,22 @@ describe("canonical UI theme contract", () => {
       resolve(appRoot, "src/components/ui/alert-dialog.tsx"),
       "utf8"
     );
+    const evidenceJumpSource = readFileSync(
+      resolve(appRoot, "src/components/review/evidence-jump-link.tsx"),
+      "utf8"
+    );
+    const reportChartsSource = readFileSync(
+      resolve(appRoot, "src/components/reports/report-charts.tsx"),
+      "utf8"
+    );
     expect(progressSource).toContain("--motion-ease-spring-overshoot");
     expect(checkboxSource).toContain("--motion-duration-spring");
     expect(sheetSource).toContain("--motion-duration-spring-enter");
     expect(dialogSource).toContain("--motion-duration-spring-enter");
     expect(alertDialogSource).toContain("--motion-duration-spring-enter");
+    expect(evidenceJumpSource).toContain("prefersReducedMotion");
+    expect(evidenceJumpSource).toContain("kineticsDurationMs.feedbackFlash");
+    expect(reportChartsSource).toContain('kineticsStyle("width", "overshoot")');
     expect(packageJson).toMatch(/["']morphicons["']\s*:\s*["']1\.7\.1["']/);
     expect(createRequire(resolve(appRoot, "package.json")).resolve("morphicons/react")).toMatch(
       /morphicons[/\\]dist[/\\]react\.js$/

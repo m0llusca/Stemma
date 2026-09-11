@@ -63,7 +63,11 @@ Spring-значения живут в `@stemma/kinetics/tokens.css` (импор�
 | Sheet enter | `--motion-duration-spring-enter`, `--motion-ease-spring-panel` | `Sheet` overlay + content |
 | Dialog / alert enter | `--motion-duration-spring-enter`, `--motion-ease-spring-panel` | `Dialog` / `AlertDialog` overlay + content |
 | Hover lift | `--motion-scale-hover-lift`, `--motion-distance-hover-lift` | `[data-qc-motion="hover-lift"]` on `StatKpi` cards |
-| Package | `@stemma/kinetics` | tokens.css + JS presets; not Colorion React demos |
+| Accordion trigger | `--motion-duration-spring-panel`, `--motion-ease-spring-panel` | `AccordionTrigger` |
+| Evidence jump (JS) | `prefersReducedMotion()`, `kineticsDurationMs.feedbackFlash` | `EvidenceJumpLink` scroll + flash |
+| Inline bars (JS) | `kineticsStyle("width", "overshoot")` | report / analytics / criterion / review width fills |
+| Icon morph (JS) | `kineticsMorphSpring` | `MorphIcon` default spring |
+| Package | `@stemma/kinetics` | tokens.css + JS helpers; not Colorion React demos |
 
 `prefers-reduced-motion: reduce` обнуляет duration-токены до `1ms`, гасит skeleton / KPI / chart-enter / toast animation и снимает shimmer `background-image`. Recharts `isAnimationActive` остаётся `false`. Unit lock: `apps/web/tests/unit/ui-theme-contract.test.ts`.
 

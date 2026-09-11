@@ -17,6 +17,21 @@ export const kineticsDurations = {
   shimmer: "1.5s"
 } as const;
 
+/**
+ * Millisecond mirrors for JS APIs (scroll timers, Recharts, Morphicons windows).
+ * Keep in sync with `kineticsDurations` / `tokens.css`.
+ */
+export const kineticsDurationMs = {
+  spring: 400,
+  springEnter: 550,
+  springPanel: 450,
+  springGlide: 400,
+  morph: 350,
+  shimmer: 1500,
+  /** Transient evidence / focus flash (product timing, not a Colorion demo). */
+  feedbackFlash: 1200
+} as const;
+
 export const kineticsEasings = {
   /** Switch / progress overshoot spring. */
   overshoot: "cubic-bezier(0.34, 1.56, 0.64, 1)",
@@ -29,6 +44,24 @@ export const kineticsEasings = {
   /** Badge / status morph settle. */
   gentle: "cubic-bezier(0.2, 0.8, 0.2, 1)"
 } as const;
+
+/**
+ * Morphicons spring preset aligned to the Kinetics morph slot (~350ms).
+ * Prefer this over hard-coding `"snappy"` at call sites.
+ */
+export const kineticsMorphSpring = "snappy" as const;
+
+/**
+ * Sync reduced-motion check for event handlers / non-React code.
+ * Prefer `usePrefersReducedMotion` for reactive UI; use this when reading
+ * preference at click/scroll time without waiting for an effect.
+ */
+export function prefersReducedMotion(): boolean {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    return false;
+  }
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
 
 export type KineticsSpringPreset =
   | "overshoot"
@@ -80,6 +113,14 @@ export function kineticsTransition(
   return `${properties} ${duration} ${easing}`;
 }
 
+/** React `style` helper — `{ transition: kineticsTransition(...) }`. */
+export function kineticsStyle(
+  properties: string,
+  preset: KineticsSpringPreset = "panel"
+): { transition: string } {
+  return { transition: kineticsTransition(properties, preset) };
+}
+
 export type KineticsSurface =
   | "toast"
   | "switch"
@@ -98,7 +139,9 @@ export type KineticsSurface =
   | "alert-dialog"
   | "hover-lift"
   | "icon-morph"
-  | "top-nav";
+  | "top-nav"
+  | "evidence-jump"
+  | "inline-bar";
 
 /** Product surfaces that intentionally consume the Kinetics catalog. */
 export const kineticsSurfaces: readonly KineticsSurface[] = [
@@ -119,10 +162,13 @@ export const kineticsSurfaces: readonly KineticsSurface[] = [
   "alert-dialog",
   "hover-lift",
   "icon-morph",
-  "top-nav"
+  "top-nav",
+  "evidence-jump",
+  "inline-bar"
 ] as const;
 
 export {
   kineticsDurations as durations,
+  kineticsDurationMs as durationMs,
   kineticsEasings as easings
 };

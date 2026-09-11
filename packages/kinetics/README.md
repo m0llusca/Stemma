@@ -23,5 +23,25 @@ It does **not** vendor Colorion React demos (magnetic cursor, liquid glass, trai
 ```
 
 ```ts
-import { kineticsTransition, kineticsSurfaces } from "@stemma/kinetics";
+import {
+  kineticsTransition,
+  kineticsStyle,
+  kineticsDurationMs,
+  prefersReducedMotion,
+  kineticsSurfaces
+} from "@stemma/kinetics";
+import { usePrefersReducedMotion } from "@stemma/kinetics/react";
 ```
+
+## Beyond CSS tokens
+
+| Helper | Use when |
+| --- | --- |
+| `kineticsStyle` / `kineticsTransition` | Inline `style` width/opacity springs (report bars, review share) |
+| `kineticsDurationMs` | Timers / Morphicons windows (`feedbackFlash`, `morph`) |
+| `prefersReducedMotion()` | Click/scroll handlers (evidence jump) |
+| `usePrefersReducedMotion` | Reactive UI that must re-render on preference change |
+| `kineticsMorphSpring` | Default Morphicons spring (`MorphIcon`) |
+
+Do **not** install registry `kinetics` (unrelated accelerometer package).
+

@@ -4,6 +4,7 @@ import {
   MorphIcon as MorphiconsIcon,
   type MorphIconProps
 } from "morphicons/react";
+import { kineticsMorphSpring } from "@stemma/kinetics";
 
 import { asMorphIcon, type MorphableIcon } from "@/lib/ui/lucide-morph";
 import { cn } from "@/lib/utils";
@@ -16,8 +17,8 @@ export type AppMorphIconProps = Omit<MorphIconProps, "icon" | "from" | "to"> & {
 
 /**
  * Product MorphIcon. Pass lucide-react icons; `asMorphIcon` unwraps them.
- * Honors `prefers-reduced-motion` (instant swap). Spring is snappy — same
- * Kinetics “Icon Morph Swap” slot as `--motion-duration-morph` (350ms).
+ * Honors `prefers-reduced-motion` (instant swap). Spring comes from
+ * `@stemma/kinetics` (`kineticsMorphSpring` ≈ morph slot / 350ms).
  */
 export function MorphIcon({
   icon,
@@ -25,7 +26,7 @@ export function MorphIcon({
   to,
   className,
   reducedMotion = "user",
-  spring = "snappy",
+  spring = kineticsMorphSpring,
   ...props
 }: AppMorphIconProps) {
   return (

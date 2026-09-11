@@ -8,6 +8,7 @@ import type {
   Scorecard,
   ScorecardCriterion
 } from "@prisma/client";
+import { kineticsStyle } from "@stemma/kinetics";
 import type { ReactNode } from "react";
 import { DisclosureMorphChevron } from "@/components/ui/disclosure-morph-chevron";
 import { criterionPredictionChipLabel } from "@/components/review/ai-prediction-chip";
@@ -408,7 +409,7 @@ export function ReviewPanel({
                     index % 3 === 1 && "bg-primary/70",
                     index % 3 === 2 && "bg-primary/50"
                   )}
-                  style={{ width: `${share}%` }}
+                  style={{ width: `${share}%`, ...kineticsStyle("width", "overshoot") }}
                   title={`${group.block} · ${groupWeight}%`}
                 />
               );
