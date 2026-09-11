@@ -148,7 +148,13 @@ export function QueueFilters({
         {liveAnnouncement}
       </div>
 
-      <div className="grid grid-cols-1 items-end gap-3 p-4 sm:grid-cols-[minmax(0,1fr)_minmax(11rem,14rem)] xl:grid-cols-[minmax(0,1fr)_minmax(11rem,14rem)_max-content_max-content]">
+      {/*
+        items-start + Field stacks (real or spacer labels) keep Поиск/Итог inputs,
+        «Точные фильтры», and «Сбросить фильтры» on one control baseline.
+        Exact-filters track is minmax (not max-content) so the helper line wraps
+        instead of stretching the row and shoving reset off-alignment.
+      */}
+      <div className="grid grid-cols-1 items-start gap-3 p-4 sm:grid-cols-[minmax(0,1fr)_minmax(11rem,14rem)] xl:grid-cols-[minmax(0,1fr)_minmax(11rem,14rem)_minmax(13rem,17rem)_auto]">
         <Field className="min-w-0">
           <FieldLabel htmlFor="queue-filter-q">Поиск</FieldLabel>
           <Input
@@ -178,7 +184,10 @@ export function QueueFilters({
           defaultOpen={hasAdvancedFilters}
           formId={queueFiltersFormId}
           actions={
-            <div className="flex min-w-0 flex-nowrap items-end justify-start gap-2 sm:col-span-2 sm:justify-end xl:col-span-1">
+            <Field className="min-w-0 sm:col-span-2 sm:justify-self-end xl:col-span-1">
+              <FieldLabel className="invisible select-none" aria-hidden="true">
+                &nbsp;
+              </FieldLabel>
               <Button
                 render={<Link href={resetHref} title="Вернуть очередь к исходному виду" />}
                 nativeButton={false}
@@ -186,7 +195,7 @@ export function QueueFilters({
               >
                 Сбросить фильтры
               </Button>
-            </div>
+            </Field>
           }
         >
           <Field className="min-w-0">
