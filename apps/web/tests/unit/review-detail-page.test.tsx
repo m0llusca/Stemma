@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   requireCurrentUserPermission: vi.fn(),
   getActiveScorecard: vi.fn(),
   getConversationForReview: vi.fn(),
+  findPendingFinalizedReopenRequest: vi.fn(),
   notFound: vi.fn(),
   prisma: {
     user: {
@@ -95,6 +96,11 @@ vi.mock("@/lib/review-repository", () => ({
   getConversationForReview: mocks.getConversationForReview
 }));
 
+vi.mock("@/lib/review-events", () => ({
+  findPendingFinalizedReopenRequest: mocks.findPendingFinalizedReopenRequest,
+  reviewEventActionLabel: (action: string) => action
+}));
+
 function conversation() {
   return {
     id: "conversation-1",
@@ -137,6 +143,8 @@ describe("review detail page", () => {
       version: 1,
       criteria: []
     });
+    mocks.findPendingFinalizedReopenRequest.mockResolvedValue(null);
+    mocks.prisma.user.findMany.mockResolvedValue([]);
     mocks.prisma.aiQualityDraft.findMany.mockResolvedValue([]);
     mocks.prisma.aiQualityDraft.findFirst.mockResolvedValue(null);
     mocks.prisma.aiQualityDraft.count.mockResolvedValue(0);
@@ -391,4 +399,35 @@ describe("review detail page", () => {
     expect(screen.queryByRole("button", { name: "Переответ выполнен" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Оспорить оценку" })).toBeNull();
   });
+
+  it("places workflow management above the review workspace when the role can manage workflow", async () => {
+    mocks.requireCurrentUserPermission.mockResolvedValue({
+      id: "qa-1",
+      workspaceId: "workspace-1",
+      role: "QA_ANALYST",
+      name: "Проверяющий"
+    });
+    mocks.canManageReviewWorkflow.mockReturnValue(true);
+    mocks.canSaveReviewDraft.mockReturnValue(true);
+    mocks.canSelfReview.mockReturnValue(false);
+    mocks.prisma.user.findMany.mockResolvedValue([
+      { id: "qa-1", name: "Проверяющий", role: "QA_ANALYST" }
+    ]);
+
+    const { ReviewDetailPageContent } = await import("@/app/reviews/[conversationId]/page");
+    const page = await ReviewDetailPageContent({
+      params: Promise.resolve({ conversationId: "conversation-1" }),
+      searchParams: Promise.resolve({})
+    });
+
+    render(page);
+
+    const workflowPanel = screen.getByTestId("workflow-panel");
+    const workspace = document.getElementById("review-workspace");
+    expect(workspace).not.toBeNull();
+    expect(
+      workflowPanel.compareDocumentPosition(workspace as HTMLElement) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
+
 });

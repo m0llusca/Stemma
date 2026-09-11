@@ -1200,6 +1200,15 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
         </CardContent>
       </Card>
 
+      {canManageWorkflow ? (
+        <WorkflowManagementPanel
+          conversation={conversation}
+          assignees={qaAssignees}
+          currentUserId={user.id}
+          pendingReopen={pendingFinalizedReopen}
+        />
+      ) : null}
+
       <div
         id="review-workspace"
         className={cn(
@@ -1310,15 +1319,6 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
       </div>
 
       {detailPane}
-
-      {canManageWorkflow ? (
-        <WorkflowManagementPanel
-          conversation={conversation}
-          assignees={qaAssignees}
-          currentUserId={user.id}
-          pendingReopen={pendingFinalizedReopen}
-        />
-      ) : null}
     </PageShell>
   );
 }
