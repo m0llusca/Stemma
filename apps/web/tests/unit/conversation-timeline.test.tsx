@@ -186,6 +186,17 @@ describe("ConversationTimeline", () => {
     expect(
       customer?.querySelector('[data-slot="conversation-message-header"]')
     ).toHaveClass("flex", "flex-wrap");
+    expect(
+      human?.querySelector('[data-slot="conversation-message-header"]')
+    ).toHaveClass("justify-end");
+    expect(customer).toHaveAttribute("data-align", "start");
+    expect(human).toHaveAttribute("data-align", "end");
+    expect(
+      customer?.querySelector('[data-slot="conversation-message-avatar"]')
+    ).toHaveClass("self-start");
+    expect(
+      human?.querySelector('[data-slot="conversation-message-avatar"]')
+    ).toHaveClass("self-start");
 
     const agentSurface = human?.querySelector(
       '[data-slot="conversation-message-surface"][data-variant="bubble"]'

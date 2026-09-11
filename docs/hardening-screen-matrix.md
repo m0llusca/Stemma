@@ -80,7 +80,7 @@ Repeat under each role. VIEWER has no `AppNav`.
 | Account menu | identity, logout, **«Сменить роль»** (DEMO) → lands on new role home | — | n/a | — | #117: menu↔X / chevron if wired |
 | Top-nav | only areas from the table above; no dead href; no forbidden page from a visible item | — | n/a | — | |
 | ⌘K | modes for this role; **Взять следующий** writers only; Exec: overdue + quarter analytics, no Take next; Agent: **Перейти к обучению**, no Take next / overdue | — | n/a | — | |
-| Ops pulse | **Очередь** / **Риск** + pulse **Взять следующий** — Admin/Lead/QA only. Exec/Agent: absent, not disabled-looking | — | n/a | n/a | |
+| Ops pulse | **Очередь** / **Риск** (/ **Обучение**) badges — Admin/Lead/QA. No pulse **Взять следующий** (page/⌘K only). Exec/Agent: absent or coaching-only, not disabled-looking | — | n/a | n/a | |
 
 ---
 

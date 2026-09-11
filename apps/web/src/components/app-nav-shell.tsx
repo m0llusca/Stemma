@@ -4,17 +4,24 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Activity,
-  ArrowRight,
   Bell,
+  BookMarked,
+  ChartSpline,
   ClipboardCheck,
+  ClipboardPen,
+  Gavel,
   GraduationCap,
+  HeartPulse,
   Menu,
   MessageSquareText,
+  MessagesSquare,
   Scale,
   Search,
+  Settings2,
   SlidersHorizontal,
   TrendingUp,
-  X
+  X,
+  type LucideIcon
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { isAuthPath } from "@/lib/auth/auth-path";
@@ -32,7 +39,6 @@ import {
 } from "@/lib/ui-branding";
 import { takeNextReview } from "@/lib/queue-view-actions";
 import { takeNextFormDataFromLocation } from "@/lib/review/queue-href-filters";
-import { TAKE_NEXT_LABEL } from "@/lib/review/take-next-copy";
 import type { DemoRoleSwitcher } from "@/lib/auth/demo-users";
 import { cn } from "@/lib/utils";
 import { AccountMenuDisclosure, DemoRoleSwitchMenu } from "@/components/auth/demo-role-switch";
@@ -56,7 +62,6 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { Kbd } from "@/components/ui/kbd";
@@ -85,6 +90,7 @@ type AppNavShellProps = {
   canTakeNextCase?: boolean;
 };
 
+/** Idle (outline-ish) glyphs for primary area nav. */
 const areaIcons = {
   today: Activity,
   feedback: MessageSquareText,
@@ -93,9 +99,70 @@ const areaIcons = {
   coaching: GraduationCap,
   analytics: TrendingUp,
   settings: SlidersHorizontal
-} satisfies Record<ShellNavAreaIcon, typeof ClipboardCheck>;
+} satisfies Record<ShellNavAreaIcon, LucideIcon>;
+
+/**
+ * Active/hover morph targets — related Lucide shapes Morphicons can interpolate
+ * toward so the top-nav areas morph on route active and pointer/focus hover.
+ */
+const areaActiveIcons = {
+  today: HeartPulse,
+  feedback: MessagesSquare,
+  review: ClipboardPen,
+  calibration: Gavel,
+  coaching: BookMarked,
+  analytics: ChartSpline,
+  settings: Settings2
+} satisfies Record<ShellNavAreaIcon, LucideIcon>;
 
 const defaultNavBranding = resolveWorkspaceBranding({});
+
+function AreaNavMorphIcon({
+  areaIcon,
+  emphasized,
+  className
+}: {
+  areaIcon: ShellNavAreaIcon;
+  emphasized: boolean;
+  className?: string;
+}) {
+  return (
+    <MorphIcon
+      icon={emphasized ? areaActiveIcons[areaIcon] : areaIcons[areaIcon]}
+      data-icon="inline-start"
+      className={className}
+    />
+  );
+}
+
+function AreaNavLink({
+  area,
+  isActive,
+  className
+}: {
+  area: ShellNavArea;
+  isActive: boolean;
+  className?: string;
+}) {
+  const [hot, setHot] = useState(false);
+
+  return (
+    <Link
+      href={area.href}
+      data-slot="button"
+      title={area.description}
+      aria-current={isActive ? "page" : undefined}
+      onMouseEnter={() => setHot(true)}
+      onMouseLeave={() => setHot(false)}
+      onFocus={() => setHot(true)}
+      onBlur={() => setHot(false)}
+      className={className}
+    >
+      <AreaNavMorphIcon areaIcon={area.icon} emphasized={isActive || hot} />
+      <span>{area.label}</span>
+    </Link>
+  );
+}
 
 function commandMatches(command: ShellCommandItem, query: string) {
   const normalized = query.trim().toLowerCase();
@@ -153,7 +220,8 @@ function AppNavShellChrome({
     [pathname, search, areas]
   );
   const activeArea = areas.find((area) => area.id === activeAreaId);
-  const showPulseChrome = pulseItems.length > 0 || canTakeNextCase;
+  // Pulse chrome is badges only — Take next lives on the queue page / ⌘K, not the top bar.
+  const showPulseChrome = pulseItems.length > 0;
   const visibleCommands = useMemo(
     () =>
       navigation.commandItems
@@ -166,7 +234,6 @@ function AppNavShellChrome({
     demoSwitcher?.users.find((workspaceUser) => workspaceUser.id === demoSwitcher.currentUserId)?.name ??
     user.name;
   const demoRoleLabel = demoSwitcher?.roleLabel;
-  const ActiveAreaIcon = activeArea ? areaIcons[activeArea.icon] : null;
 
   const openCommand = useCallback(() => {
     setCommandOpen(true);
@@ -275,9 +342,13 @@ function AppNavShellChrome({
                   }
                 >
                   <MorphIcon icon={areaMenuOpen ? X : Menu} className={cn(activeArea && "md:hidden")} />
-                  {activeArea && ActiveAreaIcon ? (
+                  {activeArea ? (
                     <>
-                      <ActiveAreaIcon className="hidden md:block" data-icon="inline-start" />
+                      <AreaNavMorphIcon
+                        areaIcon={activeArea.icon}
+                        emphasized
+                        className="hidden md:block"
+                      />
                       <span className="hidden md:inline">{activeArea.label}</span>
                     </>
                   ) : (
@@ -292,7 +363,6 @@ function AppNavShellChrome({
                 >
                   <DropdownMenuGroup>
                     {areas.map((area) => {
-                      const Icon = areaIcons[area.icon];
                       const isActive = area.id === activeAreaId;
 
                       return (
@@ -305,7 +375,7 @@ function AppNavShellChrome({
                           className={cn(isActive && "bg-accent text-accent-foreground")}
                           onClick={() => setAreaMenuOpen(false)}
                         >
-                          <Icon />
+                          <AreaNavMorphIcon areaIcon={area.icon} emphasized={isActive} />
                           <span>{area.label}</span>
                         </DropdownMenuItem>
                       );
@@ -319,16 +389,13 @@ function AppNavShellChrome({
                 aria-label="Основные разделы"
               >
                 {areas.map((area) => {
-                  const Icon = areaIcons[area.icon];
                   const isActive = area.id === activeAreaId;
 
                   return (
-                    <Link
+                    <AreaNavLink
                       key={area.id}
-                      href={area.href}
-                      data-slot="button"
-                      title={area.description}
-                      aria-current={isActive ? "page" : undefined}
+                      area={area}
+                      isActive={isActive}
                       className={cn(
                         buttonVariants({
                           variant: isActive ? "secondary" : "ghost",
@@ -336,10 +403,7 @@ function AppNavShellChrome({
                         }),
                         "shrink-0"
                       )}
-                    >
-                      <Icon data-icon="inline-start" />
-                      <span>{area.label}</span>
-                    </Link>
+                    />
                   );
                 })}
               </nav>
@@ -411,15 +475,6 @@ function AppNavShellChrome({
                       </Badge>
                     </DropdownMenuItem>
                   ))}
-                  {canTakeNextCase ? (
-                    <DropdownMenuItem
-                      aria-label={TAKE_NEXT_LABEL}
-                      onClick={runTakeNext}
-                    >
-                      <ArrowRight />
-                      <span>{TAKE_NEXT_LABEL}</span>
-                    </DropdownMenuItem>
-                  ) : null}
                 </DropdownMenuGroup>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -441,18 +496,6 @@ function AppNavShellChrome({
                 </Link>
               ))}
             </div>
-            {canTakeNextCase ? (
-              <Button
-                type="button"
-                size="sm"
-                aria-label={TAKE_NEXT_LABEL}
-                className="hidden shrink-0 sm:inline-flex"
-                onClick={runTakeNext}
-              >
-                <span className="hidden xl:inline">{TAKE_NEXT_LABEL}</span>
-                <ArrowRight data-icon="inline-end" />
-              </Button>
-            ) : null}
           </div>
         ) : null}
 

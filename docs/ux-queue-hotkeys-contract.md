@@ -34,10 +34,11 @@ Five surfaces share **one path**: `takeNextReview` / `selectNextReviewConversati
 1. Queue **«Взять следующий»** → `takeNextReview` → hidden `queueHref` (current URL / saved view) → `filtersFromReviewsHref` → same selector
 2. Workbench **«Завершить и взять следующий»** (`intent=finalize_next`) → `finalizeReviewAndTakeNext` → `returnTo` → same parser and selector (excludes the case just finished)
 3. ⌘K **«Взять следующий»** (`actionId: take-next`) → `takeNextReview(takeNextFormDataFromLocation(pathname, search))` — same FormData `queueHref` as the queue button. Not a href.
-4. Topbar pulse **«Взять следующий»** (desktop button + mobile menu) → the same `runTakeNext` → `takeNextReview(takeNextFormDataFromLocation(pathname, search))`. Not a href.
-5. Next-case preview **«Взять следующий»** → the same `takeNextReview` form with the page `queueHref`. Not a nav-only peek.
+4. Next-case preview **«Взять следующий»** → the same `takeNextReview` form with the page `queueHref`. Not a nav-only peek.
 
-**Killed:** ⌘K and pulse must not navigate to hardcoded `/reviews?status=unreviewed`. That URL is an impostor filter, not take-next.
+**Not in the top-nav pulse chrome:** the blue pulse **«Взять следующий»** was removed from the app shell header (desktop button + mobile pulse menu). Take next stays on the queue page header, next-case preview, ⌘K, and workbench finalize_next.
+
+**Killed:** ⌘K must not navigate to hardcoded `/reviews?status=unreviewed`. That URL is an impostor filter, not take-next.
 
 ## Take next write-gate
 
@@ -46,7 +47,6 @@ All take-next surfaces require `reviews:write`. UI flag: `canTakeNextCase` (shel
 | Surface | Gate |
 | --- | --- |
 | Queue **«Взять следующий»** | `canWriteReviews` — omit the page action |
-| Pulse **«Взять следующий»** | `canTakeNextCase` — omit desktop + mobile |
 | ⌘K **«Взять следующий»** | drop `actionId: take-next` when `!canTakeNextCase` |
 | Next-case preview CTA | `canTakeNext` — identity stays; no submit |
 | Empty-queue **«Взять без фильтра»** | `canWriteReviews` |
@@ -81,7 +81,6 @@ Do not silently drop filters from take-next, and do not invent a second eligibil
 | Queue **«Взять следующий»** | **Yes** | `queueHref` → `filtersFromReviewsHref` → same selector |
 | Workbench **finalize_next** | **Yes** | `returnTo` → same parser and selector |
 | ⌘K **«Взять следующий»** | **Yes** | `takeNextFormDataFromLocation` → same `queueHref` / `takeNextReview` |
-| Pulse **«Взять следующий»** | **Yes** | same `runTakeNext` as ⌘K |
 | Next-case preview **«Взять следующий»** | **Yes** | page `queueHref` → same `takeNextReview` form |
 
 An operator on a narrow saved view sees case A as preview, presses Take next, and opens case A (or the next remaining row in that same filtered set). Landing on workspace priority outside the view is a bug.

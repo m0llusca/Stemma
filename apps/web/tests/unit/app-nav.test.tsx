@@ -54,6 +54,15 @@ vi.mock("@/lib/user-actions", () => ({
 
 import { resetAccountMenuExpandedForTests } from "@/components/auth/demo-role-switch";
 
+// Base UI dialog / cmdk rely on APIs missing from jsdom.
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+vi.stubGlobal("ResizeObserver", ResizeObserverStub);
+Element.prototype.scrollIntoView = vi.fn();
+
 function mockCurrentUser(role = "ADMIN") {
   mocks.getCurrentUser.mockResolvedValue({
     id: "user-1",
@@ -230,13 +239,19 @@ describe("app nav", () => {
     expect(mocks.getDemoRoleSwitcher).not.toHaveBeenCalled();
   });
 
-  it("keeps the take-next-case shortcut for reviewers", async () => {
+  it("keeps take-next available via ⌘K for reviewers, not the nav pulse chrome", async () => {
     const { AppNav } = await import("@/components/app-nav");
 
     render(await AppNav());
 
-    expect(screen.getByRole("button", { name: "Взять следующий" })).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "Взять следующий" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Взять следующий" })).toBeNull();
+
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    const dialog = screen.getByRole("dialog", { name: "Поиск и команды" });
+    const input = screen.getByPlaceholderText(/Найти раздел/);
+    fireEvent.change(input, { target: { value: "следующий кейс" } });
+    expect(within(dialog).getByRole("option", { name: /Взять следующий/ })).not.toBeNull();
   });
 
   it("keeps the demo switcher hidden when demo auth is disabled", async () => {

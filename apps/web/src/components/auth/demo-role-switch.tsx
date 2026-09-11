@@ -10,7 +10,10 @@ import {
   type ReactNode,
   type ToggleEvent
 } from "react";
-import { DisclosureMorphChevron } from "@/components/ui/disclosure-morph-chevron";
+import {
+  DisclosureMorphChevron,
+  DisclosureOpenProvider
+} from "@/components/ui/disclosure-morph-chevron";
 import { type DemoRoleSwitcher } from "@/lib/auth/demo-users";
 import { switchCurrentUser } from "@/lib/user-actions";
 import { buttonVariants } from "@/components/ui/button";
@@ -142,7 +145,8 @@ export function AccountMenuDisclosure({
           "cursor-pointer list-none [&::-webkit-details-marker]:hidden [&_*]:pointer-events-none"
         )}
       >
-        {children}
+        {/* Controlled open SoT so DisclosureMorphChevron morphs without waiting on MutationObserver. */}
+        <DisclosureOpenProvider open={expanded}>{children}</DisclosureOpenProvider>
       </summary>
       <div
         id={menuId}

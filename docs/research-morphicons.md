@@ -26,15 +26,16 @@ Call sites import from `lucide-react` (already on the stand). `asMorphIcon` unwr
 | --- | --- | --- |
 | CopyButton | Copy ↔ Check | #117 ACCEPT |
 | Accordion / score-module chevron | ChevronDown ↔ ChevronUp | #117 ACCEPT: `Accordion` + review/scorecard modules |
-| Top-nav account menu | ChevronDown ↔ ChevronUp | `AccountMenuDisclosure` / `DemoAccountMenu` |
+| Top-nav account menu | ChevronDown ↔ ChevronUp | `AccountMenuDisclosure` / `DemoAccountMenu` (controlled via `DisclosureOpenProvider`) |
 | Top-nav sections trigger | Menu ↔ X | Mobile/compact area menu open state |
 | Top-nav command trigger | Search ↔ X | Command palette open state |
+| Top-nav primary areas | idle ↔ active glyph | Hover/focus/active: Activity↔HeartPulse, MessageSquareText↔MessagesSquare, ClipboardCheck↔ClipboardPen, Scale↔Gavel, GraduationCap↔BookMarked, TrendingUp↔ChartSpline, SlidersHorizontal↔Settings2 |
 
 ## Out of scope (no morph spam)
 
 - Queue chrome (`QueueNextCasePreview`, saved-view chevrons, Take next)
 - Chart chrome (#119)
-- Every static top-bar glyph (brand, pulse Activity, Take-next arrow, Bell)
+- Static top-bar chrome (brand, pulse Activity, Bell) — Take next is page/⌘K only, not pulse
 - Select / combobox / calendar / native-select chevrons
 - Blanket replace of `lucide-react`
 
