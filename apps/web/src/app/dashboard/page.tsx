@@ -577,7 +577,7 @@ async function DashboardPageContent() {
         </Card>
         ) : null}
         {leadSlaChart ? (
-          <Card data-slot="lead-sla-surface" className="min-h-[240px]">
+          <Card data-slot="lead-sla-surface">
             <CardHeader className="border-b pb-(--card-spacing)">
               <CardTitle className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
                 <Clock3 size={14} aria-hidden="true" />
@@ -593,6 +593,81 @@ async function DashboardPageContent() {
               ) : (
                 <LeadSlaChart bars={leadSlaChart.bars} />
               )}
+            </CardContent>
+          </Card>
+        ) : null}
+        {canViewPeerQualityMetrics ? (
+          <Card data-slot="dashboard-risk-appeals">
+            <CardHeader className="border-b pb-(--card-spacing)">
+              <CardTitle className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                <TrendingUp size={14} aria-hidden="true" />
+                {isLeadDashboard ? "Риск и апелляции" : "Области для роста"}
+              </CardTitle>
+              {canReadReports ? (
+                <CardAction>
+                  <Button variant="link" size="sm" render={<Link href="/reports?view=details" />} nativeButton={false}>
+                    Подробнее
+                  </Button>
+                </CardAction>
+              ) : null}
+            </CardHeader>
+            <CardContent className="grid gap-3 pt-(--card-spacing)">
+              <CardDescription>
+                {isLeadDashboard
+                  ? "Операторы с наибольшей нагрузкой по риску и апелляциям — переход в очередь по клику."
+                  : "Операторы с наибольшей нагрузкой по риску и апелляциям за 30 дней."}
+              </CardDescription>
+              <div className="grid min-w-0 gap-2">
+                {agentRows.length === 0 ? (
+                  <EmptyState
+                    size="inline"
+                    icon={<TrendingUp size={20} aria-hidden="true" />}
+                    title="Нет данных для разбора"
+                    description="Пока нет финализированных проверок за 30 дней."
+                  />
+                ) : (
+                  agentRows.map((agent) => (
+                    <Link
+                      key={agent.name}
+                      href={reportReviewRangeHref(thirtyDaysStart, now, {
+                        assignee: agent.name,
+                        ...(agent.riskCount > 0
+                          ? { riskLevel: "HIGH_OR_CRITICAL" }
+                          : agent.appealCount > 0
+                            ? { appealStatus: "open" }
+                            : {})
+                      })}
+                      className="relative grid min-w-0 gap-2 rounded-lg border border-border/60 bg-muted/40 p-2.5 transition-colors hover:border-border hover:bg-muted/70"
+                    >
+                      <div className="grid min-w-0 grid-cols-[34px_minmax(0,1fr)_auto_auto] items-center gap-x-2 gap-y-0.5">
+                        <span className="inline-flex size-8 items-center justify-center rounded-md border border-border bg-card text-[11px] font-semibold text-muted-foreground">
+                          {agent.name.slice(0, 2).toLocaleUpperCase("ru-RU")}
+                        </span>
+                        <strong className="truncate text-sm font-medium text-foreground">{agent.name}</strong>
+                        {agent.riskCount > 0 ? (
+                          <Chip tone="danger" className="self-center tabular-nums">
+                            {agent.riskCount} риск
+                          </Chip>
+                        ) : (
+                          <span />
+                        )}
+                        <em className="self-center text-lg font-semibold not-italic tabular-nums text-foreground">
+                          {Math.round(agent.average)}
+                        </em>
+                        <small className="col-start-2 min-w-0 truncate text-xs text-muted-foreground">
+                          {formatReviewCount(agent.count)}
+                          {agent.appealCount > 0 ? ` · ${agent.appealCount} апелл.` : ""}
+                        </small>
+                      </div>
+                      <i
+                        className="block h-0.5 rounded-full bg-border"
+                        style={{ width: `${Math.max(8, Math.round(agent.average))}%` }}
+                        aria-hidden="true"
+                      />
+                    </Link>
+                  ))
+                )}
+              </div>
             </CardContent>
           </Card>
         ) : null}
@@ -749,88 +824,12 @@ async function DashboardPageContent() {
           </Card>
         </div>
 
-        <div
-          data-slot="dashboard-secondary-grid"
-          className="col-span-full grid items-start gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]"
-        >
-          {canViewPeerQualityMetrics ? (
-          <Card>
-            <CardHeader className="border-b pb-(--card-spacing)">
-              <CardTitle className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-                <TrendingUp size={14} aria-hidden="true" />
-                {isLeadDashboard ? "Риск и апелляции" : "Области для роста"}
-              </CardTitle>
-              {canReadReports ? (
-                <CardAction>
-                  <Button variant="link" size="sm" render={<Link href="/reports?view=details" />} nativeButton={false}>
-                    Подробнее
-                  </Button>
-                </CardAction>
-              ) : null}
-            </CardHeader>
-            <CardContent className="grid gap-3 pt-(--card-spacing)">
-              <CardDescription>
-                {isLeadDashboard
-                  ? "Операторы с наибольшей нагрузкой по риску и апелляциям — переход в очередь по клику."
-                  : "Операторы с наибольшей нагрузкой по риску и апелляциям за 30 дней."}
-              </CardDescription>
-              <div className="grid min-w-0 gap-2">
-                {agentRows.length === 0 ? (
-                  <EmptyState
-                    size="inline"
-                    icon={<TrendingUp size={20} aria-hidden="true" />}
-                    title="Нет данных для разбора"
-                    description="Пока нет финализированных проверок за 30 дней."
-                  />
-                ) : (
-                  agentRows.map((agent) => (
-                    <Link
-                      key={agent.name}
-                      href={reportReviewRangeHref(thirtyDaysStart, now, {
-                        assignee: agent.name,
-                        ...(agent.riskCount > 0
-                          ? { riskLevel: "HIGH_OR_CRITICAL" }
-                          : agent.appealCount > 0
-                            ? { appealStatus: "open" }
-                            : {})
-                      })}
-                      className="relative grid min-w-0 gap-2 rounded-lg border border-border/60 bg-muted/40 p-2.5 transition-colors hover:border-border hover:bg-muted/70"
-                    >
-                      <div className="grid min-w-0 grid-cols-[34px_minmax(0,1fr)_auto_auto] items-center gap-x-2 gap-y-0.5">
-                        <span className="inline-flex size-8 items-center justify-center rounded-md border border-border bg-card text-[11px] font-semibold text-muted-foreground">
-                          {agent.name.slice(0, 2).toLocaleUpperCase("ru-RU")}
-                        </span>
-                        <strong className="truncate text-sm font-medium text-foreground">{agent.name}</strong>
-                        {agent.riskCount > 0 ? (
-                          <Chip tone="danger" className="self-center tabular-nums">
-                            {agent.riskCount} риск
-                          </Chip>
-                        ) : (
-                          <span />
-                        )}
-                        <em className="self-center text-lg font-semibold not-italic tabular-nums text-foreground">
-                          {Math.round(agent.average)}
-                        </em>
-                        <small className="col-start-2 min-w-0 truncate text-xs text-muted-foreground">
-                          {formatReviewCount(agent.count)}
-                          {agent.appealCount > 0 ? ` · ${agent.appealCount} апелл.` : ""}
-                        </small>
-                      </div>
-                      <i
-                        className="block h-0.5 rounded-full bg-border"
-                        style={{ width: `${Math.max(8, Math.round(agent.average))}%` }}
-                        aria-hidden="true"
-                      />
-                    </Link>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
-          ) : null}
-
-          {isLeadDashboard ? null : (
-          <EvidenceDrawer title="Последняя активность" description="Что менялось в проверках и обучении.">
+        {!isLeadDashboard ? (
+          <div
+            data-slot="dashboard-secondary-grid"
+            className="col-span-full grid items-start gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]"
+          >
+            <EvidenceDrawer title="Последняя активность" description="Что менялось в проверках и обучении.">
             <div className="mb-2 flex items-center justify-end">
               <Button
                 variant="link"
@@ -880,9 +879,9 @@ async function DashboardPageContent() {
                 ))
               )}
             </div>
-          </EvidenceDrawer>
-          )}
-        </div>
+            </EvidenceDrawer>
+          </div>
+        ) : null}
       </section>
     </PageShell>
   );
