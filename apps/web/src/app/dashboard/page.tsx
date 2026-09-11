@@ -7,7 +7,7 @@ import { WelcomeBackBanner } from "@/components/guidance/welcome-back-banner";
 import { PageSkeleton } from "@/components/loading-states";
 import { EvidenceDrawer } from "@/components/operations/evidence-drawer";
 import { OperationKpiCard, type OperationKpiDelta } from "@/components/operations/operation-kpi-card";
-import { SparklineChart, type ChartDatum } from "@/components/reports/report-charts";
+import { SparklineChart, type SparklineDatum } from "@/components/reports/report-charts";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
@@ -396,17 +396,17 @@ async function DashboardPageContent() {
       ? { kind: "overdue_count", value: overdueTrainingCount }
       : { kind: "learning_count", value: activeTrainingCount }
   );
-  const trendPoints: ChartDatum[] = dailyCounts
-    .filter((item) => item.average != null)
-    .map((item) => ({
-      label: weekdayLabel(item.date),
-      value: item.average as number,
-      detail: formatReviewCount(item.count),
-      href:
-        item.count > 0
-          ? reportReviewRangeHref(item.date, new Date(item.date.getTime() + dayMs - 1))
-          : undefined
-    }));
+  // Keep all 7 weekday slots so «Качество команды · 7 дней» spans the week.
+  // Empty days stay null and the sparkline gaps instead of collapsing to 2 dots.
+  const trendPoints: SparklineDatum[] = dailyCounts.map((item) => ({
+    label: weekdayLabel(item.date),
+    value: item.average,
+    detail: formatReviewCount(item.count),
+    href:
+      item.count > 0
+        ? reportReviewRangeHref(item.date, new Date(item.date.getTime() + dayMs - 1))
+        : undefined
+  }));
   const triageTitle = focusItems.length ? `${primaryFocus.label}: ${primaryFocus.value}` : emptyTriageCopy.title;
   const triageDescription = focusItems.length ? primaryFocus.hint : emptyTriageCopy.description;
   const triageTone = focusItems.length ? triageToneForStatusTone[primaryFocus.tone] : emptyTriageCopy.tone;

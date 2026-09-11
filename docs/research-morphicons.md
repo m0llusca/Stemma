@@ -29,7 +29,7 @@ Call sites import from `lucide-react` (already on the stand). `asMorphIcon` unwr
 | Top-nav account menu | ChevronDown ↔ ChevronUp | `AccountMenuDisclosure` / `DemoAccountMenu` (controlled via `DisclosureOpenProvider`) |
 | Top-nav sections trigger | Menu ↔ X | Mobile/compact area menu open state |
 | Top-nav command trigger | Search ↔ X | Command palette open state |
-| Top-nav primary areas | idle ↔ active glyph | Hover/focus/active: Activity↔HeartPulse, MessageSquareText↔MessagesSquare, ClipboardCheck↔ClipboardPen, Scale↔Gavel, GraduationCap↔BookMarked, TrendingUp↔ChartSpline, SlidersHorizontal↔Settings2 |
+| Top-nav primary areas | idle ↔ active glyph | Hover/focus/active: Gauge↔Activity, MessageSquare↔MessageSquareReply, ClipboardList↔ClipboardCheck, Scale↔CircleEqual, BookOpen↔BookOpenCheck, ChartColumn↔ChartSpline, SlidersHorizontal↔Settings2 |
 
 ## Out of scope (no morph spam)
 

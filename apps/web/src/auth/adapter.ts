@@ -331,10 +331,14 @@ export function createQcAuthAdapter(): Adapter {
         return null;
       }
 
-      await prisma.authSession.update({
-        where: { id: session.id },
-        data: { lastSeenAt: now }
-      });
+      // Auth.js reads the session on many RSC renders; throttle lastSeenAt so
+      // soft section navigations are not gated on a write every time.
+      if (now.getTime() - session.lastSeenAt.getTime() >= 60_000) {
+        await prisma.authSession.update({
+          where: { id: session.id },
+          data: { lastSeenAt: now }
+        });
+      }
 
       return {
         session: toAdapterSession(sessionToken, session),
@@ -345,25 +349,6 @@ export function createQcAuthAdapter(): Adapter {
     async updateSession(session) {
       const now = new Date();
       const sessionTokenHash = hashSessionToken(session.sessionToken);
-      const updateResult = await prisma.authSession.updateMany({
-        where: {
-          sessionTokenHash,
-          status: "ACTIVE",
-          expiresAt: { gt: now },
-          user: {
-            lifecycleStatus: "ACTIVE"
-          }
-        },
-        data: {
-          ...(session.expires ? { expiresAt: session.expires } : {}),
-          lastSeenAt: now
-        }
-      });
-
-      if (updateResult.count === 0) {
-        return null;
-      }
-
       const currentSession = await prisma.authSession.findUnique({
         where: { sessionTokenHash },
         include: {
@@ -382,7 +367,25 @@ export function createQcAuthAdapter(): Adapter {
         return null;
       }
 
-      return toAdapterSession(session.sessionToken, currentSession);
+      const shouldTouchLastSeen =
+        now.getTime() - currentSession.lastSeenAt.getTime() >= 60_000;
+      const data = {
+        ...(session.expires ? { expiresAt: session.expires } : {}),
+        ...(shouldTouchLastSeen ? { lastSeenAt: now } : {})
+      };
+
+      if (Object.keys(data).length > 0) {
+        await prisma.authSession.update({
+          where: { id: currentSession.id },
+          data
+        });
+      }
+
+      return toAdapterSession(session.sessionToken, {
+        ...currentSession,
+        ...(session.expires ? { expiresAt: session.expires } : {}),
+        ...(shouldTouchLastSeen ? { lastSeenAt: now } : {})
+      });
     },
 
     async deleteSession(sessionToken) {

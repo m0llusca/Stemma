@@ -5,25 +5,25 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Activity,
   Bell,
-  BookMarked,
+  BookOpen,
+  BookOpenCheck,
+  ChartColumn,
   ChartSpline,
+  CircleEqual,
   ClipboardCheck,
-  ClipboardPen,
-  Gavel,
-  GraduationCap,
-  HeartPulse,
+  ClipboardList,
+  Gauge,
   Menu,
-  MessageSquareText,
-  MessagesSquare,
+  MessageSquare,
+  MessageSquareReply,
   Scale,
   Search,
   Settings2,
   SlidersHorizontal,
-  TrendingUp,
   X,
   type LucideIcon
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { isAuthPath } from "@/lib/auth/auth-path";
 import {
   activeAreaForPath,
@@ -39,9 +39,8 @@ import {
 } from "@/lib/ui-branding";
 import { takeNextReview } from "@/lib/queue-view-actions";
 import { takeNextFormDataFromLocation } from "@/lib/review/queue-href-filters";
-import type { DemoRoleSwitcher } from "@/lib/auth/demo-users";
 import { cn } from "@/lib/utils";
-import { AccountMenuDisclosure, DemoRoleSwitchMenu } from "@/components/auth/demo-role-switch";
+import { AccountMenuDisclosure } from "@/components/auth/demo-role-switch";
 import { DisclosureMorphChevron } from "@/components/ui/disclosure-morph-chevron";
 import { MorphIcon } from "@/components/ui/morph-icon";
 import { Badge } from "@/components/ui/badge";
@@ -67,21 +66,19 @@ import {
 import { Kbd } from "@/components/ui/kbd";
 import { Separator } from "@/components/ui/separator";
 
-type WorkPulseItem = {
-  href: string;
-  label: string;
-  value: number;
-  tone?: "neutral" | "risk" | "warning";
-};
 
 type AppNavShellProps = {
   navigation: ShellNavigation;
-  pulseItems: WorkPulseItem[];
+  /** Streamed work-pulse chrome (async signal). Empty/null hides the slot. */
+  pulseSlot?: ReactNode;
   user: {
     name: string;
     email: string;
+    /** Sync role label — do not wait on demo switcher for profile chrome. */
+    roleLabel?: string;
   };
-  demoSwitcher?: DemoRoleSwitcher | null;
+  /** Streamed demo role-switch menu (async signal). */
+  demoMenuSlot?: ReactNode;
   branding?: WorkspaceBranding;
   areas?: ShellNavArea[];
   /** Role home from `roleHomePath` — never hardcode `/dashboard` (SUPPORT_AGENT stays off ops pulse). */
@@ -90,27 +87,30 @@ type AppNavShellProps = {
   canTakeNextCase?: boolean;
 };
 
-/** Idle (outline-ish) glyphs for primary area nav. */
+/**
+ * Idle glyphs for primary area nav — product metaphor first, morph-friendly pairs
+ * second (same Lucide family / shared silhouette when possible).
+ */
 const areaIcons = {
-  today: Activity,
-  feedback: MessageSquareText,
-  review: ClipboardCheck,
+  today: Gauge,
+  feedback: MessageSquare,
+  review: ClipboardList,
   calibration: Scale,
-  coaching: GraduationCap,
-  analytics: TrendingUp,
+  coaching: BookOpen,
+  analytics: ChartColumn,
   settings: SlidersHorizontal
 } satisfies Record<ShellNavAreaIcon, LucideIcon>;
 
 /**
- * Active/hover morph targets — related Lucide shapes Morphicons can interpolate
- * toward so the top-nav areas morph on route active and pointer/focus hover.
+ * Active/hover morph targets — related Lucide shapes Morphicons interpolate toward.
+ * Avoid medical (HeartPulse), courtroom (Gavel), and multi-thread chat metaphors.
  */
 const areaActiveIcons = {
-  today: HeartPulse,
-  feedback: MessagesSquare,
-  review: ClipboardPen,
-  calibration: Gavel,
-  coaching: BookMarked,
+  today: Activity,
+  feedback: MessageSquareReply,
+  review: ClipboardCheck,
+  calibration: CircleEqual,
+  coaching: BookOpenCheck,
   analytics: ChartSpline,
   settings: Settings2
 } satisfies Record<ShellNavAreaIcon, LucideIcon>;
@@ -175,15 +175,6 @@ function commandMatches(command: ShellCommandItem, query: string) {
   );
 }
 
-function pulseBadgeVariant(tone?: WorkPulseItem["tone"]) {
-  if (tone === "risk") {
-    return "destructive" as const;
-  }
-  if (tone === "warning") {
-    return "secondary" as const;
-  }
-  return "outline" as const;
-}
 
 export function AppNavShell(props: AppNavShellProps) {
   const pathname = usePathname();
@@ -198,9 +189,9 @@ export function AppNavShell(props: AppNavShellProps) {
 
 function AppNavShellChrome({
   navigation,
-  pulseItems,
+  pulseSlot,
   user,
-  demoSwitcher,
+  demoMenuSlot,
   branding = defaultNavBranding,
   areas = topNavAreas,
   homeHref = "/dashboard",
@@ -221,7 +212,6 @@ function AppNavShellChrome({
   );
   const activeArea = areas.find((area) => area.id === activeAreaId);
   // Pulse chrome is badges only — Take next lives on the queue page / ⌘K, not the top bar.
-  const showPulseChrome = pulseItems.length > 0;
   const visibleCommands = useMemo(
     () =>
       navigation.commandItems
@@ -230,10 +220,8 @@ function AppNavShellChrome({
         .slice(0, 9),
     [navigation.commandItems, query, canTakeNextCase]
   );
-  const demoUserName =
-    demoSwitcher?.users.find((workspaceUser) => workspaceUser.id === demoSwitcher.currentUserId)?.name ??
-    user.name;
-  const demoRoleLabel = demoSwitcher?.roleLabel;
+  const roleLabel = user.roleLabel;
+  const hasDemoMenu = demoMenuSlot != null;
 
   const openCommand = useCallback(() => {
     setCommandOpen(true);
@@ -428,83 +416,14 @@ function AppNavShellChrome({
 
         <Separator orientation="vertical" className="hidden h-6 sm:block" />
 
-        {showPulseChrome ? (
-          <div className="flex min-w-0 items-center gap-1.5 sm:gap-2" aria-label="Рабочий пульс">
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    className="size-11 sm:hidden"
-                    aria-label="Рабочий пульс"
-                  />
-                }
-              >
-                <Activity />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="end"
-                sideOffset={8}
-                className="w-60"
-                // Base UI names the popup after the icon-only trigger (aria-labelledby →
-                // trigger id, empty text), which would erase this menu's accessible name;
-                // pin the name to the visible label instead.
-                aria-labelledby="work-pulse-menu-label"
-              >
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel id="work-pulse-menu-label">Рабочий пульс</DropdownMenuLabel>
-                  {pulseItems.map((item) => (
-                    <DropdownMenuItem
-                      key={item.label}
-                      render={
-                        <Link
-                          href={item.href}
-                          aria-label={`${item.label}: ${item.value}`}
-                        />
-                      }
-                      nativeButton={false}
-                    >
-                      <span>{item.label}</span>
-                      <Badge
-                        variant={pulseBadgeVariant(item.tone)}
-                        className="ml-auto"
-                      >
-                        {item.value}
-                      </Badge>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <div className="flex min-w-0 items-center gap-1">
-              {pulseItems.map((item) => (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  data-slot="button"
-                  aria-label={`${item.label}: ${item.value}`}
-                  className={cn(
-                    buttonVariants({ variant: "ghost", size: "sm" }),
-                    "hidden h-8 shrink-0 gap-1.5 px-1.5 text-muted-foreground sm:inline-flex"
-                  )}
-                >
-                  <span className="hidden text-xs 2xl:inline">{item.label}</span>
-                  <Badge variant={pulseBadgeVariant(item.tone)}>{item.value}</Badge>
-                </Link>
-              ))}
-            </div>
-          </div>
-        ) : null}
+        {pulseSlot}
 
         <Separator orientation="vertical" className="hidden h-6 sm:block" />
 
         <AccountMenuDisclosure
           triggerAriaLabel={
-            demoRoleLabel
-              ? `Профиль: ${demoRoleLabel}, ${demoUserName}`
+            roleLabel
+              ? `Профиль: ${roleLabel}, ${user.name}`
               : `Профиль: ${user.name}`
           }
           triggerTitle={user.email}
@@ -514,7 +433,7 @@ function AppNavShellChrome({
           )}
           align="end"
           dismissKey={pathname}
-          panelClassName={demoSwitcher ? "w-72" : "w-56"}
+          panelClassName={hasDemoMenu ? "w-72" : "w-56"}
           panel={
             <>
               <div
@@ -522,12 +441,12 @@ function AppNavShellChrome({
                 title={user.email}
               >
                 <Bell className="size-4" />
-                <span className="truncate">{demoSwitcher ? demoUserName : user.name}</span>
+                <span className="truncate">{user.name}</span>
               </div>
-              {demoSwitcher ? (
+              {demoMenuSlot ? (
                 <>
                   <div className="-mx-1 my-1 h-px bg-border" role="separator" />
-                  <DemoRoleSwitchMenu switcher={demoSwitcher} />
+                  {demoMenuSlot}
                 </>
               ) : null}
               <div className="-mx-1 my-1 h-px bg-border" role="separator" />
@@ -541,10 +460,10 @@ function AppNavShellChrome({
         >
           <span className="flex min-w-0 flex-col items-start gap-0.5 text-left">
             <span className="max-w-36 truncate text-sm font-medium leading-none">
-              {demoRoleLabel ?? user.name}
+              {roleLabel ?? user.name}
             </span>
             <span className="max-w-36 truncate text-xs text-muted-foreground">
-              {demoSwitcher ? demoUserName : user.email}
+              {user.email}
             </span>
           </span>
           <DisclosureMorphChevron data-icon="inline-end" />

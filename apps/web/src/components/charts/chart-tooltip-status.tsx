@@ -26,8 +26,8 @@ export function ChartTooltipStatus({
       role="tooltip"
       aria-live="polite"
       className={cn(
-        // z-20: sit above DeferredChartVisual's chart-enter transform layer
-        "pointer-events-none z-20 rounded-lg border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md",
+        // z-50: above plot SVG / drill hit-strips so hover values stay readable
+        "pointer-events-none z-50 rounded-lg border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md",
         className
       )}
     >

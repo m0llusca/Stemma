@@ -152,30 +152,7 @@ export function PairedAiDriftCharts({
             setActiveIndex(null);
           }
         }}
-      >
-        {activePoint ? (
-          <ChartTooltipStatus
-            id={tooltipId}
-            label={activePoint.label}
-            detail={activePoint.detail}
-            lines={[
-              {
-                label: "Уверенность модели",
-                value: percentLabel(activePoint.values.confidence)
-              },
-              {
-                label: "Доля резервной оценки",
-                value: percentLabel(activePoint.values.reserve)
-              },
-              {
-                label: "Выборка",
-                value: String(activePoint.sampleSize ?? 0)
-              }
-            ]}
-            className="absolute right-3 top-3 max-w-72"
-          />
-        ) : null}
-        {activePoint && confidencePosition ? (
+      >        {activePoint && confidencePosition ? (
           <span
             aria-hidden="true"
             data-slot="ai-drift-confidence-selected-marker"
@@ -203,6 +180,29 @@ export function PairedAiDriftCharts({
           Visual={PairedAiDriftVisual}
           componentProps={{ model }}
         />
+
+        {activePoint ? (
+          <ChartTooltipStatus
+            id={tooltipId}
+            label={activePoint.label}
+            detail={activePoint.detail}
+            lines={[
+              {
+                label: "Уверенность модели",
+                value: percentLabel(activePoint.values.confidence)
+              },
+              {
+                label: "Доля резервной оценки",
+                value: percentLabel(activePoint.values.reserve)
+              },
+              {
+                label: "Выборка",
+                value: String(activePoint.sampleSize ?? 0)
+              }
+            ]}
+            className="absolute right-3 top-3 max-w-72"
+          />
+        ) : null}
       </div>
     </div>
   );

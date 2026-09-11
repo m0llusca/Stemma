@@ -655,16 +655,15 @@
 @keyframes qc-chart-enter {
   from {
     opacity: 0;
-    transform: translateY(var(--motion-distance-enter));
   }
   to {
     opacity: 1;
-    /* Drop transform after enter so the layer does not trap stacking and
-       hide absolute ChartTooltipStatus overlays painted earlier in the DOM. */
-    transform: none;
   }
 }
 
+/* Opacity-only enter: a lasting `transform` (even translateY(0) under
+   animation-fill-mode: both) keeps a stacking context that paints over
+   absolute ChartTooltipStatus siblings mounted earlier in the DOM. */
 [data-qc-motion="chart-enter"] {
   animation: qc-chart-enter var(--motion-duration-spring-enter)
     var(--motion-ease-spring-panel) both;
@@ -697,6 +696,15 @@
   }
 }
 
+@keyframes qc-chart-line-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 @keyframes qc-chart-mark-in {
   from {
     opacity: 0;
@@ -708,10 +716,28 @@
   }
 }
 
-/* Series entrance for static SVG plots. Recharts `Rectangle` animates via
-   `AnimatedRectangle` (`isAnimationActive`) — do not also scale those nodes. */
+@keyframes qc-chart-mark-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Recharts `<Curve>` does not forward `pathLength` to the DOM. Forcing
+   `stroke-dasharray: 1` permanently turns solid/dashed series into 1px crumbs
+   (broken «прошлый период» stairs + disconnected score dots). Fade instead.
+   Do NOT set `opacity: 0` outside the keyframe — if the enter animation is
+   skipped or cancelled (blocked HMR, reduced-motion edge cases), series stay
+   invisible forever and only markers remain. */
 [data-animation-active="true"] .recharts-curve,
-[data-animation-active="true"] polyline,
+[data-animation-active="true"] polyline {
+  animation: qc-chart-line-fade var(--motion-duration-spring-enter)
+    var(--motion-ease-spring-panel) both;
+}
+
+/* Native sparkline `<path pathLength={1}>` — dash-draw is safe here. */
 [data-animation-active="true"] path[data-slot="sparkline-line"] {
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
@@ -719,13 +745,19 @@
     var(--motion-ease-spring-panel) both;
 }
 
+/* Circles can scale; diamond `rect` markers must not — scale overrides SVG rotate(45). */
 [data-animation-active="true"] circle[data-point-id],
-[data-animation-active="true"] rect[data-point-id],
-[data-animation-active="true"] rect[data-marker],
 [data-animation-active="true"] circle[data-slot="sparkline-point"] {
   transform-box: fill-box;
   transform-origin: center;
   animation: qc-chart-mark-in calc(var(--motion-duration-spring-enter) * 0.75)
+    var(--motion-ease-spring-panel) both;
+  animation-delay: 90ms;
+}
+
+[data-animation-active="true"] rect[data-point-id],
+[data-animation-active="true"] rect[data-marker] {
+  animation: qc-chart-mark-fade calc(var(--motion-duration-spring-enter) * 0.75)
     var(--motion-ease-spring-panel) both;
   animation-delay: 90ms;
 }
@@ -853,6 +885,10 @@ svg[data-animation-active="true"] g[data-series="agreement"] rect {
   svg[data-animation-active="true"] rect[data-slot="category-bar"],
   svg[data-animation-active="true"] g[data-series] rect {
     animation: none;
+    /* Base rules set opacity:0 before the enter animation; without a final
+       opacity here reduced-motion users would keep invisible series forever. */
+    opacity: 1;
+    stroke-dashoffset: 0;
   }
 
   [data-slot="skeleton"] {

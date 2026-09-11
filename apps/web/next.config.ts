@@ -24,6 +24,15 @@ const monorepoRoot = path.resolve(appRoot, "../..");
 
 const nextConfig: NextConfig = {
   transpilePackages: ["morphicons", "@stemma/kinetics"],
+  // Dev client (HMR + /_next/*) rejects cross-origin hosts by default. Without
+  // this, 127.0.0.1 and Cloudflare tunnels get ERR_INVALID_HTTP_RESPONSE on
+  // `/_next/hmr`, React never hydrates, and chart tooltips stay dead.
+  allowedDevOrigins: [
+    "127.0.0.1",
+    "localhost",
+    "*.trycloudflare.com",
+    "*.cloudflare.com"
+  ],
   turbopack: {
     root: monorepoRoot,
     resolveAlias: {

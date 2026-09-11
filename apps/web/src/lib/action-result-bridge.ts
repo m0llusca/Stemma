@@ -25,13 +25,18 @@ let wrappedFetch: typeof window.fetch | null = null;
 let pendingListener: ActionResultListener | null = null;
 let latestNavigationFallbackToken = 0;
 
+/** Soft-nav soft-fail budget. Must stay above slow RSC pages (/reports,
+ *  /dashboard): a 2s hard `location.assign` made healthy but heavy soft
+ *  transitions feel like full reloads. */
+export const NAVIGATION_COMMIT_FALLBACK_MS = 15_000;
+
 /**
  * Arms a fallback for an SPA navigation started elsewhere (e.g. a Link
- * click). When the address bar has not reached `href` shortly after, the
- * transition is forced with a full document navigation — the Next 16.2.x
- * client router can silently drop the commit on some page loads. Only the
- * most recently armed fallback may fire, so rapid consecutive clicks do not
- * race each other.
+ * click). When the address bar has not reached `href` after
+ * {@link NAVIGATION_COMMIT_FALLBACK_MS}, the transition is forced with a
+ * full document navigation — the Next 16.2.x client router can silently
+ * drop the commit on some page loads. Only the most recently armed
+ * fallback may fire, so rapid consecutive clicks do not race each other.
  */
 export function scheduleNavigationCommitFallback(href: string) {
   const token = ++latestNavigationFallbackToken;
@@ -57,7 +62,7 @@ export function scheduleNavigationCommitFallback(href: string) {
       return;
     }
 
-    if (Date.now() - startedAt >= 2000) {
+    if (Date.now() - startedAt >= NAVIGATION_COMMIT_FALLBACK_MS) {
       window.clearInterval(timer);
       actionFlowNavigation.assign(href);
     }

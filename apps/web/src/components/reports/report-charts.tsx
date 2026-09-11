@@ -32,6 +32,14 @@ export type ChartDatum = {
   href?: string;
 };
 
+/** Sparkline points may leave calendar days empty without collapsing the week. */
+export type SparklineDatum = {
+  label: string;
+  value: number | null;
+  detail?: string;
+  href?: string;
+};
+
 export type RankedDatum = ChartDatum & {
   href?: string;
   meta?: string;
@@ -135,7 +143,7 @@ export function ChartPanel({
 }
 
 export function SparklineChart(props: {
-  points: ChartDatum[];
+  points: SparklineDatum[];
   target?: number;
   annotation?: string;
 }) {

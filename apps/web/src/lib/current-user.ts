@@ -63,7 +63,7 @@ async function getAuthJsSession() {
 /**
  * Per-request memo. Layout, AppNav, loading.tsx, and page gates all call this
  * on the same RSC render; without cache() each call re-imports Auth.js, re-reads
- * the session, and (legacy cookie path) writes `lastSeenAt` again.
+ * the session, and (legacy cookie path) may refresh `lastSeenAt` (throttled).
  */
 export const getCurrentUser = cache(async function getCurrentUser() {
   const authSession = await getAuthJsSession();

@@ -148,7 +148,23 @@ export function RankedBreakdownChart({
             setActiveIndex(null);
           }
         }}
-      >
+      >        {activePoint && activePosition ? (
+          <span
+            aria-hidden="true"
+            data-slot="ranked-breakdown-selected-marker"
+            data-point-id={activePoint.id}
+            className="pointer-events-none absolute z-10 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-primary ring-3 ring-primary/45 shadow-sm"
+            style={{
+              left: `${activePosition.left}%`,
+              top: `${activePosition.top}%`
+            }}
+          />
+        ) : null}
+        <DeferredChartVisual
+          Visual={RankedBreakdownVisual}
+          componentProps={{ model }}
+        />
+
         {activePoint ? (
           <ChartTooltipStatus
             id={tooltipId}
@@ -171,22 +187,6 @@ export function RankedBreakdownChart({
             className="absolute right-3 top-3 max-w-72"
           />
         ) : null}
-        {activePoint && activePosition ? (
-          <span
-            aria-hidden="true"
-            data-slot="ranked-breakdown-selected-marker"
-            data-point-id={activePoint.id}
-            className="pointer-events-none absolute z-10 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-primary ring-3 ring-primary/45 shadow-sm"
-            style={{
-              left: `${activePosition.left}%`,
-              top: `${activePosition.top}%`
-            }}
-          />
-        ) : null}
-        <DeferredChartVisual
-          Visual={RankedBreakdownVisual}
-          componentProps={{ model }}
-        />
       </div>
     </div>
   );

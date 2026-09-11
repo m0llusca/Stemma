@@ -44,4 +44,19 @@ describe("sparkline geometry", () => {
       (regions[0]?.width ?? 0) + (regions[1]?.width ?? 0) + (regions[2]?.width ?? 0)
     ).toBeCloseTo(100);
   });
+
+  it("bridges null calendar slots so a sparse week still draws one continuous line", () => {
+    const chart = buildSparklineGeometry(
+      [{ value: 50 }, { value: null }, { value: 100 }],
+      { width: SCORE_OVER_TIME_FALLBACK_WIDTH }
+    );
+
+    expect(chart.mapped).toHaveLength(3);
+    expect(chart.mapped[1]?.y).toBeNull();
+    expect(chart.mapped[0]?.x).toBe(SCORE_OVER_TIME_PLOT_PAD_X);
+    expect(chart.mapped[2]?.x).toBe(
+      SCORE_OVER_TIME_FALLBACK_WIDTH - SCORE_OVER_TIME_PLOT_PAD_X
+    );
+    expect(sparklinePath(chart.mapped)).toBe("M 12.0 120.0 L 348.0 12.0");
+  });
 });

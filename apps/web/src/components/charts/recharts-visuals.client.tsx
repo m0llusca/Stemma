@@ -172,7 +172,7 @@ export function QualityTrendVisual({
       ) : null}
       <svg
         aria-hidden="true"
-        className="recharts-surface block h-full w-full"
+        className="recharts-surface pointer-events-none block h-full w-full"
         tabIndex={-1}
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="none"
@@ -261,19 +261,25 @@ export function QualityTrendVisual({
             data-segment-count={previousSegments.length}
           >
             {previousSegments.map((segment, index) => (
-              <Curve
+              <polyline
                 key={`segment-${index}`}
-                pathLength={1}
-                type="linear"
-                points={segment}
                 fill="none"
                 stroke="var(--color-previous)"
                 strokeWidth={1.5}
                 strokeDasharray="6 5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
                 vectorEffect="non-scaling-stroke"
+                points={segment.map((point) => `${point.x},${point.y}`).join(" ")}
               />
             ))}
-            {previousPoints.map((point) => (
+            {/* Endpoint diamonds only — a marker on every day turns a flat
+                dashed previous-period line into a stair of rotated squares. */}
+            {previousPoints
+              .filter(
+                (_, index, all) => index === 0 || index === all.length - 1
+              )
+              .map((point) => (
               <rect
                 key={point.pointId}
                 data-point-id={point.pointId}
@@ -300,7 +306,6 @@ export function QualityTrendVisual({
             {scoreSegments.map((segment, index) => (
               <Curve
                 key={`segment-${index}`}
-                pathLength={1}
                 type="monotone"
                 points={segment}
                 fill="none"
@@ -372,7 +377,7 @@ export function RankedDriverVisual({
     >
       <svg
         aria-hidden="true"
-        className="recharts-surface block h-full w-full"
+        className="recharts-surface pointer-events-none block h-full w-full"
         tabIndex={-1}
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="none"
@@ -480,7 +485,7 @@ export function ScoreDistributionVisual({
     >
       <svg
         aria-hidden="true"
-        className="recharts-surface block h-full w-full"
+        className="recharts-surface pointer-events-none block h-full w-full"
         tabIndex={-1}
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="none"
@@ -573,7 +578,7 @@ export function PairedAiDriftVisual({
     >
       <svg
         aria-hidden="true"
-        className="recharts-surface block h-full w-full"
+        className="recharts-surface pointer-events-none block h-full w-full"
         tabIndex={-1}
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="none"
@@ -626,7 +631,6 @@ export function PairedAiDriftVisual({
           {confidenceSegments.map((segment, index) => (
             <polyline
               key={index}
-              pathLength={1}
               points={polylinePoints(segment)}
               fill="none"
               stroke="var(--color-confidence)"
@@ -655,7 +659,6 @@ export function PairedAiDriftVisual({
           {reserveSegments.map((segment, index) => (
             <polyline
               key={index}
-              pathLength={1}
               points={polylinePoints(segment)}
               fill="none"
               stroke="var(--color-reserve)"
@@ -721,7 +724,7 @@ export function ReasonTrendVisual({
     >
       <svg
         aria-hidden="true"
-        className="recharts-surface block h-full w-full"
+        className="recharts-surface pointer-events-none block h-full w-full"
         tabIndex={-1}
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="none"
@@ -760,7 +763,6 @@ export function ReasonTrendVisual({
           {previousSegments.map((segment, index) => (
             <polyline
               key={index}
-              pathLength={1}
               points={polylinePoints(segment)}
               fill="none"
               stroke="var(--color-previous)"
@@ -774,7 +776,6 @@ export function ReasonTrendVisual({
           {currentSegments.map((segment, index) => (
             <polyline
               key={index}
-              pathLength={1}
               points={polylinePoints(segment)}
               fill="none"
               stroke="var(--color-current)"
@@ -824,7 +825,7 @@ export function RankedBreakdownVisual({
     >
       <svg
         aria-hidden="true"
-        className="recharts-surface block h-full w-full"
+        className="recharts-surface pointer-events-none block h-full w-full"
         tabIndex={-1}
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="none"
