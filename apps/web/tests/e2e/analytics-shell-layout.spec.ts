@@ -206,19 +206,37 @@ for (const width of [320, 640, 768, 1280] as const) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/dashboard");
 
-    const kpis = page.getByRole("region", { name: "Ключевые показатели" });
+    // Demo admin uses the lead dashboard: risk/appeals lives in the left column
+    // under SLA, and the secondary activity grid is omitted.
+    const kpis = page.getByRole("region", { name: "Риск и нагрузка" });
     const primary = page.locator('[data-slot="dashboard-primary-grid"]');
     const secondary = page.locator('[data-slot="dashboard-secondary-grid"]');
+    const riskAppeals = page.locator('[data-slot="dashboard-risk-appeals"]');
+    const slaSurface = page.locator('[data-slot="lead-sla-surface"]');
     const kpiItems = kpis.locator(":scope > *");
     const primaryItems = primary.locator(":scope > *");
-    const secondaryItems = secondary.locator(":scope > *");
 
     await expect(kpis).toBeVisible();
     await expect(kpiItems).toHaveCount(4);
     await expect(primary).toBeVisible();
-    await expect(primaryItems).toHaveCount(3);
-    await expect(secondary).toBeVisible();
-    await expect(secondaryItems).toHaveCount(2);
+    await expect(primaryItems).toHaveCount(2);
+    await expect(secondary).toHaveCount(0);
+    await expect(slaSurface).toBeVisible();
+    await expect(riskAppeals).toBeVisible();
+
+    const leftColumn = primaryItems.nth(0);
+    expect(
+      await leftColumn.evaluate(
+        (column, risk) => column.contains(risk as Node),
+        await riskAppeals.elementHandle()
+      ),
+      "risk/appeals stays in the left primary column"
+    ).toBe(true);
+
+    const [slaBox, riskBox] = await Promise.all([rect(slaSurface), rect(riskAppeals)]);
+    expect(riskBox.y, "risk/appeals follows SLA in the left column").toBeGreaterThan(
+      slaBox.y + slaBox.height - 1
+    );
 
     const kpiBoxes = await kpiItems.evaluateAll((items) =>
       items.map((item) => {
@@ -227,12 +245,6 @@ for (const width of [320, 640, 768, 1280] as const) {
       })
     );
     const primaryBoxes = await primaryItems.evaluateAll((items) =>
-      items.slice(0, 2).map((item) => {
-        const box = item.getBoundingClientRect();
-        return { x: box.x, y: box.y, width: box.width };
-      })
-    );
-    const secondaryBoxes = await secondaryItems.evaluateAll((items) =>
       items.map((item) => {
         const box = item.getBoundingClientRect();
         return { x: box.x, y: box.y, width: box.width };
@@ -245,25 +257,20 @@ for (const width of [320, 640, 768, 1280] as const) {
       `KPI columns at ${width}px`
     ).toBe(expectedKpiColumns);
 
-    for (const [label, boxes] of [
-      ["primary", primaryBoxes],
-      ["secondary", secondaryBoxes]
-    ] as const) {
-      if (width < 1280) {
-        expect(boxes[1].y, `${label} pair stacks at ${width}px`).toBeGreaterThan(
-          boxes[0].y + 2
-        );
-      } else {
-        expect(Math.abs(boxes[0].y - boxes[1].y), `${label} pair aligns at 1280px`).toBeLessThanOrEqual(2);
-        expect(
-          boxes[0].width / boxes[1].width,
-          `${label} pair uses 2/1 tracks at 1280px`
-        ).toBeGreaterThanOrEqual(1.95);
-        expect(
-          boxes[0].width / boxes[1].width,
-          `${label} pair uses 2/1 tracks at 1280px`
-        ).toBeLessThanOrEqual(2.05);
-      }
+    if (width < 1280) {
+      expect(primaryBoxes[1].y, `primary pair stacks at ${width}px`).toBeGreaterThan(
+        primaryBoxes[0].y + 2
+      );
+    } else {
+      expect(Math.abs(primaryBoxes[0].y - primaryBoxes[1].y), "primary pair aligns at 1280px").toBeLessThanOrEqual(2);
+      expect(
+        primaryBoxes[0].width / primaryBoxes[1].width,
+        "primary pair uses 2/1 tracks at 1280px"
+      ).toBeGreaterThanOrEqual(1.95);
+      expect(
+        primaryBoxes[0].width / primaryBoxes[1].width,
+        "primary pair uses 2/1 tracks at 1280px"
+      ).toBeLessThanOrEqual(2.05);
     }
     await expectNoDocumentOverflow(page);
   });
