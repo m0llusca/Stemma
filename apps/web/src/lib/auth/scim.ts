@@ -2,7 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { Prisma, type UserLifecycleStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { auditLog } from "@/lib/audit";
-import { roleAfterLastAdminGuard } from "@/lib/auth/last-admin";
+import { lifecycleStatusAfterLastAdminGuard, roleAfterLastAdminGuard } from "@/lib/auth/last-admin";
 import {
   refreshIdentityPoliciesForUsers,
   resolveIdentityPolicyForUser,
@@ -865,11 +865,18 @@ export async function createScimUser(context: ScimContext, payload: ScimUserPayl
         tx
       );
 
-      if (status !== existingIdentity.user.lifecycleStatus) {
+      const nextLifecycleStatus = await lifecycleStatusAfterLastAdminGuard(
+        tx,
+        context.workspaceId,
+        existingIdentity.userId,
+        status
+      );
+
+      if (nextLifecycleStatus !== existingIdentity.user.lifecycleStatus) {
         await applyUserLifecycleStatus({
           userId: existingIdentity.userId,
           workspaceId: context.workspaceId,
-          status,
+          status: nextLifecycleStatus,
           actorId: null,
           sourceOfTruthProviderId: context.providerId,
           reason: "SCIM POST idempotent user update",
@@ -886,8 +893,8 @@ export async function createScimUser(context: ScimContext, payload: ScimUserPayl
             policy,
             context,
             now,
-            status,
-            await roleAfterLastAdminGuard(tx, context.workspaceId, existingIdentity.user.role, policy.role)
+            nextLifecycleStatus,
+            await roleAfterLastAdminGuard(tx, context.workspaceId, existingIdentity.userId, policy.role)
           )
         },
         include: {
@@ -906,7 +913,7 @@ export async function createScimUser(context: ScimContext, payload: ScimUserPayl
           displayName: name,
           rawClaimsJson: safeJson(payload),
           lastSyncAt: now,
-          disabledAt: status === "ACTIVE" ? null : now
+          disabledAt: nextLifecycleStatus === "ACTIVE" ? null : now
         }
       });
 
@@ -915,7 +922,7 @@ export async function createScimUser(context: ScimContext, payload: ScimUserPayl
         action: "scim.user_updated",
         targetType: "user",
         targetId: updated.id,
-        metadata: { providerId: context.providerId, status }
+        metadata: { providerId: context.providerId, status: nextLifecycleStatus }
       });
 
       return {
@@ -942,11 +949,18 @@ export async function createScimUser(context: ScimContext, payload: ScimUserPayl
         tx
       );
 
-      if (status !== user.lifecycleStatus) {
+      const nextLifecycleStatus = await lifecycleStatusAfterLastAdminGuard(
+        tx,
+        context.workspaceId,
+        user.id,
+        status
+      );
+
+      if (nextLifecycleStatus !== user.lifecycleStatus) {
         await applyUserLifecycleStatus({
           userId: user.id,
           workspaceId: context.workspaceId,
-          status,
+          status: nextLifecycleStatus,
           actorId: null,
           sourceOfTruthProviderId: context.providerId,
           reason: "SCIM POST user link",
@@ -963,8 +977,8 @@ export async function createScimUser(context: ScimContext, payload: ScimUserPayl
             policy,
             context,
             now,
-            status,
-            await roleAfterLastAdminGuard(tx, context.workspaceId, user.role, policy.role)
+            nextLifecycleStatus,
+            await roleAfterLastAdminGuard(tx, context.workspaceId, user.id, policy.role)
           )
         }
       });
@@ -1090,7 +1104,13 @@ export async function patchScimUser(context: ScimContext, id: string, payload: S
 
     const email = primaryEmail(merged);
     const name = displayName(merged);
-    const nextStatus = userActiveStatus(merged);
+    const requestedStatus = userActiveStatus(merged);
+    const nextStatus = await lifecycleStatusAfterLastAdminGuard(
+      tx,
+      context.workspaceId,
+      existing.id,
+      requestedStatus
+    );
     const now = new Date();
 
     let updated = existing;

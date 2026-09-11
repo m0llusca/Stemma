@@ -2,12 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { ReviewQueueFilters } from "@/lib/contracts/review-queue";
 import { canManageReviewWorkflow, requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
-import { nextReviewOrderBy, nextReviewWhere, type NextReviewUser } from "@/lib/review/next-review-query";
 import { filtersFromReviewsHref, safeReviewsHref } from "@/lib/review/queue-href-filters";
-import { buildReviewQueueWhere } from "@/lib/review-repository";
+import { selectNextReviewConversationId } from "@/lib/review/select-next-review-conversation";
 
 function stringField(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -68,27 +66,6 @@ export async function deleteSavedQueueView(formData: FormData) {
   });
 
   revalidatePath("/reviews");
-}
-
-// Resolves the id of the next conversation to grade, or null when the queue is
-// empty for this user. Only reads — never assigns or mutates — to avoid races
-// during parallel work. Priority order + scope live in the shared pure helper so
-// the queue button and the "finalize & take next" workbench action never drift.
-// Optional filters keep take-next inside the active queue URL view.
-export async function selectNextReviewConversationId(
-  user: NextReviewUser,
-  excludeConversationId?: string,
-  filters?: ReviewQueueFilters
-): Promise<string | null> {
-  const base = nextReviewWhere(user, excludeConversationId);
-  const where = filters ? { AND: [base, buildReviewQueueWhere(user.workspaceId, filters)] } : base;
-  const conversation = await prisma.conversation.findFirst({
-    where,
-    orderBy: nextReviewOrderBy,
-    select: { id: true }
-  });
-
-  return conversation?.id ?? null;
 }
 
 // Открывает самое срочное непроверенное обращение для ручной проверки.

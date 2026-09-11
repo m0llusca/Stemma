@@ -1,5 +1,8 @@
 import { decryptSecret } from "@/lib/secrets";
 
+/** Grandfathered IdP / provider env prefixes (plus QC_ALLOWED_SECRET_ENV allowlist). */
+const GRANDFATHERED_SECRET_ENV_PREFIXES = ["QC_PROVIDER_", "SAML_", "OIDC_", "LDAP_", "LDAPS_"] as const;
+
 export function isProductionRuntime() {
   return process.env.NODE_ENV === "production";
 }
@@ -16,6 +19,48 @@ export function isEncryptedSecretReference(value: string) {
 export function isSupportedSecretReference(value: string) {
   const trimmed = value.trim();
   return trimmed.startsWith("env:") || isEncryptedSecretReference(trimmed);
+}
+
+function allowedSecretEnvNames() {
+  const raw = process.env.QC_ALLOWED_SECRET_ENV ?? "";
+  return new Set(
+    raw
+      .split(",")
+      .map((name) => name.trim())
+      .filter(Boolean)
+  );
+}
+
+/**
+ * Fail-closed env secret allowlist: IdP prefixes (`QC_PROVIDER_*`, `SAML_*`, `OIDC_*`,
+ * `LDAP_*`, `LDAPS_*`) or names listed in `QC_ALLOWED_SECRET_ENV` (comma-separated).
+ * Blocks `AUTH_SECRET` / `QC_SECRET_KEY` / `DATABASE_URL` / arbitrary env.
+ */
+export function isAllowedSecretEnvName(name: string) {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    return false;
+  }
+
+  if (GRANDFATHERED_SECRET_ENV_PREFIXES.some((prefix) => trimmed.startsWith(prefix))) {
+    return true;
+  }
+
+  return allowedSecretEnvNames().has(trimmed);
+}
+
+export function assertAllowedSecretEnvName(name: string, label: string) {
+  if (!isAllowedSecretEnvName(name)) {
+    throw new Error(
+      `${label} ссылается на переменную окружения вне allowlist (QC_PROVIDER_*/SAML_*/OIDC_*/LDAP_*/LDAPS_* или QC_ALLOWED_SECRET_ENV).`
+    );
+  }
+}
+
+function assertEnvRefAllowlisted(trimmed: string, label: string) {
+  if (trimmed.startsWith("env:")) {
+    assertAllowedSecretEnvName(trimmed.slice("env:".length), label);
+  }
 }
 
 export function assertProductionSecretReference(value: string | null | undefined, label = "Секрет клиента") {
@@ -37,6 +82,8 @@ export function assertProductionSecretReference(value: string | null | undefined
   if (!isSupportedSecretReference(trimmed)) {
     throw new Error(`${label} в production должен быть env:- или зашифрованной v1:-ссылкой, а не inline-значением.`);
   }
+
+  assertEnvRefAllowlisted(trimmed, label);
 }
 
 export function assertSupportedSecretReference(value: string | null | undefined, label: string) {
@@ -55,6 +102,8 @@ export function assertSupportedSecretReference(value: string | null | undefined,
   if (!isSupportedSecretReference(trimmed)) {
     throw new Error(`${label} должен быть env:- или зашифрованной v1:-ссылкой.`);
   }
+
+  assertEnvRefAllowlisted(trimmed, label);
 }
 
 export function resolveSecretReference(ref: string | null | undefined, label: string) {
@@ -65,7 +114,9 @@ export function resolveSecretReference(ref: string | null | undefined, label: st
   }
 
   if (trimmed.startsWith("env:")) {
-    const value = process.env[trimmed.slice("env:".length)];
+    const envName = trimmed.slice("env:".length);
+    assertAllowedSecretEnvName(envName, label);
+    const value = process.env[envName];
 
     if (!value) {
       throw new Error(`${label} ссылается на пустую или отсутствующую переменную окружения.`);

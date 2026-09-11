@@ -130,7 +130,7 @@ export async function saveIdentityProvider(formData: FormData) {
     samlCertificateRef,
     config
   });
-  validateLdapsProviderConfigForSave({
+  await validateLdapsProviderConfigForSave({
     type,
     status,
     ldapsUrl,

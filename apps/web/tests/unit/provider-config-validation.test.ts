@@ -1,4 +1,22 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const dnsMocks = vi.hoisted(() => ({
+  lookup: vi.fn(),
+  resolve4: vi.fn(),
+  resolve6: vi.fn()
+}));
+
+vi.mock("node:dns/promises", () => ({
+  default: {
+    lookup: dnsMocks.lookup,
+    resolve4: dnsMocks.resolve4,
+    resolve6: dnsMocks.resolve6
+  },
+  lookup: dnsMocks.lookup,
+  resolve4: dnsMocks.resolve4,
+  resolve6: dnsMocks.resolve6
+}));
+
 import {
   assertProviderEndpointUrls,
   assertSafeProviderConfig,
@@ -7,6 +25,19 @@ import {
 import { validateLdapsProviderConfigForSave } from "@/lib/auth/ldaps-config";
 
 describe("provider config validation", () => {
+  beforeEach(() => {
+    dnsMocks.lookup.mockReset();
+    dnsMocks.resolve4.mockReset();
+    dnsMocks.resolve6.mockReset();
+    // LDAPS fixtures use example.com hostnames — pin to a public IP so CI
+    // does not depend on real DNS (directory gate still re-checks the result).
+    dnsMocks.lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("rejects sensitive config keys recursively with a safe error", () => {
     expect(() =>
       assertSafeProviderConfig({
@@ -54,58 +85,60 @@ describe("provider config validation", () => {
     ).not.toThrow();
   });
 
-  it("requires LDAPS-only directory sync configuration with ref-based bind and CA settings", () => {
-    expect(() =>
+  it("requires LDAPS-only directory sync configuration with ref-based bind and CA settings", async () => {
+    vi.stubEnv("QC_ALLOW_PRIVATE_BASE_URLS", "1");
+
+    await expect(
       validateLdapsProviderConfigForSave({
         type: "ACTIVE_DIRECTORY_LDAPS",
         status: "active",
         ldapsUrl: "ldap://dc01.example.com:389",
         ldapsBindDn: "CN=svc,DC=example,DC=com",
-        ldapsBindSecretRef: "env:QC_AD_BIND_PASSWORD",
+        ldapsBindSecretRef: "env:QC_PROVIDER_AD_BIND_PASSWORD",
         config: {
           userSearchBase: "OU=Users,DC=example,DC=com",
           groupSearchBase: "OU=Groups,DC=example,DC=com"
         }
       })
-    ).toThrow(/LDAPS/);
+    ).rejects.toThrow(/LDAPS/);
 
     for (const ldapsUrl of [
       "ldaps://bind:password@dc01.example.com:636",
       "ldaps://dc01.example.com:636?x=1",
       "ldaps://dc01.example.com:636#frag"
     ]) {
-      expect(() =>
+      await expect(
         validateLdapsProviderConfigForSave({
           type: "ACTIVE_DIRECTORY_LDAPS",
           status: "active",
           ldapsUrl,
           ldapsBindDn: "CN=svc,DC=example,DC=com",
-          ldapsBindSecretRef: "env:QC_AD_BIND_PASSWORD",
+          ldapsBindSecretRef: "env:QC_PROVIDER_AD_BIND_PASSWORD",
           config: {
             userSearchBase: "OU=Users,DC=example,DC=com",
             groupSearchBase: "OU=Groups,DC=example,DC=com"
           }
         })
-      ).toThrow(/username\/password, query или fragment/);
+      ).rejects.toThrow(/username\/password, query или fragment/);
     }
 
-    expect(() =>
+    await expect(
       validateLdapsProviderConfigForSave({
         type: "ACTIVE_DIRECTORY_LDAPS",
         status: "active",
         ldapsUrl: "ldaps://dc01.example.com:636",
         ldapsBindDn: "CN=svc,DC=example,DC=com",
-        ldapsBindSecretRef: "env:QC_AD_BIND_PASSWORD",
+        ldapsBindSecretRef: "env:QC_PROVIDER_AD_BIND_PASSWORD",
         config: {
           userSearchBase: "OU=Users,DC=example,DC=com",
           groupSearchBase: "OU=Groups,DC=example,DC=com",
           nestedGroups: true,
-          caCertRefs: ["env:QC_AD_CA_PEM"]
+          caCertRefs: ["env:QC_PROVIDER_AD_CA_PEM"]
         }
       })
-    ).not.toThrow();
+    ).resolves.toBeUndefined();
 
-    expect(() =>
+    await expect(
       validateLdapsProviderConfigForSave({
         type: "ACTIVE_DIRECTORY_LDAPS",
         status: "draft",
@@ -114,9 +147,9 @@ describe("provider config validation", () => {
         ldapsBindSecretRef: "vault:qc/ad/bind-password",
         config: {}
       })
-    ).toThrow(/vault:\/secret:/);
+    ).rejects.toThrow(/vault:\/secret:/);
 
-    expect(() =>
+    await expect(
       validateLdapsProviderConfigForSave({
         type: "ACTIVE_DIRECTORY_LDAPS",
         status: "draft",
@@ -125,19 +158,19 @@ describe("provider config validation", () => {
         ldapsBindSecretRef: "secret:qc/ad/bind-password",
         config: {}
       })
-    ).toThrow(/vault:\/secret:/);
+    ).rejects.toThrow(/vault:\/secret:/);
 
-    expect(() =>
+    await expect(
       validateLdapsProviderConfigForSave({
         type: "ACTIVE_DIRECTORY_LDAPS",
         status: "draft",
         ldapsUrl: "ldaps://dc01.example.com:636",
         ldapsBindDn: "CN=svc,DC=example,DC=com",
-        ldapsBindSecretRef: "env:QC_AD_BIND_PASSWORD",
+        ldapsBindSecretRef: "env:QC_PROVIDER_AD_BIND_PASSWORD",
         config: {
           caCertRefs: ["vault:qc/ad/ca"]
         }
       })
-    ).toThrow(/vault:\/secret:/);
+    ).rejects.toThrow(/vault:\/secret:/);
   });
 });

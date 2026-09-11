@@ -1,3 +1,5 @@
+import { commandReviewDisclosure } from "@/components/review/review-disclosure";
+
 export type FormSubmitGate = {
   minCheckedNames?: string[];
   requireAnyValueNames?: string[];
@@ -115,6 +117,12 @@ export function firstInvalidControl(form: HTMLFormElement, gate: FormSubmitGate 
 
 function openCollapsibleHost(host: HTMLElement) {
   if (host instanceof HTMLDetailsElement) {
+    // Controlled ReviewDisclosure: React owns `open`. Setting the IDL is a no-op
+    // for focus-reveal — dispatch the same command keyboard uses.
+    if (host.querySelector("[data-slot='review-disclosure-trigger']")) {
+      commandReviewDisclosure(host, true);
+      return;
+    }
     if (!host.open) {
       host.open = true;
     }

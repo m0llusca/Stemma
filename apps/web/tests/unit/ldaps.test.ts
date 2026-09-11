@@ -10,6 +10,9 @@ import { resolveSecretReference } from "@/lib/auth/secret-refs";
 describe("LDAPS config validation", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
+    delete process.env.QC_PROVIDER_AD_BIND_PASSWORD;
+    delete process.env.QC_PROVIDER_AD_CA_PEM;
+    delete process.env.QC_ALLOWED_SECRET_ENV;
   });
 
   it("parses LDAPS config defaults and attribute mappings", () => {
@@ -18,100 +21,115 @@ describe("LDAPS config validation", () => {
         userSearchBase: "OU=Users,DC=example,DC=com",
         groupSearchBase: "OU=Groups,DC=example,DC=com",
         nestedGroups: true,
-        caCertRefs: ["env:QC_AD_CA_PEM"]
+        caCertRefs: ["env:QC_PROVIDER_AD_CA_PEM"]
       })
     });
 
     expect(parsed.userSearchBase).toBe("OU=Users,DC=example,DC=com");
     expect(parsed.groupSearchBase).toBe("OU=Groups,DC=example,DC=com");
     expect(parsed.nestedGroups).toBe(true);
-    expect(parsed.caCertRefs).toEqual(["env:QC_AD_CA_PEM"]);
+    expect(parsed.caCertRefs).toEqual(["env:QC_PROVIDER_AD_CA_PEM"]);
     expect(parsed.userAttributes.email).toEqual(["mail", "userPrincipalName"]);
   });
 
-  it("requires LDAPS URLs without embedded credentials or query fragments", () => {
-    expect(() => assertLdapsUrl("ldap://dc01.example.com:389")).toThrow(/LDAPS/);
-    expect(() => assertLdapsUrl("ldaps://bind:password@dc01.example.com:636")).toThrow(/username\/password/);
-    expect(assertLdapsUrl("ldaps://dc01.example.com:636")).toBeUndefined();
+  it("requires LDAPS URLs without embedded credentials or query fragments", async () => {
+    await expect(assertLdapsUrl("ldap://dc01.example.com:389")).rejects.toThrow(/LDAPS/);
+    await expect(assertLdapsUrl("ldaps://bind:password@dc01.example.com:636")).rejects.toThrow(/username\/password/);
+    await expect(assertLdapsUrl("ldaps://10.0.0.5:636")).resolves.toBeUndefined();
   });
 
-  it("accepts env and encrypted bind secrets at save time", () => {
+  it("allows private RFC1918 AD hosts and still blocks loopback/metadata", async () => {
+    await expect(assertLdapsUrl("ldaps://10.0.0.5:636")).resolves.toBeUndefined();
+    await expect(assertLdapsUrl("ldaps://192.168.1.20:636")).resolves.toBeUndefined();
+    await expect(assertLdapsUrl("ldaps://172.16.0.1:636")).resolves.toBeUndefined();
+
+    await expect(assertLdapsUrl("ldaps://127.0.0.1:636")).rejects.toThrow(/loopback|link-local|metadata|multicast/);
+    await expect(assertLdapsUrl("ldaps://169.254.169.254:636")).rejects.toThrow(/loopback|link-local|metadata|multicast/);
+    await expect(assertLdapsUrl("ldaps://metadata.google.internal:636")).rejects.toThrow(
+      /loopback|link-local|metadata|multicast/
+    );
+  });
+
+  it("accepts env and encrypted bind secrets at save time", async () => {
     const encryptedBindSecret = encryptSecret("bind-password");
 
-    expect(() =>
+    await expect(
       validateLdapsProviderConfigForSave({
         type: "ACTIVE_DIRECTORY_LDAPS",
         status: "active",
-        ldapsUrl: "ldaps://dc01.example.com:636",
+        ldapsUrl: "ldaps://10.0.0.5:636",
         ldapsBindDn: "CN=svc,DC=example,DC=com",
-        ldapsBindSecretRef: "env:QC_AD_BIND_PASSWORD",
+        ldapsBindSecretRef: "env:QC_PROVIDER_AD_BIND_PASSWORD",
         config: {
           userSearchBase: "OU=Users,DC=example,DC=com",
           groupSearchBase: "OU=Groups,DC=example,DC=com"
         }
       })
-    ).not.toThrow();
+    ).resolves.toBeUndefined();
 
-    expect(() =>
+    await expect(
       validateLdapsProviderConfigForSave({
         type: "ACTIVE_DIRECTORY_LDAPS",
         status: "draft",
-        ldapsUrl: "ldaps://dc01.example.com:636",
+        ldapsUrl: "ldaps://10.0.0.5:636",
         ldapsBindDn: "CN=svc,DC=example,DC=com",
         ldapsBindSecretRef: encryptedBindSecret,
         config: {}
       })
-    ).not.toThrow();
+    ).resolves.toBeUndefined();
   });
 
-  it("rejects unsupported vault and inline bind secret references at save time", () => {
-    expect(() =>
+  it("rejects unsupported vault and inline bind secret references at save time", async () => {
+    await expect(
       validateLdapsProviderConfigForSave({
         type: "ACTIVE_DIRECTORY_LDAPS",
         status: "draft",
-        ldapsUrl: "ldaps://dc01.example.com:636",
+        ldapsUrl: "ldaps://10.0.0.5:636",
         ldapsBindDn: "CN=svc,DC=example,DC=com",
         ldapsBindSecretRef: "vault:qc/ad/bind-password",
         config: {}
       })
-    ).toThrow(/vault:\/secret:/);
+    ).rejects.toThrow(/vault:\/secret:/);
 
-    expect(() =>
+    await expect(
       validateLdapsProviderConfigForSave({
         type: "ACTIVE_DIRECTORY_LDAPS",
         status: "draft",
-        ldapsUrl: "ldaps://dc01.example.com:636",
+        ldapsUrl: "ldaps://10.0.0.5:636",
         ldapsBindDn: "CN=svc,DC=example,DC=com",
         ldapsBindSecretRef: "raw-bind-password",
         config: {}
       })
-    ).toThrow(/env:- или зашифрованной v1:/);
+    ).rejects.toThrow(/env:- или зашифрованной v1:/);
 
-    expect(() =>
+    await expect(
       validateLdapsProviderConfigForSave({
         type: "ACTIVE_DIRECTORY_LDAPS",
         status: "draft",
-        ldapsUrl: "ldaps://dc01.example.com:636",
+        ldapsUrl: "ldaps://10.0.0.5:636",
         ldapsBindDn: "CN=svc,DC=example,DC=com",
-        ldapsBindSecretRef: "env:QC_AD_BIND_PASSWORD",
+        ldapsBindSecretRef: "env:QC_PROVIDER_AD_BIND_PASSWORD",
         config: {
           caCertRefs: ["vault:qc/ad/ca"]
         }
       })
-    ).toThrow(/vault:\/secret:/);
+    ).rejects.toThrow(/vault:\/secret:/);
   });
 });
-
 describe("LDAPS secret resolution paths", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
+    delete process.env.QC_PROVIDER_AD_BIND_PASSWORD;
+    delete process.env.QC_PROVIDER_AD_CA_PEM;
   });
 
   it("resolves bind and CA refs through the shared runtime helper", () => {
-    process.env.QC_AD_BIND_PASSWORD = "service-account-password";
-    process.env.QC_AD_CA_PEM = "/etc/ssl/certs/ad-ca.pem";
+    process.env.QC_PROVIDER_AD_BIND_PASSWORD = "service-account-password";
+    process.env.QC_PROVIDER_AD_CA_PEM = "/etc/ssl/certs/ad-ca.pem";
 
-    expect(resolveSecretReference("env:QC_AD_BIND_PASSWORD", "Bind-секрет LDAPS")).toBe("service-account-password");
-    expect(resolveSecretReference("env:QC_AD_CA_PEM", "LDAPS CA")).toBe("/etc/ssl/certs/ad-ca.pem");
+    expect(resolveSecretReference("env:QC_PROVIDER_AD_BIND_PASSWORD", "Bind-секрет LDAPS")).toBe(
+      "service-account-password"
+    );
+    expect(resolveSecretReference("env:QC_PROVIDER_AD_CA_PEM", "LDAPS CA")).toBe("/etc/ssl/certs/ad-ca.pem");
   });
 });

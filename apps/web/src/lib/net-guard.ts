@@ -170,6 +170,80 @@ function isBlockedIpAddress(address: string): boolean {
 }
 
 /**
+ * Directory / LDAPS targets may live on RFC1918 and IPv6 ULA hosts (on-prem AD).
+ * Still block loopback, link-local/metadata, multicast, and unspecified — those are
+ * SSRF / cloud-metadata vectors, not legitimate DCs.
+ */
+function isDirectoryBlockedIpv4(octets: number[]) {
+  const [a, b] = octets;
+
+  return (
+    a === 0 || // 0.0.0.0/8 (unspecified / «this network»)
+    a === 127 || // 127.0.0.0/8 (loopback)
+    (a === 169 && b === 254) || // 169.254.0.0/16 (link-local, metadata)
+    (a >= 224 && a <= 239) // 224.0.0.0/4 (multicast)
+  );
+}
+
+function isDirectoryBlockedIpv6(words: number[]) {
+  const leadingZeroWords = words.filter((word, index) => index < 7 && word === 0).length;
+
+  if (leadingZeroWords === 7 && (words[7] === 0 || words[7] === 1)) {
+    // :: (unspecified) и ::1 (loopback)
+    return true;
+  }
+
+  if ((words[0] & 0xffc0) === 0xfe80) {
+    // fe80::/10 (link-local)
+    return true;
+  }
+
+  if ((words[0] & 0xff00) === 0xff00) {
+    // ff00::/8 (multicast)
+    return true;
+  }
+
+  if (words[0] === 0 && words[1] === 0 && words[2] === 0 && words[3] === 0 && words[4] === 0 && words[5] === 0xffff) {
+    // ::ffff:a.b.c.d — перепроверяем вложенный IPv4 по directory-правилам.
+    return isDirectoryBlockedIpv4([words[6] >> 8, words[6] & 0xff, words[7] >> 8, words[7] & 0xff]);
+  }
+
+  return false;
+}
+
+function isDirectoryBlockedIpAddress(address: string): boolean {
+  const normalized = address.toLowerCase().replace(/^\[|\]$/g, "");
+  const octets = parseIpv4(normalized);
+
+  if (octets) {
+    return isDirectoryBlockedIpv4(octets);
+  }
+
+  const words = parseIpv6(normalized);
+
+  if (words) {
+    return isDirectoryBlockedIpv6(words);
+  }
+
+  // Неразборчивый адрес — fail-closed.
+  return true;
+}
+
+function isBlockedMetadataHostname(hostname: string): boolean {
+  const normalized = hostname.toLowerCase().replace(/\.$/, "");
+
+  return (
+    normalized === "localhost" ||
+    normalized.endsWith(".localhost") ||
+    normalized === "metadata.google.internal" ||
+    normalized.endsWith(".metadata.google.internal") ||
+    normalized === "metadata" ||
+    normalized === "instance-data" ||
+    normalized.endsWith(".instance-data")
+  );
+}
+
+/**
  * Для непрозрачных схем (grpc:, grpcs:) WHATWG-парсер не канонизирует хост, поэтому
  * сокращённые формы IPv4 (127.1, 0x7f000001, 2130706433) обошли бы проверку диапазонов.
  * Прогон хоста через http-парсер приводит их к каноническому виду a.b.c.d.
@@ -279,8 +353,86 @@ export async function assertPublicBaseUrl(url: URL): Promise<void> {
   await resolvePublicBaseUrl(url);
 }
 
+const DIRECTORY_SERVICE_BASE_URL_MESSAGE =
+  "Адрес службы каталогов указывает на loopback, link-local, metadata или multicast — такие адреса запрещены.";
+
+const DIRECTORY_DNS_RESOLUTION_MESSAGE =
+  "Не удалось разрешить DNS-имя адреса службы каталогов — адрес отклонён.";
+
+function assertHostnameNotDirectoryBlocked(hostname: string): void {
+  if (isBlockedMetadataHostname(hostname)) {
+    throw new Error(DIRECTORY_SERVICE_BASE_URL_MESSAGE);
+  }
+
+  if (hostname.startsWith("[") && hostname.endsWith("]")) {
+    const words = parseIpv6(hostname.slice(1, -1));
+
+    if (words && isDirectoryBlockedIpv6(words)) {
+      throw new Error(DIRECTORY_SERVICE_BASE_URL_MESSAGE);
+    }
+
+    return;
+  }
+
+  const octets = parseIpv4(hostname);
+
+  if (octets && isDirectoryBlockedIpv4(octets)) {
+    throw new Error(DIRECTORY_SERVICE_BASE_URL_MESSAGE);
+  }
+}
+
+/**
+ * SSRF gate for directory services (LDAPS / on-prem AD).
+ * Allows RFC1918 and IPv6 ULA without QC_ALLOW_PRIVATE_BASE_URLS.
+ * Still rejects loopback, link-local/metadata, multicast, and unspecified.
+ */
+export async function resolveDirectoryServiceBaseUrl(url: URL): Promise<PublicBaseUrlResolution> {
+  const hostname = canonicalHostname(url.hostname);
+  assertHostnameNotDirectoryBlocked(hostname);
+
+  if (isIpLiteralHostname(hostname)) {
+    const address = hostname.startsWith("[") ? hostname.slice(1, -1) : hostname;
+    if (isDirectoryBlockedIpAddress(address)) {
+      throw new Error(DIRECTORY_SERVICE_BASE_URL_MESSAGE);
+    }
+    return { url, addresses: [address] };
+  }
+
+  const addresses = await resolveHostnameAddresses(hostname).catch(() => {
+    throw new Error(DIRECTORY_DNS_RESOLUTION_MESSAGE);
+  });
+
+  if (addresses.length === 0) {
+    throw new Error(DIRECTORY_DNS_RESOLUTION_MESSAGE);
+  }
+
+  for (const address of addresses) {
+    if (isDirectoryBlockedIpAddress(address)) {
+      throw new Error(DIRECTORY_SERVICE_BASE_URL_MESSAGE);
+    }
+  }
+
+  return { url, addresses };
+}
+
+export async function assertDirectoryServiceBaseUrl(url: URL): Promise<void> {
+  await resolveDirectoryServiceBaseUrl(url);
+}
+
 const REDIRECT_HOP_LIMIT_MESSAGE =
   "Слишком много перенаправлений при запросе к внешнему URL — запрос отклонён для защиты от SSRF.";
+
+const SENSITIVE_REDIRECT_HEADERS = ["authorization", "proxy-authorization", "cookie", "cookie2"] as const;
+
+function stripSensitiveRedirectHeaders(headers: HeadersInit | undefined): Headers {
+  const nextHeaders = new Headers(headers);
+
+  for (const name of SENSITIVE_REDIRECT_HEADERS) {
+    nextHeaders.delete(name);
+  }
+
+  return nextHeaders;
+}
 
 export type GuardedFetchInit = RequestInit & {
   /** Max redirect hops to follow (default 5). Each hop re-runs resolvePublicBaseUrl. */
@@ -288,8 +440,11 @@ export type GuardedFetchInit = RequestInit & {
 };
 
 /**
- * fetch() with DNS-pinning SSRF checks on the initial URL and every redirect Location.
+ * fetch() with pre-flight SSRF DNS validation on the initial URL and every redirect Location.
  * Always uses redirect:"manual" so the runtime cannot follow a private hop before we re-assert.
+ *
+ * Note: this is not true connection-level DNS pinning — `fetch` may re-resolve the hostname
+ * after our check (TOCTOU). Prefer literal IPs in trusted configs when pinning is required.
  */
 export async function guardedFetch(input: string | URL, init: GuardedFetchInit = {}): Promise<Response> {
   const maxRedirects = init.maxRedirects ?? 5;
@@ -334,6 +489,8 @@ export async function guardedFetch(input: string | URL, init: GuardedFetchInit =
       throw new Error(PRIVATE_BASE_URL_MESSAGE);
     }
 
+    const crossHost = next.host !== current.host || next.origin !== current.origin;
+
     // Drop body on classic redirect semantics (301/302/303) so we do not replay POST to a new host.
     if (
       response.status === 303 ||
@@ -346,6 +503,22 @@ export async function guardedFetch(input: string | URL, init: GuardedFetchInit =
         nextHeaders.delete("content-type");
         nextHeaders.delete("content-length");
         headers = nextHeaders;
+      }
+    }
+
+    // Cross-host redirects must not forward credentials (Fetch CORS / SSRF hygiene).
+    if (crossHost) {
+      headers = stripSensitiveRedirectHeaders(headers);
+
+      // 307/308 preserve method+body by default — drop body across hosts to be safer.
+      if (response.status === 307 || response.status === 308) {
+        body = undefined;
+        if (headers) {
+          const nextHeaders = new Headers(headers);
+          nextHeaders.delete("content-type");
+          nextHeaders.delete("content-length");
+          headers = nextHeaders;
+        }
       }
     }
 

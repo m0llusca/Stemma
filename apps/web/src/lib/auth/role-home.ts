@@ -73,11 +73,17 @@ export function sanitizeReturnTo(value: string | null | undefined) {
 }
 
 export function isGenericPostLoginPath(path: string) {
-  if (path.includes("?")) {
+  const withoutHash = (path.split("#")[0] || path).trim();
+
+  if (withoutHash.includes("?")) {
     return false;
   }
 
-  const pathname = path.split("?")[0] || path;
+  let pathname = withoutHash;
+  if (pathname.length > 1 && pathname.endsWith("/")) {
+    pathname = pathname.replace(/\/+$/, "") || "/";
+  }
+
   return GENERIC_LANDING_PATHNAMES.has(pathname);
 }
 

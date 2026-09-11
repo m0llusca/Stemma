@@ -13,20 +13,16 @@ import {
   oidcStateCookieName,
   oidcVerifierCookieName
 } from "@/lib/auth/oidc";
+import { sanitizeReturnTo } from "@/lib/auth/role-home";
 import { buildSamlAuthorizationUrl } from "@/lib/auth/saml";
 import { prisma } from "@/lib/db";
 import { resolvePublicOrigin } from "@/lib/public-origin";
 
 export const dynamic = "force-dynamic";
 
-function safeReturnTo(value: string | null) {
-  // Keep generic `/` when missing so ACS/OIDC callback can apply role home.
-  return value == null || value === "" ? "/" : value.startsWith("/") && !value.startsWith("//") ? value : "/";
-}
-
 function authErrorRedirect(request: NextRequest, origin: string, code: LoginFlashCode) {
   const url = new URL("/auth/login", origin);
-  url.searchParams.set("returnTo", safeReturnTo(request.nextUrl.searchParams.get("returnTo")));
+  url.searchParams.set("returnTo", sanitizeReturnTo(request.nextUrl.searchParams.get("returnTo")));
   const response = NextResponse.redirect(url);
   response.cookies.set(loginFlashCookieName, code, loginFlashCookieOptions());
 
@@ -44,7 +40,7 @@ export async function GET(request: NextRequest) {
 
   const providerSlug = request.nextUrl.searchParams.get("provider") || "microsoft-entra-id";
   const workspaceId = request.nextUrl.searchParams.get("workspaceId") || undefined;
-  const returnTo = safeReturnTo(request.nextUrl.searchParams.get("returnTo"));
+  const returnTo = sanitizeReturnTo(request.nextUrl.searchParams.get("returnTo"));
 
   // Fail closed without an explicit workspace: shared provider slugs must never
   // silently pick the oldest tenant's IdP (cross-workspace session risk).

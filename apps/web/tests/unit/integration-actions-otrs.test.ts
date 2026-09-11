@@ -16,6 +16,9 @@ const mocks = vi.hoisted(() => {
     },
     backendJob: {
       create: vi.fn()
+    },
+    certificationEvidence: {
+      findFirst: vi.fn()
     }
   };
 
@@ -142,6 +145,7 @@ describe("OTRS integration actions", () => {
     });
     mocks.prisma.integration.findFirst.mockResolvedValue({ id: "integration-1" });
     mocks.prisma.integration.findUnique.mockResolvedValue(null);
+    mocks.prisma.certificationEvidence.findFirst.mockResolvedValue(null);
     mocks.prisma.integration.upsert.mockResolvedValue({
       id: "integration-1",
       source: "otrs",

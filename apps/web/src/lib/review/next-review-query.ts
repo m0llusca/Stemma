@@ -14,8 +14,8 @@ import { outOfSampleSamplingType } from "@/lib/sampling-engine";
  * Unmatched sampling imports persist samplingType OUT_OF_SAMPLE (QaStatus has no
  * SKIPPED/OUT_OF_SAMPLE) and must not be take-next eligible.
  *
- * URL / saved-view filters are not part of this helper. The selector
- * (`selectNextReviewConversationId`) ANDs `buildReviewQueueWhere` on top so
+ * URL / saved-view filters are not part of this helper. The selector in
+ * `select-next-review-conversation` ANDs `buildReviewQueueWhere` on top so
  * Take next / finalize_next stay inside the same view as the queue list.
  */
 export type NextReviewUser = { id: string; workspaceId: string; name: string; role: string };

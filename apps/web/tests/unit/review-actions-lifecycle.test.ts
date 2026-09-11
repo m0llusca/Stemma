@@ -81,7 +81,7 @@ vi.mock("@/lib/review-events", async (importOriginal) => {
   };
 });
 
-vi.mock("@/lib/queue-view-actions", () => ({
+vi.mock("@/lib/review/select-next-review-conversation", () => ({
   selectNextReviewConversationId: mocks.selectNextReviewConversationId
 }));
 

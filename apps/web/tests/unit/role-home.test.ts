@@ -100,6 +100,11 @@ describe("role-home", () => {
     expect(isGenericPostLoginPath("/auth/pending-access")).toBe(true);
     expect(isGenericPostLoginPath("/reviews?due=overdue")).toBe(false);
     expect(isGenericPostLoginPath("/self-review")).toBe(false);
+    expect(isGenericPostLoginPath("/reviews/")).toBe(true);
+    expect(isGenericPostLoginPath("/dashboard/")).toBe(true);
+    expect(isGenericPostLoginPath("/reviews#section")).toBe(true);
+    expect(isGenericPostLoginPath("/dashboard#pulse")).toBe(true);
+    expect(isGenericPostLoginPath("/reviews/?due=overdue")).toBe(false);
   });
 
   it("sanitizes open redirects to a generic sentinel", () => {

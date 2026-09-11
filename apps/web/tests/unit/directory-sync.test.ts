@@ -94,7 +94,7 @@ describe("directory sync", () => {
   });
 
   it("runs Active Directory LDAPS dry-run with paged search, nested group diagnostics, and no user writes", async () => {
-    process.env.TEST_AD_BIND_PASSWORD = "bind-secret";
+    process.env.LDAP_AD_BIND_PASSWORD = "bind-secret";
     const searchPaginated = vi.fn(async function* (base: string, options: { filter?: string }) {
       if (base === "OU=Groups,DC=example,DC=com" && String(options.filter).includes("1.2.840.113556.1.4.1941")) {
         yield {
@@ -149,9 +149,9 @@ describe("directory sync", () => {
           workspaceId: "workspace-1",
           type: "ACTIVE_DIRECTORY_LDAPS",
           status: "draft",
-          ldapsUrl: "ldaps://dc01.example.com:636",
+          ldapsUrl: "ldaps://10.0.0.5:636",
           ldapsBindDn: "CN=svc,DC=example,DC=com",
-          ldapsBindSecretRef: "env:TEST_AD_BIND_PASSWORD",
+          ldapsBindSecretRef: "env:LDAP_AD_BIND_PASSWORD",
           configJson: JSON.stringify({
             userSearchBase: "OU=Users,DC=example,DC=com",
             groupSearchBase: "OU=Groups,DC=example,DC=com",
@@ -251,9 +251,9 @@ describe("directory sync", () => {
           workspaceId: "workspace-1",
           type: "ACTIVE_DIRECTORY_LDAPS",
           status: "draft",
-          ldapsUrl: "ldaps://dc01.example.com:636",
+          ldapsUrl: "ldaps://10.0.0.5:636",
           ldapsBindDn: "CN=svc,DC=example,DC=com",
-          ldapsBindSecretRef: "env:TEST_AD_BIND_PASSWORD",
+          ldapsBindSecretRef: "env:LDAP_AD_BIND_PASSWORD",
           configJson: JSON.stringify({
             userSearchBase: "OU=Users,DC=example,DC=com",
             groupSearchBase: "OU=Groups,DC=example,DC=com"
@@ -293,7 +293,7 @@ describe("directory sync", () => {
           status: "active",
           ldapsUrl: "ldaps://bind:password@dc01.example.com:636",
           ldapsBindDn: "CN=svc,DC=example,DC=com",
-          ldapsBindSecretRef: "env:TEST_AD_BIND_PASSWORD",
+          ldapsBindSecretRef: "env:LDAP_AD_BIND_PASSWORD",
           configJson: JSON.stringify({
             userSearchBase: "OU=Users,DC=example,DC=com",
             groupSearchBase: "OU=Groups,DC=example,DC=com"
@@ -324,7 +324,7 @@ describe("directory sync", () => {
   });
 
   it("reports LDAP referrals and skips non-nested memberOf groups missing from synced groups", async () => {
-    process.env.TEST_AD_BIND_PASSWORD = "bind-secret";
+    process.env.LDAP_AD_BIND_PASSWORD = "bind-secret";
     const searchPaginated = vi.fn(async function* (base: string) {
       if (base === "OU=Groups,DC=example,DC=com") {
         yield {
@@ -361,9 +361,9 @@ describe("directory sync", () => {
           workspaceId: "workspace-1",
           type: "ACTIVE_DIRECTORY_LDAPS",
           status: "draft",
-          ldapsUrl: "ldaps://dc01.example.com:636",
+          ldapsUrl: "ldaps://10.0.0.5:636",
           ldapsBindDn: "CN=svc,DC=example,DC=com",
-          ldapsBindSecretRef: "env:TEST_AD_BIND_PASSWORD",
+          ldapsBindSecretRef: "env:LDAP_AD_BIND_PASSWORD",
           configJson: JSON.stringify({
             userSearchBase: "OU=Users,DC=example,DC=com",
             groupSearchBase: "OU=Groups,DC=example,DC=com"
@@ -405,7 +405,7 @@ describe("directory sync", () => {
   });
 
   it("persists dry-run failure ledger when LDAPS bind env ref is missing before client setup", async () => {
-    delete process.env.MISSING_AD_BIND_PASSWORD;
+    delete process.env.LDAP_MISSING_AD_BIND_PASSWORD;
     const ldapClientFactory = vi.fn();
     const client = {
       identityProvider: {
@@ -414,9 +414,9 @@ describe("directory sync", () => {
           workspaceId: "workspace-1",
           type: "ACTIVE_DIRECTORY_LDAPS",
           status: "draft",
-          ldapsUrl: "ldaps://dc01.example.com:636",
+          ldapsUrl: "ldaps://10.0.0.5:636",
           ldapsBindDn: "CN=svc,DC=example,DC=com",
-          ldapsBindSecretRef: "env:MISSING_AD_BIND_PASSWORD",
+          ldapsBindSecretRef: "env:LDAP_MISSING_AD_BIND_PASSWORD",
           configJson: JSON.stringify({
             userSearchBase: "OU=Users,DC=example,DC=com",
             groupSearchBase: "OU=Groups,DC=example,DC=com"
@@ -463,8 +463,8 @@ describe("directory sync", () => {
   });
 
   it("persists sync failure ledger when LDAPS CA env ref cannot be resolved before bind", async () => {
-    process.env.TEST_AD_BIND_PASSWORD = "bind-secret";
-    delete process.env.MISSING_AD_CA_PEM;
+    process.env.LDAP_AD_BIND_PASSWORD = "bind-secret";
+    delete process.env.LDAP_MISSING_AD_CA_PEM;
     const ldapClientFactory = vi.fn();
     const client = {
       identityProvider: {
@@ -473,13 +473,13 @@ describe("directory sync", () => {
           workspaceId: "workspace-1",
           type: "ACTIVE_DIRECTORY_LDAPS",
           status: "active",
-          ldapsUrl: "ldaps://dc01.example.com:636",
+          ldapsUrl: "ldaps://10.0.0.5:636",
           ldapsBindDn: "CN=svc,DC=example,DC=com",
-          ldapsBindSecretRef: "env:TEST_AD_BIND_PASSWORD",
+          ldapsBindSecretRef: "env:LDAP_AD_BIND_PASSWORD",
           configJson: JSON.stringify({
             userSearchBase: "OU=Users,DC=example,DC=com",
             groupSearchBase: "OU=Groups,DC=example,DC=com",
-            caCertRefs: ["env:MISSING_AD_CA_PEM"]
+            caCertRefs: ["env:LDAP_MISSING_AD_CA_PEM"]
           })
         }),
         update: vi.fn().mockResolvedValue({})
@@ -522,8 +522,8 @@ describe("directory sync", () => {
   });
 
   it("redacts resolved LDAPS secrets, PEM material, and URL credentials from failure ledger", async () => {
-    process.env.TEST_AD_BIND_PASSWORD = "bind-secret";
-    process.env.TEST_AD_CA_PEM = "-----BEGIN CERTIFICATE-----\nraw-ca-material\n-----END CERTIFICATE-----";
+    process.env.LDAP_AD_BIND_PASSWORD = "bind-secret";
+    process.env.LDAP_AD_CA_PEM = "-----BEGIN CERTIFICATE-----\nraw-ca-material\n-----END CERTIFICATE-----";
     const ldapClient = {
       bind: vi.fn().mockRejectedValue(new Error("bind failed bind-secret -----BEGIN CERTIFICATE-----\nraw-ca-material\n-----END CERTIFICATE----- ldaps://user:pass@dc01.example.com:636")),
       search: vi.fn(),
@@ -537,13 +537,13 @@ describe("directory sync", () => {
           workspaceId: "workspace-1",
           type: "ACTIVE_DIRECTORY_LDAPS",
           status: "active",
-          ldapsUrl: "ldaps://dc01.example.com:636",
+          ldapsUrl: "ldaps://10.0.0.5:636",
           ldapsBindDn: "CN=svc,DC=example,DC=com",
-          ldapsBindSecretRef: "env:TEST_AD_BIND_PASSWORD",
+          ldapsBindSecretRef: "env:LDAP_AD_BIND_PASSWORD",
           configJson: JSON.stringify({
             userSearchBase: "OU=Users,DC=example,DC=com",
             groupSearchBase: "OU=Groups,DC=example,DC=com",
-            caCertRefs: ["env:TEST_AD_CA_PEM"]
+            caCertRefs: ["env:LDAP_AD_CA_PEM"]
           })
         }),
         update: vi.fn().mockResolvedValue({})
@@ -575,7 +575,7 @@ describe("directory sync", () => {
   });
 
   it("persists LDAPS users, groups, memberships, and suspends disabled AD accounts through lifecycle helpers", async () => {
-    process.env.TEST_AD_BIND_PASSWORD = "bind-secret";
+    process.env.LDAP_AD_BIND_PASSWORD = "bind-secret";
     const ldapClient = {
       bind: vi.fn().mockResolvedValue(undefined),
       searchPaginated: vi.fn(async function* (base: string) {
@@ -611,9 +611,9 @@ describe("directory sync", () => {
           workspaceId: "workspace-1",
           type: "ACTIVE_DIRECTORY_LDAPS",
           status: "active",
-          ldapsUrl: "ldaps://dc01.example.com:636",
+          ldapsUrl: "ldaps://10.0.0.5:636",
           ldapsBindDn: "CN=svc,DC=example,DC=com",
-          ldapsBindSecretRef: "env:TEST_AD_BIND_PASSWORD",
+          ldapsBindSecretRef: "env:LDAP_AD_BIND_PASSWORD",
           configJson: JSON.stringify({
             userSearchBase: "OU=Users,DC=example,DC=com",
             groupSearchBase: "OU=Groups,DC=example,DC=com",
@@ -725,7 +725,7 @@ describe("directory sync", () => {
   });
 
   it("persists real LDAPS sync writes and success ledger inside one transaction", async () => {
-    process.env.TEST_AD_BIND_PASSWORD = "bind-secret";
+    process.env.LDAP_AD_BIND_PASSWORD = "bind-secret";
     const ldapClient = {
       bind: vi.fn().mockResolvedValue(undefined),
       searchPaginated: vi.fn(async function* (base: string) {
@@ -794,9 +794,9 @@ describe("directory sync", () => {
           workspaceId: "workspace-1",
           type: "ACTIVE_DIRECTORY_LDAPS",
           status: "active",
-          ldapsUrl: "ldaps://dc01.example.com:636",
+          ldapsUrl: "ldaps://10.0.0.5:636",
           ldapsBindDn: "CN=svc,DC=example,DC=com",
-          ldapsBindSecretRef: "env:TEST_AD_BIND_PASSWORD",
+          ldapsBindSecretRef: "env:LDAP_AD_BIND_PASSWORD",
           configJson: JSON.stringify({
             userSearchBase: "OU=Users,DC=example,DC=com",
             groupSearchBase: "OU=Groups,DC=example,DC=com"

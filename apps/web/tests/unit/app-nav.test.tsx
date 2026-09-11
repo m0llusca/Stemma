@@ -212,13 +212,8 @@ describe("app nav", () => {
       .map((link) => link.textContent);
     expect(labels).toEqual(["Сегодня", "Проверки", "Аналитика"]);
 
-    const pulseSurfaces = screen.getAllByLabelText("Рабочий пульс");
-    const pulse = pulseSurfaces.find((element) => element.tagName === "DIV");
-    expect(pulse).toBeDefined();
-    // EXEC has reviews:read, but ops pulse still sells the queue. Risk lives on ExecRiskHome.
-    expect(within(pulse!).queryByRole("link", { name: /Очередь/ })).toBeNull();
-    expect(within(pulse!).queryByRole("link", { name: /Риск/ })).toBeNull();
-    expect(within(pulse!).queryByRole("link", { name: /Обучение/ })).toBeNull();
+    // EXEC has empty pulseItems and no take-next — honest empty hide (no «Рабочий пульс»).
+    expect(screen.queryByLabelText("Рабочий пульс")).toBeNull();
     expect(screen.queryByRole("button", { name: "Взять следующий" })).toBeNull();
     expect(mocks.prisma.conversation.count).not.toHaveBeenCalled();
     expect(mocks.prisma.review.count).not.toHaveBeenCalled();

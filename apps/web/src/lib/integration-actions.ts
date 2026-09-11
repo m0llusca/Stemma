@@ -20,7 +20,12 @@ import {
 import { parseOtrsConnectorConfig } from "@/lib/integrations/otrs-family/config";
 import { upsertIntegrationSecretSlot } from "@/lib/integrations/otrs-family/credentials";
 import { createOtrsPreview, runOtrsConnectorDiagnostics } from "@/lib/integrations/otrs-family/service";
-import { probeBeforeSaveGate } from "@/lib/integrations/probe-honesty";
+import { isProtectedLiveEnvGate } from "@/lib/certification/readiness-report";
+import {
+  isProbeBeforeSaveAllowed,
+  probeBeforeSaveGate,
+  type ProbeBeforeSaveIntent
+} from "@/lib/integrations/probe-honesty";
 import { runDueBackendJobs } from "@/lib/jobs/queue";
 import { assertPublicBaseUrl } from "@/lib/net-guard";
 
@@ -71,6 +76,75 @@ export type IntegrationQueueRunActionState = {
 function stringField(formData: FormData, key: string) {
   const value = formData.get(key);
   return typeof value === "string" ? value.trim() : "";
+}
+
+function resolveIntegrationSaveIntent(formData: FormData): ProbeBeforeSaveIntent {
+  const claimLive = stringField(formData, "claimLive");
+  if (claimLive === "1" || claimLive === "true") {
+    return "claim_live";
+  }
+
+  const intent = stringField(formData, "intent");
+  if (intent === "claim_live" || intent === "activate" || intent === "config_only") {
+    return intent;
+  }
+
+  return "config_only";
+}
+
+async function integrationLiveCertifiedEvidence(input: {
+  workspaceId: string;
+  integrationId?: string;
+  source?: string;
+}): Promise<boolean> {
+  if (!input.integrationId && !input.source) {
+    return false;
+  }
+
+  const evidence = await prisma.certificationEvidence.findFirst({
+    where: {
+      workspaceId: input.workspaceId,
+      targetType: "integration",
+      result: "passed",
+      ...(input.integrationId ? { integrationId: input.integrationId } : {}),
+      ...(input.source ? { source: input.source } : {})
+    },
+    orderBy: { recordedAt: "desc" },
+    select: {
+      envGate: true,
+      integrationId: true
+    }
+  });
+
+  return Boolean(evidence?.integrationId && isProtectedLiveEnvGate(evidence.envGate));
+}
+
+/**
+ * For activate/claim_live: evaluate the honesty gate BEFORE persist.
+ * config_only may proceed (warn-only); block aborts without writing.
+ */
+async function gateIntegrationBeforePersist(input: {
+  intent: ProbeBeforeSaveIntent;
+  workspaceId: string;
+  integrationId?: string;
+  source?: string;
+  probeSucceeded?: boolean;
+}): Promise<{ allowed: boolean; decision: ReturnType<typeof probeBeforeSaveGate>; liveCertified: boolean }> {
+  const liveCertified = await integrationLiveCertifiedEvidence({
+    workspaceId: input.workspaceId,
+    integrationId: input.integrationId,
+    source: input.source
+  });
+
+  const probeSucceeded =
+    input.intent === "config_only"
+      ? Boolean(input.probeSucceeded)
+      : liveCertified
+        ? true
+        : Boolean(input.probeSucceeded);
+
+  const decision = probeBeforeSaveGate(input.intent, { probeSucceeded, liveCertified });
+  return { allowed: isProbeBeforeSaveAllowed(decision), decision, liveCertified };
 }
 
 function numberField(formData: FormData, key: string, fallback: number) {
@@ -977,9 +1051,48 @@ export async function queueSelectedOtrsImportAction(formData: FormData) {
 
 export async function saveIntegrationConfigurationState(_state: IntegrationActionState, formData: FormData): Promise<IntegrationActionState> {
   try {
+    const user = await getCurrentUser();
+    const intent = resolveIntegrationSaveIntent(formData);
+    const source = stringField(formData, "source");
+    const integrationId = stringField(formData, "integrationId") || undefined;
+
+    let preDecision: ReturnType<typeof probeBeforeSaveGate> | null = null;
+
+    // claim_live / activate must be gated before any persist.
+    if (intent === "claim_live" || intent === "activate") {
+      const gated = await gateIntegrationBeforePersist({
+        intent,
+        workspaceId: user.workspaceId,
+        integrationId,
+        source: source || undefined,
+        // Integration config save has no separate network probe here; only live
+        // cert evidence can unlock claim_live/activate on this path.
+        probeSucceeded: false
+      });
+
+      if (!gated.allowed) {
+        return {
+          ok: false,
+          message: gated.decision.message,
+          integrationId
+        };
+      }
+
+      preDecision = gated.decision;
+    }
+
     const result = await saveIntegrationConfiguration(formData);
 
-    const decision = probeBeforeSaveGate("config_only");
+    const liveCertified = await integrationLiveCertifiedEvidence({
+      workspaceId: user.workspaceId,
+      integrationId: result.integrationId,
+      source: source || undefined
+    });
+    const decision =
+      preDecision ??
+      probeBeforeSaveGate("config_only", {
+        liveCertified
+      });
 
     return {
       ok: true,
@@ -1019,9 +1132,45 @@ export async function saveOtrsIntegrationConfigurationState(
   formData: FormData
 ): Promise<IntegrationActionState> {
   try {
+    const user = await getCurrentUser();
+    const intent = resolveIntegrationSaveIntent(formData);
+    const source = stringField(formData, "source");
+    const integrationId = stringField(formData, "integrationId") || undefined;
+
+    let preDecision: ReturnType<typeof probeBeforeSaveGate> | null = null;
+
+    if (intent === "claim_live" || intent === "activate") {
+      const gated = await gateIntegrationBeforePersist({
+        intent,
+        workspaceId: user.workspaceId,
+        integrationId,
+        source: source || undefined,
+        probeSucceeded: false
+      });
+
+      if (!gated.allowed) {
+        return {
+          ok: false,
+          message: gated.decision.message,
+          integrationId
+        };
+      }
+
+      preDecision = gated.decision;
+    }
+
     const result = await saveOtrsIntegrationConfiguration(formData);
 
-    const decision = probeBeforeSaveGate("config_only");
+    const liveCertified = await integrationLiveCertifiedEvidence({
+      workspaceId: user.workspaceId,
+      integrationId: result.integrationId,
+      source: source || undefined
+    });
+    const decision =
+      preDecision ??
+      probeBeforeSaveGate("config_only", {
+        liveCertified
+      });
 
     return {
       ok: true,

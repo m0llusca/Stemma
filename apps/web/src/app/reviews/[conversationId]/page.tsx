@@ -51,6 +51,7 @@ import {
 import { toAgentCriterionFeedbackItems } from "@/lib/feedback/agent-criterion-feedback";
 import { isDeterministicAiModel } from "@/lib/ai-quality/draft-origin";
 import {
+  canAcknowledgeFeedback as roleCanAcknowledgeFeedback,
   canManageReviewWorkflow,
   canManageTraining,
   canResolveAppeal,
@@ -522,14 +523,17 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
     : "Нет";
   const feedbackClosed =
     latestFinalizedReview?.feedbackStatus === "acknowledged" || latestFinalizedReview?.feedbackStatus === "corrected";
-  const canAcknowledgeFeedback = Boolean(latestFinalizedReview && !feedbackClosed && !hasOpenAppeal);
+  const canWriteFeedback = roleCanAcknowledgeFeedback(user.role);
+  const canAcknowledgeFeedback = Boolean(
+    canWriteFeedback && latestFinalizedReview && !feedbackClosed && !hasOpenAppeal
+  );
   const appealAvailability = latestFinalizedReview
     ? {
         appealStatus: latestFinalizedReview.appealStatus,
         feedbackStatus: latestFinalizedReview.feedbackStatus
       }
     : null;
-  const canOpenAppeal = Boolean(appealAvailability && canAgentOpenAppeal(appealAvailability));
+  const canOpenAppeal = Boolean(canWriteFeedback && appealAvailability && canAgentOpenAppeal(appealAvailability));
   const appealDisabledReason = appealAvailability ? agentAppealDisabledReason(appealAvailability) : null;
   const agentAppealProps = latestFinalizedReview
     ? {
@@ -540,7 +544,9 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
         dueAt: latestFinalizedReview.appealDueAt
       }
     : undefined;
-  const canCompleteReanswer = Boolean(latestFinalizedReview?.needsReanswer && latestFinalizedReview.reanswerStatus === "requested");
+  const canCompleteReanswer = Boolean(
+    canWriteFeedback && latestFinalizedReview?.needsReanswer && latestFinalizedReview.reanswerStatus === "requested"
+  );
 
   const detailPane = (
     <div id="review-evidence" className="flex flex-col gap-4">

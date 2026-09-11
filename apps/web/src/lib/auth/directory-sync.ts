@@ -14,7 +14,24 @@ type DirectorySyncClient = Pick<
   | "groupRoleMapping"
   | "authSession"
   | "auditLog"
->;
+> & {
+  $queryRaw?: Prisma.TransactionClient["$queryRaw"];
+};
+
+type DirectorySyncRootClient = DirectorySyncClient & {
+  $transaction?: <T>(callback: (tx: DirectorySyncClient) => Promise<T>) => Promise<T>;
+};
+
+function runInTransactionIfAvailable<T>(
+  client: DirectorySyncRootClient,
+  callback: (tx: DirectorySyncClient) => Promise<T>
+): Promise<T> {
+  if (typeof client.$transaction === "function") {
+    return client.$transaction(callback);
+  }
+
+  return callback(client);
+}
 
 function parseJsonRecord(value: string) {
   try {
@@ -103,48 +120,54 @@ export async function syncDirectoryProvider(input: {
   }
 
   let updatedUsers = 0;
+  const root = db as DirectorySyncRootClient;
 
   for (const identity of identities) {
     const policy = await resolveIdentityPolicyForUser(provider.workspaceId, provider.id, identity.userId, claimsFromRawJson(identity.rawClaimsJson));
     const name = identity.displayName ?? identity.email;
     const supportLine = policy.supportLine ?? identity.user.supportLine;
     const teamName = policy.teamName ?? identity.user.teamName;
-    const role = await roleAfterLastAdminGuard(db, provider.workspaceId, identity.user.role, policy.role);
-    const userAttributesChanged =
-      identity.user.role !== role ||
-      identity.user.email !== identity.email ||
-      identity.user.name !== name ||
-      identity.user.supportLine !== supportLine ||
-      identity.user.teamName !== teamName ||
-      identity.user.sourceOfTruthProviderId !== provider.id;
 
-    await db.user.update({
-      where: { id: identity.userId },
-      data: {
-        ...(userAttributesChanged
-          ? {
-              email: identity.email,
-              name,
-              role,
-              supportLine,
-              teamName,
-              sourceOfTruthProviderId: provider.id
-            }
-          : {}),
-        lastDirectorySyncAt: new Date()
-      }
+    const userAttributesChanged = await runInTransactionIfAvailable(root, async (tx) => {
+      const role = await roleAfterLastAdminGuard(tx, provider.workspaceId, identity.userId, policy.role);
+      const changed =
+        identity.user.role !== role ||
+        identity.user.email !== identity.email ||
+        identity.user.name !== name ||
+        identity.user.supportLine !== supportLine ||
+        identity.user.teamName !== teamName ||
+        identity.user.sourceOfTruthProviderId !== provider.id;
+
+      await tx.user.update({
+        where: { id: identity.userId },
+        data: {
+          ...(changed
+            ? {
+                email: identity.email,
+                name,
+                role,
+                supportLine,
+                teamName,
+                sourceOfTruthProviderId: provider.id
+              }
+            : {}),
+          lastDirectorySyncAt: new Date()
+        }
+      });
+
+      await tx.externalIdentity.update({
+        where: { id: identity.id },
+        data: {
+          lastSyncAt: new Date()
+        }
+      });
+
+      return changed;
     });
 
     if (userAttributesChanged) {
       updatedUsers += 1;
     }
-
-    await db.externalIdentity.update({
-      where: { id: identity.id },
-      data: {
-        lastSyncAt: new Date()
-      }
-    });
   }
 
   await db.identityProvider.update({
