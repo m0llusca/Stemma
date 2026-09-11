@@ -38,7 +38,6 @@ import {
   FieldSet
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
@@ -184,12 +183,20 @@ function shouldOpenCriterion(criterion: ScorecardCriterion, score?: CriterionSco
 
 function StepHeader({ number, title, detail }: { number: number; title: string; detail: string }) {
   return (
-    <div className="flex min-w-0 items-start gap-2.5">
-      <span className="flex size-[26px] shrink-0 items-center justify-center rounded-md border border-border bg-card text-xs font-extrabold tabular-nums text-muted-foreground">
+    <div className="grid min-w-0 grid-cols-[1.75rem_minmax(0,1fr)] items-start gap-x-3">
+      <span
+        className={cn(
+          "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md border text-xs font-extrabold tabular-nums transition-colors",
+          "border-border bg-card text-muted-foreground",
+          "group-data-[review-open=true]:border-primary/30 group-data-[review-open=true]:bg-primary/10 group-data-[review-open=true]:text-primary"
+        )}
+      >
         {number}
       </span>
       <div className="min-w-0">
-        <h3 className="text-xs font-extrabold uppercase leading-tight text-muted-foreground">{title}</h3>
+        <h3 className="text-xs font-extrabold uppercase leading-5 tracking-wide text-foreground">
+          {title}
+        </h3>
         <p className="mt-0.5 text-[13px] leading-snug text-muted-foreground">{detail}</p>
       </div>
     </div>
@@ -217,14 +224,23 @@ function StepDisclosure({
     <ReviewDisclosure
       memoryKey={memoryKey}
       defaultOpen={defaultOpen}
-      className={cn("work-section group flex flex-col gap-3", className)}
-      triggerClassName="flex min-h-11 w-full min-w-0 cursor-pointer items-start justify-between gap-2.5 bg-transparent text-left outline-none focus-visible:rounded-md focus-visible:ring-2 focus-visible:ring-ring/50"
+      className={cn(
+        "work-section group flex flex-col gap-3 rounded-lg border border-transparent p-3.5 transition-colors",
+        "hover:bg-card/60",
+        "data-[review-open=true]:border-border data-[review-open=true]:bg-card data-[review-open=true]:shadow-sm",
+        className
+      )}
+      triggerClassName="grid w-full min-w-0 cursor-pointer grid-cols-[minmax(0,1fr)_1.75rem] items-start gap-3 bg-transparent text-left outline-none focus-visible:rounded-md focus-visible:ring-2 focus-visible:ring-ring/50"
       contentClassName="min-w-0"
       trigger={
         <>
           <StepHeader number={number} title={title} detail={detail} />
           <span
-            className="inline-flex size-7 shrink-0 items-center justify-center rounded-md border border-border bg-card text-primary"
+            className={cn(
+              "mt-0.5 inline-flex size-7 shrink-0 items-center justify-center rounded-md border text-primary transition-colors",
+              "border-border bg-card",
+              "group-data-[review-open=true]:border-primary/20 group-data-[review-open=true]:bg-primary/5"
+            )}
             aria-hidden="true"
           >
             <DisclosureMorphChevron />
@@ -454,13 +470,12 @@ export function ReviewPanel({
         </div>
       </section>
 
-      <div className="review-panel-scroll bg-muted">
+      <div className="review-panel-scroll flex flex-col gap-1 bg-muted p-1">
         <StepDisclosure
           memoryKey={`${conversationId}:step:criteria`}
           number={1}
           title="Оценка по критериям"
           detail="Заполните только то, что отличается от нормы."
-          className="work-section--muted p-3.5"
         >
           <div className="grid gap-3">
             {criteriaByBlock.map((group) => {
@@ -986,18 +1001,11 @@ export function ReviewPanel({
 
       <ReviewKeyboard />
 
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-muted px-4 py-2">
-        <KbdGroup className="text-muted-foreground" aria-hidden="true">
-          <Kbd>J</Kbd>
-          <Kbd>K</Kbd>
-          <span className="text-xs">·</span>
-          <Kbd>1</Kbd>
-          <Kbd>2</Kbd>
-          <Kbd>3</Kbd>
-          <span className="text-xs">·</span>
-          <Kbd>?</Kbd>
-        </KbdGroup>
-        <a href="#coaching-analysis" className="text-sm font-medium text-primary underline-offset-4 hover:underline">
+      <div className="flex items-center justify-end border-t border-border bg-muted/80 px-4 py-2.5">
+        <a
+          href="#coaching-analysis"
+          className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+        >
           Добавить в обучение
         </a>
       </div>
