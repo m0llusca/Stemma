@@ -90,21 +90,21 @@ export function buildSparklineGeometry<T extends { value: number | null }>(
   };
 }
 
-/** Polyline with gaps: null `y` starts a new subpath so empty days stay empty. */
+/** Polyline that bridges empty days: null `y` keeps the weekday slot but does
+ *  not break the path, so a sparse «7 дней» spark still draws a continuous line. */
 export function sparklinePath(points: readonly { x: number; y: number | null }[]) {
   const commands: string[] = [];
-  let drawing = false;
+  let started = false;
 
   for (const point of points) {
     if (point.y == null) {
-      drawing = false;
       continue;
     }
 
     commands.push(
-      `${drawing ? "L" : "M"} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`
+      `${started ? "L" : "M"} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`
     );
-    drawing = true;
+    started = true;
   }
 
   return commands.join(" ");

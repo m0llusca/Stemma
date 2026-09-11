@@ -272,7 +272,13 @@ export function QualityTrendVisual({
                 vectorEffect="non-scaling-stroke"
               />
             ))}
-            {previousPoints.map((point) => (
+            {/* Endpoint diamonds only — a marker on every day turns a flat
+                dashed previous-period line into a stair of rotated squares. */}
+            {previousPoints
+              .filter(
+                (_, index, all) => index === 0 || index === all.length - 1
+              )
+              .map((point) => (
               <rect
                 key={point.pointId}
                 data-point-id={point.pointId}

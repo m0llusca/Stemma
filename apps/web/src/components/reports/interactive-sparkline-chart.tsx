@@ -99,7 +99,18 @@ export function InteractiveSparklineChart({
       target
     });
     const nextPoints = geometry.mapped.map((point, index): SparklinePoint => {
-      const delta = index === 0 ? null : qualityScoreDelta(point.value, points[index - 1].value);
+      let previousValue: number | null = null;
+      for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+        const candidate = points[cursor]?.value;
+        if (candidate != null) {
+          previousValue = candidate;
+          break;
+        }
+      }
+      const delta =
+        point.value == null || previousValue == null
+          ? null
+          : qualityScoreDelta(point.value, previousValue);
 
       return {
         ...point,
@@ -107,7 +118,6 @@ export function InteractiveSparklineChart({
         tooltip: buildTooltip(point, delta)
       };
     });
-
     return {
       height: geometry.height,
       max: geometry.max,
