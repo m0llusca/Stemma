@@ -18,7 +18,7 @@ const morphiconsReactFromApp = `./${path
   .join("/")}`;
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["morphicons"],
+  transpilePackages: ["morphicons", "@stemma/kinetics"],
   turbopack: {
     resolveAlias: {
       "morphicons/react": morphiconsReactFromApp

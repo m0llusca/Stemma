@@ -36,7 +36,7 @@
 
 ## Kinetics
 
-Не npm-зависимость. Каталог spring CSS / React / prompt-паттернов.
+Публичного npm у Colorion Kinetics нет (gallery-only). First-party пакет `@stemma/kinetics` держит spring-токены и хелперы; registry `kinetics` — чужой accelerometer-пакет, не ставить.
 
 Слой motion поверх shadcn **base-nova**, не замена DS. В проекте уже `tw-animate-css` и sonner — вторую motion-систему не заводим.
 
@@ -44,7 +44,7 @@
 
 ### Adopted tokens (phase 2)
 
-Скопированы только spring-значения (duration / cubic-bezier) в `apps/web/src/app/globals.css`. React-демо Kinetics и пакет не ставим. Июльский provenance-аудит банил Shimmer Skeleton как чужой код; здесь — независимый token-backed shimmer на `--muted` / `--card`.
+Spring-значения живут в `@stemma/kinetics/tokens.css` (импорт из `globals.css`). React-демо Colorion не вендорим. Июльский provenance-аудит банил Shimmer Skeleton как чужой код; здесь — независимый token-backed shimmer на `--muted` / `--card`.
 
 | Pattern | Tokens | Surface |
 | --- | --- | --- |
@@ -57,6 +57,13 @@
 | Icon morph swap (#117) | `morphicons` + `reducedMotion="user"` | CopyButton Copy↔Check; accordion / score-module chevron |
 | Tab-pill glide (optional) | `--motion-ease-spring-glide` | `TabsTrigger`, `PageShell` tabs |
 | Chart enter (#109) | `--motion-duration-spring-enter`, `--motion-ease-spring-panel`, `qc-chart-enter` | `[data-qc-motion="chart-enter"]` on `StaticChartContainer` / score sparkline |
+| Progress spring | `--motion-duration-spring`, `--motion-ease-spring-overshoot` | `Progress` indicator |
+| Checkbox / radio settle | `--motion-duration-spring`, `--motion-ease-spring-overshoot` | `Checkbox` / `RadioGroup` indicators |
+| Toggle glide | `--motion-duration-spring-glide`, `--motion-ease-spring-glide` | `Toggle` |
+| Sheet enter | `--motion-duration-spring-enter`, `--motion-ease-spring-panel` | `Sheet` overlay + content |
+| Dialog / alert enter | `--motion-duration-spring-enter`, `--motion-ease-spring-panel` | `Dialog` / `AlertDialog` overlay + content |
+| Hover lift | `--motion-scale-hover-lift`, `--motion-distance-hover-lift` | `[data-qc-motion="hover-lift"]` on `StatKpi` cards |
+| Package | `@stemma/kinetics` | tokens.css + JS presets; not Colorion React demos |
 
 `prefers-reduced-motion: reduce` обнуляет duration-токены до `1ms`, гасит skeleton / KPI / chart-enter / toast animation и снимает shimmer `background-image`. Recharts `isAnimationActive` остаётся `false`. Unit lock: `apps/web/tests/unit/ui-theme-contract.test.ts`.
 

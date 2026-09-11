@@ -1,0 +1,34 @@
+{
+  "name": "@stemma/kinetics",
+  "version": "0.1.0",
+  "private": true,
+  "description": "First-party Kinetics spring catalog for Stemma. Colorion Kinetics has no public npm package; this ships published duration/bezier tokens and small helpers only \u2014 not their React demos.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./tokens.css": "./src/tokens.css",
+    "./react": {
+      "types": "./src/react.ts",
+      "default": "./src/react.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src"
+  ],
+  "peerDependencies": {
+    "react": "^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "sideEffects": [
+    "**/*.css"
+  ]
+}

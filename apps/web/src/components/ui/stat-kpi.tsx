@@ -70,7 +70,7 @@ export function StatKpi({
   const statusTone = tone === "neutral" ? null : statusToneByKpiTone[tone];
 
   return (
-    <Card className={cn(statusTone != null && statusSurfaceClass(statusTone), className)}>
+    <Card data-qc-motion="hover-lift" className={cn(statusTone != null && statusSurfaceClass(statusTone), className)}>
       <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
         <CardDescription className="uppercase tracking-wide">{label}</CardDescription>
         {icon != null ? <span className="text-muted-foreground">{icon}</span> : null}

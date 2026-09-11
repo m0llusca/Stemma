@@ -8,6 +8,10 @@ const globalsPath = resolve(appRoot, "src/app/globals.css");
 const legacyThemePath = resolve(appRoot, "src/app/styles/theme.css");
 const legacyComponentsDir = resolve(appRoot, "src/app/styles/components");
 const globals = readFileSync(globalsPath, "utf8");
+const kineticsTokens = readFileSync(
+  resolve(appRoot, "node_modules/@stemma/kinetics/src/tokens.css"),
+  "utf8"
+);
 
 const themeIds = [
   "graphite",
@@ -225,15 +229,16 @@ describe("canonical UI theme contract", () => {
       ).toContain(selector);
     }
     expect(globals).toContain("--motion-duration-feedback: 90ms;");
-    expect(globals).toContain("--motion-ease-spring-gentle:");
-    expect(globals).toContain("--motion-ease-spring-overshoot:");
-    expect(globals).toContain("--motion-ease-spring-toast:");
-    expect(globals).toContain("--motion-ease-spring-panel:");
-    expect(globals).toContain("--motion-ease-spring-glide:");
-    expect(globals).toContain("--motion-duration-spring:");
-    expect(globals).toContain("--motion-duration-spring-enter:");
-    expect(globals).toContain("--motion-duration-morph:");
-    expect(globals).toContain("--motion-duration-shimmer:");
+    expect(kineticsTokens).toContain("--motion-ease-spring-gentle:");
+    expect(globals).toContain('@import "@stemma/kinetics/tokens.css"');
+    expect(kineticsTokens).toContain("--motion-ease-spring-overshoot:");
+    expect(kineticsTokens).toContain("--motion-ease-spring-toast:");
+    expect(kineticsTokens).toContain("--motion-ease-spring-panel:");
+    expect(kineticsTokens).toContain("--motion-ease-spring-glide:");
+    expect(kineticsTokens).toContain("--motion-duration-spring:");
+    expect(kineticsTokens).toContain("--motion-duration-spring-enter:");
+    expect(kineticsTokens).toContain("--motion-duration-morph:");
+    expect(kineticsTokens).toContain("--motion-duration-shimmer:");
     expect(globals).toMatch(
       /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*--motion-duration-standard:\s*1ms/
     );
@@ -261,7 +266,7 @@ describe("canonical UI theme contract", () => {
     );
   });
 
-  it("adopts Kinetics spring patterns as CSS tokens wired to real surfaces, not an npm package", () => {
+  it("adopts Kinetics via first-party @stemma/kinetics package tokens wired to real surfaces", () => {
     expect(globals).toContain("@keyframes qc-skeleton-shimmer");
     expect(globals).toContain("@keyframes qc-kpi-bump");
     expect(globals).toContain("@keyframes qc-chart-enter");
@@ -294,9 +299,26 @@ describe("canonical UI theme contract", () => {
     expect(morphIconSource).toContain('spring = "snappy"');
     expect(tabsSource).toContain("--motion-ease-spring-glide");
     expect(statKpiSource).toContain('data-qc-motion="kpi-bump"');
+    expect(statKpiSource).toContain('data-qc-motion="hover-lift"');
     expect(chartContainerSource).toContain('data-qc-motion="chart-enter"');
-    expect(packageJson).not.toMatch(/["']kinetics["']/);
+    expect(packageJson).toMatch(/["']@stemma\/kinetics["']\s*:\s*["']file:/);
+    expect(packageJson).not.toMatch(/["']kinetics["']\s*:/);
     expect(packageJson).not.toMatch(/@kinetics\//);
+    expect(globals).toContain('@import "@stemma/kinetics/tokens.css"');
+    expect(globals).toContain('[data-qc-motion="hover-lift"]');
+    const progressSource = readFileSync(resolve(appRoot, "src/components/ui/progress.tsx"), "utf8");
+    const checkboxSource = readFileSync(resolve(appRoot, "src/components/ui/checkbox.tsx"), "utf8");
+    const sheetSource = readFileSync(resolve(appRoot, "src/components/ui/sheet.tsx"), "utf8");
+    const dialogSource = readFileSync(resolve(appRoot, "src/components/ui/dialog.tsx"), "utf8");
+    const alertDialogSource = readFileSync(
+      resolve(appRoot, "src/components/ui/alert-dialog.tsx"),
+      "utf8"
+    );
+    expect(progressSource).toContain("--motion-ease-spring-overshoot");
+    expect(checkboxSource).toContain("--motion-duration-spring");
+    expect(sheetSource).toContain("--motion-duration-spring-enter");
+    expect(dialogSource).toContain("--motion-duration-spring-enter");
+    expect(alertDialogSource).toContain("--motion-duration-spring-enter");
     expect(packageJson).toMatch(/["']morphicons["']\s*:\s*["']1\.7\.1["']/);
     expect(createRequire(resolve(appRoot, "package.json")).resolve("morphicons/react")).toMatch(
       /morphicons[/\\]dist[/\\]react\.js$/
