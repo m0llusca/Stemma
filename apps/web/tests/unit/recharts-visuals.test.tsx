@@ -299,7 +299,7 @@ describe("lean Recharts visuals", () => {
       "data-tone",
       "neutral"
     );
-    expect(container.querySelector("[data-animation-active=true]")).not.toBeInTheDocument();
+    expect(container.querySelector("[data-animation-active=true]")).toBeInTheDocument();
   });
 
   it("thins dense daily x-axis labels to a non-colliding schedule", () => {
@@ -479,7 +479,7 @@ describe("lean Recharts visuals", () => {
     ).toHaveLength(2);
   });
 
-  it("renders ranked negative and positive bars without animation", () => {
+  it("renders ranked negative and positive bars with series animation on", () => {
     const { container } = render(
       <RankedDriverVisual model={driverModel} height={220} />
     );
@@ -501,7 +501,14 @@ describe("lean Recharts visuals", () => {
       "263"
     );
     expect(container.querySelectorAll(".recharts-rectangle")).toHaveLength(2);
-    expect(container.querySelector("[data-animation-active=true]")).not.toBeInTheDocument();
+    expect(container.querySelector('[data-series="down"]')).toHaveAttribute(
+      "data-animation-active",
+      "true"
+    );
+    expect(container.querySelector('[data-series="up"]')).toHaveAttribute(
+      "data-animation-active",
+      "true"
+    );
   });
 
   it("never hard-clips ranked category labels: overlong labels ellipsis-truncate at a word boundary with the full label in a title", () => {
@@ -569,7 +576,7 @@ describe("lean Recharts visuals", () => {
     }
   });
 
-  it("all Task 6 visuals disable animation", () => {
+  it("all Task 6 visuals enable series animation", () => {
     const { container } = render(
       <>
         <task6Visuals.ScoreDistributionVisual model={distributionModel} />
@@ -579,10 +586,10 @@ describe("lean Recharts visuals", () => {
       </>
     );
 
-    expect(container.querySelectorAll('[data-animation-active="false"]')).toHaveLength(
+    expect(container.querySelectorAll('[data-animation-active="true"]')).toHaveLength(
       4
     );
-    expect(container.querySelector("[data-animation-active=true]")).toBeNull();
+    expect(container.querySelector("[data-animation-active=false]")).toBeNull();
   });
 
   it("distribution preserves a zero bar without removing its label", () => {

@@ -37,12 +37,12 @@ vi.mock("@/components/charts/recharts-visuals.client", () => ({
   }) => (
     <svg aria-hidden="true" className="recharts-surface" tabIndex={-1}>
       {visibleSeries.includes("score") ? (
-        <g data-series="score" data-animation-active="false" />
+        <g data-series="score" data-animation-active="true" />
       ) : null}
       {visibleSeries.includes("previous") ? (
         <g
           data-series="previous"
-          data-animation-active="false"
+          data-animation-active="true"
           data-marker="diamond"
           strokeDasharray="6 5"
         />
@@ -54,7 +54,7 @@ vi.mock("@/components/charts/recharts-visuals.client", () => ({
         <g
           data-series="volume"
           data-tone="neutral"
-          data-animation-active="false"
+          data-animation-active="true"
         />
       ) : null}
     </svg>
@@ -561,11 +561,11 @@ describe("QualityTrendChart", () => {
     for (const mark of container.querySelectorAll(
       '[data-series="score"], [data-series="previous"], [data-series="volume"]'
     )) {
-      expect(mark).toHaveAttribute("data-animation-active", "false");
+      expect(mark).toHaveAttribute("data-animation-active", "true");
     }
   });
 
-  it("keeps the initial and reduced-motion renders fully static", async () => {
+  it("keeps series animation flags on under reduced motion (CSS clamps motion)", async () => {
     vi.stubGlobal(
       "matchMedia",
       vi.fn().mockImplementation((query: string) => ({
@@ -585,7 +585,9 @@ describe("QualityTrendChart", () => {
     await waitFor(() => {
       expect(container.querySelector('[data-series="score"]')).toBeInTheDocument();
     });
-    expect(container.querySelectorAll("[data-animation-active=true]")).toHaveLength(0);
+    expect(
+      container.querySelectorAll("[data-animation-active=true]").length
+    ).toBeGreaterThan(0);
     expect(container.querySelector('[data-series="volume"]')).toBeInTheDocument();
 
     vi.unstubAllGlobals();

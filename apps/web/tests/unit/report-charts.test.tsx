@@ -44,12 +44,12 @@ vi.mock("@/components/charts/recharts-visuals.client", () => ({
       <g
         data-series="down"
         data-direction="negative"
-        data-animation-active="false"
+        data-animation-active="true"
       />
       <g
         data-series="up"
         data-direction="positive"
-        data-animation-active="false"
+        data-animation-active="true"
       />
     </svg>
   )
@@ -560,7 +560,9 @@ describe("RankedDriverChart", () => {
       "data-direction",
       "positive"
     );
-    expect(container.querySelectorAll("[data-animation-active=true]")).toHaveLength(0);
+    expect(
+      container.querySelectorAll("[data-animation-active=true]").length
+    ).toBeGreaterThan(0);
 
     fireEvent.focus(plot);
     expect(screen.getByRole("tooltip")).toHaveTextContent("Freshdesk");

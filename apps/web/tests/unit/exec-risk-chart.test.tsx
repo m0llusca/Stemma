@@ -53,7 +53,7 @@ describe("ExecRiskChart", () => {
     expect(container.querySelector(".recharts-responsive-container")).not.toBeInTheDocument();
     expect(surface).toBeInTheDocument();
     expect(surface).toHaveAttribute("viewBox", "0 0 520 240");
-    expect(surface).toHaveAttribute("data-animation-active", "false");
+    expect(surface).toHaveAttribute("data-animation-active", "true");
     expect(rects).toHaveLength(bars.length);
     expect(rects.every((rect) => Number(rect.getAttribute("width")) > 0)).toBe(true);
     expect(rects.every((rect) => Number(rect.getAttribute("height")) > 0)).toBe(true);
@@ -101,7 +101,7 @@ describe("ExecRiskChart", () => {
     expect(plotSource).toContain("StaticChartContainer");
     expect(plotSource).toContain("svg");
     expect(plotSource).toContain('className="recharts-surface');
-    expect(plotSource).toContain('data-animation-active="false"');
+    expect(plotSource).toContain('data-animation-active="true"');
     expect(chartSource).not.toContain("from \"recharts\"");
     expect(plotSource).not.toContain("from \"recharts\"");
     expect(chartSource).not.toContain("BarChart");

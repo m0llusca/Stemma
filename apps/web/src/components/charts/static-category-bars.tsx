@@ -92,7 +92,7 @@ export function StaticCategoryBarPlot({
             tabIndex={-1}
             viewBox={`0 0 ${plot.width} ${plot.height}`}
             preserveAspectRatio="none"
-            data-animation-active="false"
+            data-animation-active="true"
           >
             {plot.ticks.map((tick) => {
               const y =
@@ -115,6 +115,7 @@ export function StaticCategoryBarPlot({
             {plot.bars.map((bar) => (
               <rect
                 key={bar.key}
+                data-slot="category-bar"
                 data-key={bar.key}
                 data-href={bar.href}
                 x={bar.x}

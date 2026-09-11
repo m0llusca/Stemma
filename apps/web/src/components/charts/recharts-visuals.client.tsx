@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { Curve, Rectangle } from "recharts";
+import { Curve } from "recharts";
+import { AnimatedRectangle } from "@/components/charts/animated-rectangle";
 import {
   StaticChartContainer,
   type ChartConfig
@@ -218,13 +219,13 @@ export function QualityTrendVisual({
           <g
             data-series="volume"
             data-tone="neutral"
-            data-animation-active="false"
+            data-animation-active="true"
           >
             {chartData.map((point, index) => {
               const barY = yForVolume(point.volume ?? 0);
               const barHeight = margin.top + plotHeight - barY;
               return (
-                <Rectangle
+                <AnimatedRectangle
                   key={point.id}
                   x={xFor(index) - barWidth / 2}
                   y={barY}
@@ -242,13 +243,14 @@ export function QualityTrendVisual({
           <g
             data-series="previous"
             data-marker="diamond"
-            data-animation-active="false"
+            data-animation-active="true"
             strokeDasharray="6 5"
             data-segment-count={previousSegments.length}
           >
             {previousSegments.map((segment, index) => (
               <Curve
                 key={`segment-${index}`}
+                pathLength={1}
                 type="linear"
                 points={segment}
                 fill="none"
@@ -278,12 +280,13 @@ export function QualityTrendVisual({
         {visible.has("score") ? (
           <g
             data-series="score"
-            data-animation-active="false"
+            data-animation-active="true"
             data-segment-count={scoreSegments.length}
           >
             {scoreSegments.map((segment, index) => (
               <Curve
                 key={`segment-${index}`}
+                pathLength={1}
                 type="monotone"
                 points={segment}
                 fill="none"
@@ -372,7 +375,7 @@ export function RankedDriverVisual({
         <g
           data-series="down"
           data-direction="negative"
-          data-animation-active="false"
+          data-animation-active="true"
         >
           {model.points.map((point, index) => {
             const bar = geometry.bar(index);
@@ -380,7 +383,7 @@ export function RankedDriverVisual({
               return null;
             }
             return (
-              <Rectangle
+              <AnimatedRectangle
                 key={point.id}
                 x={bar.x}
                 y={bar.y}
@@ -395,7 +398,7 @@ export function RankedDriverVisual({
         <g
           data-series="up"
           data-direction="positive"
-          data-animation-active="false"
+          data-animation-active="true"
         >
           {model.points.map((point, index) => {
             const bar = geometry.bar(index);
@@ -403,7 +406,7 @@ export function RankedDriverVisual({
               return null;
             }
             return (
-              <Rectangle
+              <AnimatedRectangle
                 key={point.id}
                 x={bar.x}
                 y={bar.y}
@@ -460,7 +463,7 @@ export function ScoreDistributionVisual({
         tabIndex={-1}
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="none"
-        data-animation-active="false"
+        data-animation-active="true"
       >
         {[0, 0.5, 1].map((ratio) => {
           const y = margin.top + plotHeight * (1 - ratio);
@@ -551,7 +554,7 @@ export function PairedAiDriftVisual({
         tabIndex={-1}
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="none"
-        data-animation-active="false"
+        data-animation-active="true"
       >
         {[
           ["Уверенность модели", confidenceTop],
@@ -599,6 +602,7 @@ export function PairedAiDriftVisual({
         >
           {confidenceSegments.map((segment, index) => (
             <polyline
+              pathLength={1}
               key={index}
               points={polylinePoints(segment)}
               fill="none"
@@ -627,6 +631,7 @@ export function PairedAiDriftVisual({
         >
           {reserveSegments.map((segment, index) => (
             <polyline
+              pathLength={1}
               key={index}
               points={polylinePoints(segment)}
               fill="none"
@@ -697,7 +702,7 @@ export function ReasonTrendVisual({
         tabIndex={-1}
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="none"
-        data-animation-active="false"
+        data-animation-active="true"
       >
         {[0, 0.5, 1].map((ratio) => {
           const value = maximum * ratio;
@@ -731,6 +736,7 @@ export function ReasonTrendVisual({
         >
           {previousSegments.map((segment, index) => (
             <polyline
+              pathLength={1}
               key={index}
               points={polylinePoints(segment)}
               fill="none"
@@ -744,6 +750,7 @@ export function ReasonTrendVisual({
         <g data-series="current" data-segment-count={currentSegments.length}>
           {currentSegments.map((segment, index) => (
             <polyline
+              pathLength={1}
               key={index}
               points={polylinePoints(segment)}
               fill="none"
@@ -798,7 +805,7 @@ export function RankedBreakdownVisual({
         tabIndex={-1}
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="none"
-        data-animation-active="false"
+        data-animation-active="true"
       >
         <line
           data-slot="agreement-reference"
