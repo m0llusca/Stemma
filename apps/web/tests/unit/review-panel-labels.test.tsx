@@ -105,7 +105,7 @@ const nativeFields = [
 ] as const;
 
 describe("ReviewPanel field labels", () => {
-  it("names the pass/fail result group without changing its submitted default", () => {
+  it("leaves pass/fail unscored until the reviewer selects a result", () => {
     render(
       <ToastProvider>
         <ReviewPanel
@@ -117,17 +117,20 @@ describe("ReviewPanel field labels", () => {
     );
 
     const resultGroup = screen.getByRole("radiogroup", { name: "Результат" });
-    const selectedResult = screen.getByRole("radio", { name: /Зачет/ });
+    const passResult = screen.getByRole("radio", { name: /Зачет/ });
+    const failResult = screen.getByRole("radio", { name: /Незачет/ });
     const form = resultGroup.closest("form");
 
-    expect(selectedResult).toBeChecked();
+    expect(passResult).not.toBeChecked();
+    expect(failResult).not.toBeChecked();
     expect(form).not.toBeNull();
     expect(
       new FormData(form as HTMLFormElement).get("criterion.criterion-1.passed")
-    ).toBe("true");
+    ).toBeNull();
+    expect(screen.getByText("Не оценено")).toBeInTheDocument();
   });
 
-  it("names the scale score group without changing its submitted default", () => {
+  it("leaves scale score unscored until the reviewer selects a value", () => {
     render(
       <ToastProvider>
         <ReviewPanel
@@ -139,14 +142,15 @@ describe("ReviewPanel field labels", () => {
     );
 
     const scoreGroup = screen.getByRole("radiogroup", { name: "Оценка" });
-    const selectedScore = screen.getByRole("radio", { name: /3 · стандарт/ });
+    const standardScore = screen.getByRole("radio", { name: /3 · стандарт/ });
     const form = scoreGroup.closest("form");
 
-    expect(selectedScore).toBeChecked();
+    expect(standardScore).not.toBeChecked();
     expect(form).not.toBeNull();
     expect(
       new FormData(form as HTMLFormElement).get("criterion.criterion-scale.score")
-    ).toBe("3");
+    ).toBeNull();
+    expect(screen.getByText("Не оценено")).toBeInTheDocument();
   });
 
   it("associates every visible native field label without changing submitted values", () => {

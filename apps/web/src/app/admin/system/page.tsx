@@ -362,6 +362,12 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
   ]);
   const runtime = getRuntimeConfigDiagnostics();
   const providerWarnings = providers.filter((provider) => provider.status !== "active" && provider.type !== "DEMO").length;
+  const liveSsoCount = phaseDReport.identityProviders.filter((provider) => isLiveCertified(provider.status)).length;
+  const identityCertById = new Map(
+    phaseDReport.identityProviders.map((item) => [item.key.replace(/^identity_provider:/, ""), item.status])
+  );
+  const configuredPhaseDIntegrations = phaseDReport.integrations.filter((item) => item.configured);
+  const liveCertifiedIntegrations = configuredPhaseDIntegrations.filter((item) => isLiveCertified(item.status)).length;
   const integrationErrors = integrations.filter((integration) => integration.lastError || integration.status === "error").length;
   const apiTokenErrors = apiTokens.filter(
     (token) => token.lastError && token.lastErrorAt && (!token.lastSuccessAt || token.lastErrorAt > token.lastSuccessAt)
@@ -732,7 +738,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
                       label: "Сертифицировано",
                       value: phaseDReport.summary.liveCertified,
                       hint: "только успешные защищенные свидетельства",
-                      tone: "success"
+                      tone: phaseDReport.summary.liveCertified > 0 ? "success" : "neutral"
                     },
                     {
                       label: "Готово к боевому режиму",

@@ -51,7 +51,7 @@ import {
 import { toAgentCriterionFeedbackItems } from "@/lib/feedback/agent-criterion-feedback";
 import { isDeterministicAiModel } from "@/lib/ai-quality/draft-origin";
 import {
-  canAcknowledgeFeedback as roleCanAcknowledgeFeedback,
+  canAcknowledgeFeedback,
   canManageReviewWorkflow,
   canManageTraining,
   canResolveAppeal,
@@ -106,7 +106,8 @@ const statusChipTone: Record<StatusTone, ChipTone> = {
 
 function reviewStateTone(state: ReviewState): StatusTone {
   if (state === "finalized") {
-    return "positive";
+    // Completion is informational, not a health/success signal.
+    return "info";
   }
 
   if (state === "reopened") {
@@ -126,7 +127,8 @@ function dueDateTone(value: Date | null, now: Date, state: ReviewState): StatusT
   }
 
   if (state === "finalized") {
-    return "positive";
+    // Closed due date is neutral context, not emerald "all good".
+    return "neutral";
   }
 
   if (value.getTime() < now.getTime()) {
@@ -523,18 +525,27 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
     : "Нет";
   const feedbackClosed =
     latestFinalizedReview?.feedbackStatus === "acknowledged" || latestFinalizedReview?.feedbackStatus === "corrected";
-  const canWriteFeedback = roleCanAcknowledgeFeedback(user.role);
-  const canAcknowledgeFeedback = Boolean(
-    canWriteFeedback && latestFinalizedReview && !feedbackClosed && !hasOpenAppeal
-  );
+  // Agent feedback CTAs are role+scope gated: only the assigned SUPPORT_AGENT may
+  // acknowledge / appeal / complete a reanswer. Reviewers and leads keep read-only status.
+  const canActOnOwnFeedback =
+    agentView && conversation.assigneeId === user.id && canAcknowledgeFeedback(user.role);
   const appealAvailability = latestFinalizedReview
     ? {
         appealStatus: latestFinalizedReview.appealStatus,
         feedbackStatus: latestFinalizedReview.feedbackStatus
       }
     : null;
-  const canOpenAppeal = Boolean(canWriteFeedback && appealAvailability && canAgentOpenAppeal(appealAvailability));
-  const appealDisabledReason = appealAvailability ? agentAppealDisabledReason(appealAvailability) : null;
+  const canAcknowledgeFeedbackCta = Boolean(
+    canActOnOwnFeedback && latestFinalizedReview && !feedbackClosed && !hasOpenAppeal
+  );
+  const canOpenAppeal = Boolean(
+    canActOnOwnFeedback && appealAvailability && canAgentOpenAppeal(appealAvailability)
+  );
+  const appealDisabledReason = !canActOnOwnFeedback
+    ? "Доступно только назначенному оператору"
+    : appealAvailability
+      ? agentAppealDisabledReason(appealAvailability)
+      : null;
   const agentAppealProps = latestFinalizedReview
     ? {
         reviewId: latestFinalizedReview.id,
@@ -545,7 +556,9 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
       }
     : undefined;
   const canCompleteReanswer = Boolean(
-    canWriteFeedback && latestFinalizedReview?.needsReanswer && latestFinalizedReview.reanswerStatus === "requested"
+    canActOnOwnFeedback &&
+      latestFinalizedReview?.needsReanswer &&
+      latestFinalizedReview.reanswerStatus === "requested"
   );
 
   const detailPane = (
@@ -633,7 +646,11 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
             {latestFinalizedReview ? feedbackStatusLabels[latestFinalizedReview.feedbackStatus] ?? latestFinalizedReview.feedbackStatus : "Нет"}
           </strong>
           <small className="text-xs text-muted-foreground">
-            {hasOpenAppeal ? "Открыта апелляция." : hasReanswer ? "Нужен переответ." : "Без блокирующего процесса."}
+            {hasOpenAppeal
+              ? "Открыта апелляция."
+              : hasReanswer
+                ? "Нужен переответ."
+                : "Открытых апелляций и переответов нет."}
           </small>
         </div>
         {canSeeAiQualityDrafts ? (
@@ -939,7 +956,7 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
                   ) : null}
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {canAcknowledgeFeedback ? (
+                  {canAcknowledgeFeedbackCta ? (
                     <ToastActionForm action={updateReviewFeedbackState}>
                       <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
                       <input type="hidden" name="action" value="acknowledged" />
@@ -957,7 +974,7 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
                       </Button>
                     </ToastActionForm>
                   ) : null}
-                  {!canAcknowledgeFeedback && !canOpenAppeal && !canCompleteReanswer ? (
+                  {!canAcknowledgeFeedbackCta && !canOpenAppeal && !canCompleteReanswer ? (
                     <StatusChip label="Действия" value="нет" tone="neutral" />
                   ) : null}
                 </div>

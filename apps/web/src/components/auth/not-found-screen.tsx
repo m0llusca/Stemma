@@ -13,7 +13,7 @@ export function NotFoundScreen({ homeHref = "/" }: { homeHref?: string }) {
     <section className="mx-auto flex min-h-[50vh] max-w-lg items-center justify-center p-6">
       <Empty>
         <EmptyHeader>
-          <EmptyTitle>Страница не найдена</EmptyTitle>
+          <EmptyTitle role="heading" aria-level={1}>Страница не найдена</EmptyTitle>
           <EmptyDescription>
             Запрошенная страница не существует или была перемещена. Вернитесь на главную и продолжите
             работу оттуда.

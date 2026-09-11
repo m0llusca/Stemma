@@ -667,7 +667,7 @@ async function DashboardPageContent() {
                   </Table>
                 )}
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Открытая нагрузка = QUEUED + IN_PROGRESS — та же метрика, что и у автоназначения.
+                  Открытая нагрузка = В очереди + В работе — та же метрика, что и у автоназначения.
                 </p>
               </CardContent>
             </Card>

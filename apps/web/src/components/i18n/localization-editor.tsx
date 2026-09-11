@@ -3,8 +3,9 @@
 import { RotateCcw, Save, Send, SlidersHorizontal } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -315,11 +316,15 @@ export function LocalizationEditor({
 
                     <form id={rollbackFormId} action={rollbackAction}>
                       <input type="hidden" name="valueId" value={value?.id ?? ""} />
+                      <ConfirmSubmitButton
+                        className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                        disabled={!canPublishOrRollback}
+                        confirmMessage={`Откатить «${translationKey.fullKey}»? Опубликованный перевод будет заменён предыдущей версией — текущая публикация перестанет отображаться пользователям.`}
+                      >
+                        <RotateCcw data-icon="inline-start" aria-hidden="true" />
+                        Откатить {translationKey.fullKey}
+                      </ConfirmSubmitButton>
                     </form>
-                    <Button type="submit" form={rollbackFormId} variant="outline" size="sm" disabled={!canPublishOrRollback}>
-                      <RotateCcw data-icon="inline-start" aria-hidden="true" />
-                      Откатить {translationKey.fullKey}
-                    </Button>
                   </div>
                 </div>
               );

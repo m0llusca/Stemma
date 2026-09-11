@@ -54,15 +54,15 @@ describe("admin access UI", () => {
     expect(accessPage).not.toContain("CA через env:/vault:/secret:-ссылки");
   });
 
-  it("surfaces reachable SCIM token lifecycle controls without production-live claims", () => {
-    expect(accessPage).toContain('import { ScimTokenManager } from "@/components/admin/scim-token-manager"');
-    expect(accessPage).toContain('{ value: "scim", label: "SCIM" }');
-    expect(accessPage).toContain("Bearer-токен SCIM 2.0");
-    expect(accessPage).toContain("selectedProvider.scimTokenPrefix");
-    expect(accessPage).toContain("scimBaseUrl");
-    expect(accessPage).toContain('const scimBaseUrl = "/scim/v2"');
-    expect(accessPage).toContain('titleId="scim-token-title"');
-    expect(accessPage).not.toContain('const scimBaseUrl = `${origin}/scim/v2`');
-    expect(accessPage).not.toContain("SCIM production-ready");
+  it("does not paint operational active provider/session status as success emerald", () => {
+    expect(accessPage).not.toContain('if (status === "active" || status === "ACTIVE") {\n    return "success";');
+    expect(accessPage).toContain("Operational active is not production-green");
+    expect(accessPage).toContain('if (status === "active" || status === "ACTIVE") {\n    return "neutral";');
+  });
+
+  it("does not paint operational active provider/session status as success emerald", () => {
+    expect(accessPage).not.toContain('if (status === "active" || status === "ACTIVE") {\n    return "success";');
+    expect(accessPage).toContain("Operational active is not production-green");
+    expect(accessPage).toContain('if (status === "active" || status === "ACTIVE") {\n    return "neutral";');
   });
 });

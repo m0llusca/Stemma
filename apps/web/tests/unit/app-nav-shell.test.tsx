@@ -48,7 +48,7 @@ const baseProps = {
     { href: "/coaching", label: "Обучение", value: 0, tone: "neutral" as const }
   ],
   user: { name: "Админ", email: "admin@example.com" },
-  // Production AppNav passes reviews:write; default shell prop is fail-closed false.
+  // Explicit gate — production always passes this; default is fail-closed.
   canTakeNextCase: true
 };
 

@@ -23,6 +23,7 @@ it("collapses next-case context by default while keeping the Take-next CTA", () 
       description="Клиент · оператор"
       queueHref="/reviews?due=overdue"
       statusConversation={assignedConversation}
+      canTakeNext
     >
       <p>Почему первый: SLA</p>
     </QueueNextCasePreview>
@@ -50,6 +51,7 @@ it("expands to reveal priority context without removing the Take-next CTA", () =
       description="Клиент · оператор"
       queueHref="/reviews?due=overdue"
       statusConversation={assignedConversation}
+      canTakeNext
     >
       <p>Почему первый: SLA</p>
     </QueueNextCasePreview>
@@ -97,6 +99,21 @@ it("omits Take-next when the page says the viewer cannot write reviews", () => {
 
   expect(screen.queryByRole("button", { name: TAKE_NEXT_LABEL })).toBeNull();
   expect(screen.getByText("Следующий кейс")).toBeInTheDocument();
+});
+
+it("omits Take-next by default when eligibility is not passed (fail-closed)", () => {
+  render(
+    <QueueNextCasePreview
+      subject="Просроченный чат"
+      description="Клиент · оператор"
+      queueHref="/reviews"
+      statusConversation={assignedConversation}
+    >
+      <p>Почему первый: SLA</p>
+    </QueueNextCasePreview>
+  );
+
+  expect(screen.queryByRole("button", { name: TAKE_NEXT_LABEL })).toBeNull();
 });
 
 it("uses the pending-reopen chip instead of finalized qaStatus wording", () => {

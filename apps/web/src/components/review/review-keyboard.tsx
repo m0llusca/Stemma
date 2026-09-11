@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { commandReviewDisclosure } from "@/components/review/review-disclosure";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
-import { announceToLiveRegion, focusFirstInvalidControl } from "@/lib/form-validity";
+import { announceToLiveRegion, focusFirstInvalidControl, revealCollapsedAncestors } from "@/lib/form-validity";
 import { REVIEW_FINALIZE_BLOCKED_HINT } from "@/lib/review/finalize-blocked";
+import { firstIncompleteCriterionControl } from "@/lib/review/scorecard-readiness";
 import {
   initialReviewKeyboardState,
   isEditableTarget,
@@ -21,7 +22,7 @@ import {
  * Contract: docs/ux-queue-hotkeys-contract.md
  *
  *  - j / ArrowDown · k / ArrowUp  → move the focus ring between criterion cards
- *  - 1 / 2 / 3                    → set the focused criterion's score
+ *  - 3 / 2 / 1                    → set the focused criterion's score (matches radio labels)
  *  - Enter / Space on a module <summary> → toggle (UX-ACCEPT)
  *  - Enter (workbench, not on a field)   → toggle the focused criterion
  *  - Esc                          → hide legend, else collapse focused criterion
@@ -197,7 +198,13 @@ export function ReviewKeyboard() {
       }
 
       if (form instanceof HTMLFormElement) {
-        focusFirstInvalidControl(form);
+        const incomplete = firstIncompleteCriterionControl(form);
+        if (incomplete) {
+          revealCollapsedAncestors(incomplete);
+          incomplete.focus();
+        } else {
+          focusFirstInvalidControl(form);
+        }
       }
 
       if (liveRef.current) {
@@ -316,12 +323,12 @@ export function ReviewKeyboard() {
             <Kbd>K</Kbd>
           </KbdGroup>
           <span>— переход между критериями ·</span>
-          <Kbd>1</Kbd>
-          <span>зачёт ·</span>
-          <Kbd>2</Kbd>
-          <span>частично ·</span>
           <Kbd>3</Kbd>
-          <span>незачёт ·</span>
+          <span>стандарт ·</span>
+          <Kbd>2</Kbd>
+          <span>доработка ·</span>
+          <Kbd>1</Kbd>
+          <span>слабо ·</span>
           <Kbd>Enter</Kbd>
           <span>— раскрыть/свернуть ·</span>
           <Kbd>Esc</Kbd>

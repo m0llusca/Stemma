@@ -52,7 +52,7 @@ export default async function PendingAccessPage() {
             </span>
             <span className="text-sm font-medium tracking-tight">Stemma</span>
           </div>
-          <CardTitle>Доступ ещё не выдан</CardTitle>
+          <CardTitle role="heading" aria-level={1}>Доступ ещё не выдан</CardTitle>
           <CardDescription>
             Ваша учётная запись есть в системе, но права на продукт пока не назначены.
             Обратитесь к администратору рабочего пространства, чтобы получить роль.

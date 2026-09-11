@@ -141,6 +141,7 @@ function AppNavShellChrome({
   const searchParams = useSearchParams();
   const router = useRouter();
   const [commandOpen, setCommandOpen] = useState(false);
+
   const [areaMenuOpen, setAreaMenuOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeBranding, setActiveBranding] = useState<WorkspaceBranding>(branding);

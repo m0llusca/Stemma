@@ -212,7 +212,7 @@ describe("app nav", () => {
       .map((link) => link.textContent);
     expect(labels).toEqual(["Сегодня", "Проверки", "Аналитика"]);
 
-    // EXEC has empty pulseItems and no take-next — honest empty hide (no «Рабочий пульс»).
+    // EXEC has no ops pulse items and no take-next — empty pulse chrome stays hidden.
     expect(screen.queryByLabelText("Рабочий пульс")).toBeNull();
     expect(screen.queryByRole("button", { name: "Взять следующий" })).toBeNull();
     expect(mocks.prisma.conversation.count).not.toHaveBeenCalled();

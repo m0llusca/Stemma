@@ -11,6 +11,8 @@ import { cn } from "@/lib/utils";
 type ValidatedSubmitButtonProps = Omit<ComponentPropsWithoutRef<typeof Button>, "type"> & {
   minCheckedNames?: string[];
   requireAnyValueNames?: string[];
+  /** Override readiness (defaults to native checkValidity + gate). */
+  isReady?: (form: HTMLFormElement) => boolean;
 };
 
 export function ValidatedSubmitButton({
@@ -18,6 +20,7 @@ export function ValidatedSubmitButton({
   className,
   minCheckedNames = [],
   requireAnyValueNames = [],
+  isReady,
   disabled,
   ...buttonProps
 }: ValidatedSubmitButtonProps) {
@@ -36,7 +39,11 @@ export function ValidatedSubmitButton({
     }
 
     const update = () => {
-      setCanSubmit(isFormReadyToSubmit(form, { minCheckedNames, requireAnyValueNames }));
+      setCanSubmit(
+        isReady
+          ? isReady(form)
+          : isFormReadyToSubmit(form, { minCheckedNames, requireAnyValueNames })
+      );
     };
 
     update();
@@ -49,7 +56,7 @@ export function ValidatedSubmitButton({
       form.removeEventListener("change", update);
       form.removeEventListener("reset", update);
     };
-  }, [minCheckedKey, anyValueKey]);
+  }, [minCheckedKey, anyValueKey, isReady]);
 
   return (
     <span ref={hostRef} className="contents">

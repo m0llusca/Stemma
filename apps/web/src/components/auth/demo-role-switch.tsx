@@ -134,7 +134,7 @@ export function AccountMenuDisclosure({
         data-slot="account-menu"
         title={triggerTitle}
         aria-label={triggerAriaLabel}
-        aria-haspopup="menu"
+        aria-haspopup="dialog"
         aria-expanded={expanded ? "true" : "false"}
         aria-controls={menuId}
         className={cn(
@@ -146,7 +146,8 @@ export function AccountMenuDisclosure({
       </summary>
       <div
         id={menuId}
-        role="menu"
+        role="dialog"
+        aria-label={triggerAriaLabel}
         data-slot="account-menu-panel"
         className={cn(
           "absolute z-50 mt-2 min-w-32 rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10",
@@ -162,40 +163,42 @@ export function AccountMenuDisclosure({
 
 export function DemoRoleSwitchMenu({ switcher }: { switcher: DemoRoleSwitcher }) {
   return (
-    <div role="group" aria-label="Сменить роль" data-testid="demo-role-switch">
+    <div data-testid="demo-role-switch">
       <div className="px-1.5 py-1 text-xs font-medium text-muted-foreground">Сменить роль</div>
-      {switcher.users.map((user) => {
-        const isCurrent = user.id === switcher.currentUserId;
-        const itemClassName = cn(
-          "relative flex w-full cursor-default items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-sm outline-hidden select-none",
-          "focus:bg-accent focus:text-accent-foreground",
-          isCurrent && "pointer-events-none opacity-50"
-        );
-
-        if (isCurrent) {
-          return (
-            <button
-              key={user.id}
-              type="button"
-              role="menuitem"
-              aria-current="true"
-              aria-disabled="true"
-              className={itemClassName}
-            >
-              <span className="min-w-0 truncate">{user.optionLabel}</span>
-            </button>
+      <div role="menu" aria-label="Сменить роль">
+        {switcher.users.map((user) => {
+          const isCurrent = user.id === switcher.currentUserId;
+          const itemClassName = cn(
+            "relative flex w-full cursor-default items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-sm outline-hidden select-none",
+            "focus:bg-accent focus:text-accent-foreground",
+            isCurrent && "pointer-events-none opacity-50"
           );
-        }
 
-        return (
-          <form key={user.id} action={switchCurrentUser} className="w-full">
-            <input type="hidden" name="userId" value={user.id} />
-            <button type="submit" role="menuitem" className={itemClassName}>
-              <span className="min-w-0 truncate">{user.optionLabel}</span>
-            </button>
-          </form>
-        );
-      })}
+          if (isCurrent) {
+            return (
+              <button
+                key={user.id}
+                type="button"
+                role="menuitem"
+                aria-current="true"
+                aria-disabled="true"
+                className={itemClassName}
+              >
+                <span className="min-w-0 truncate">{user.optionLabel}</span>
+              </button>
+            );
+          }
+
+          return (
+            <form key={user.id} action={switchCurrentUser} className="w-full">
+              <input type="hidden" name="userId" value={user.id} />
+              <button type="submit" role="menuitem" className={itemClassName}>
+                <span className="min-w-0 truncate">{user.optionLabel}</span>
+              </button>
+            </form>
+          );
+        })}
+      </div>
     </div>
   );
 }

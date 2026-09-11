@@ -47,9 +47,10 @@ describe("capability probe display", () => {
 });
 
 describe("login flash SSO honesty", () => {
-  it("keeps SSO failure copy fail-closed", () => {
-    expect(resolveLoginFlashMessage("sso_unavailable")).toMatch(/fail-closed/i);
-    expect(resolveLoginFlashMessage("sso_start_failed")).toMatch(/не подтверждена/i);
-    expect(resolveLoginFlashMessage("sso_callback_failed")).toMatch(/не успешный вход/i);
+  it("keeps SSO failure copy honest without jargon", () => {
+    expect(resolveLoginFlashMessage("sso_unavailable")).toMatch(/недоступен/i);
+    expect(resolveLoginFlashMessage("sso_unavailable")).not.toMatch(/fail-closed/i);
+    expect(resolveLoginFlashMessage("sso_start_failed")).toMatch(/провайдера/i);
+    expect(resolveLoginFlashMessage("sso_callback_failed")).toMatch(/не завершён|не завершен/i);
   });
 });

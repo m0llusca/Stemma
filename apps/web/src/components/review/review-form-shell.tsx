@@ -7,8 +7,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
-import { isFormReadyToSubmit } from "@/lib/form-validity";
 import { REVIEW_FINALIZE_BLOCKED_HINT } from "@/lib/review/finalize-blocked";
+import { isReviewFormReadyToSubmit } from "@/lib/review/scorecard-readiness";
 import { cn } from "@/lib/utils";
 import { submitReviewState, type ReviewPanelActionState } from "@/lib/review-panel-actions";
 
@@ -27,7 +27,7 @@ function FinalizeBlockedHint() {
     }
 
     const update = () => {
-      setBlocked(!isFormReadyToSubmit(form));
+      setBlocked(!isReviewFormReadyToSubmit(form));
     };
 
     update();
@@ -74,6 +74,7 @@ function FinalizeButton() {
       name="intent"
       value="finalize"
       disabled={pending}
+      isReady={isReviewFormReadyToSubmit}
       aria-describedby={REVIEW_FINALIZE_BLOCKED_HINT_ID}
       className={cn(buttonVariants({ variant: "default" }))}
     >
@@ -90,6 +91,7 @@ function FinalizeAndNextButton() {
       name="intent"
       value="finalize_next"
       disabled={pending}
+      isReady={isReviewFormReadyToSubmit}
       aria-describedby={REVIEW_FINALIZE_BLOCKED_HINT_ID}
       className={cn(buttonVariants({ variant: "secondary" }))}
     >

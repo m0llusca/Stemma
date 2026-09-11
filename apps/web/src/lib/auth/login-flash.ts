@@ -7,11 +7,11 @@ export type LoginFlashCode = "invalid_credentials" | "sso_unavailable" | "sso_st
 const loginFlashMessages: Record<LoginFlashCode, string> = {
   invalid_credentials: "Неверный логин или пароль.",
   sso_unavailable:
-    "SSO недоступен: провайдер не настроен, отключён или не прошёл проверку конфигурации. Вход fail-closed.",
+    "Единый вход недоступен: провайдер не настроен, отключён или не прошёл проверку конфигурации.",
   sso_start_failed:
-    "Не удалось начать SSO-вход. Конфигурация не подтверждена — повторите после проверки IdP (fail-closed).",
+    "Не удалось начать единый вход. Проверьте настройку провайдера и повторите попытку.",
   sso_callback_failed:
-    "SSO-вход не завершён: IdP отклонил обмен или сессия не создана. Это не успешный вход."
+    "Единый вход не завершён: провайдер отклонил обмен или сессия не создана."
 };
 
 export function loginFlashCookieOptions(maxAge = 60) {
