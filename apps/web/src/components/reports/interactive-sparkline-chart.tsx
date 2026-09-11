@@ -88,11 +88,6 @@ export function InteractiveSparklineChart({
     return () => observer.disconnect();
   }, []);
 
-  // Mount marker so browser QA can tell the client island hydrated.
-  useEffect(() => {
-    plotRef.current?.setAttribute("data-sparkline-hydrated", "true");
-  }, []);
-
   const chart = useMemo(() => {
     if (points.length === 0) {
       return null;

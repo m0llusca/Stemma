@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  useEffect,
   useId,
   useMemo,
   useRef,
@@ -123,9 +122,6 @@ export function QualityTrendChart({
     }
   }
 
-  useEffect(() => {
-    plotRef.current?.setAttribute("data-trend-hydrated", "true");
-  }, []);
 
   function handlePointer(event: PointerEvent<HTMLDivElement>) {
     const index = geometry.pointIndexFromClientX(
