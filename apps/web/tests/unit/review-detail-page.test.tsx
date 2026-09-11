@@ -384,7 +384,9 @@ describe("review detail page", () => {
 
     render(page);
 
-    expect(mocks.canAcknowledgeFeedback).toHaveBeenCalledWith("EXEC");
+    // EXEC is not agent-scoped: canAcknowledgeFeedback is only consulted for the
+    // assigned SUPPORT_AGENT acting on own feedback.
+    expect(mocks.canAcknowledgeFeedback).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Принять оценку" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Переответ выполнен" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Оспорить оценку" })).toBeNull();
