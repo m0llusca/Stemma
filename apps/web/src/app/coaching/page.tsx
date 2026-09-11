@@ -33,6 +33,13 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { PageShell } from "@/components/ui/page-shell";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationNext,
+  PaginationPrevious
+} from "@/components/ui/pagination";
 import { StatKpi } from "@/components/ui/stat-kpi";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
@@ -45,6 +52,11 @@ import { createCoachingPlanState, updateCoachingPlanStatusState } from "@/lib/co
 import { filterCoachingPlansForAgent, listCoachingPlans } from "@/lib/coaching-plan";
 import { groupCoachingThemesByAgent } from "@/lib/coaching-themes";
 import { coachingInWorkKpiHint, coachingOverdueKpiHint } from "@/lib/coaching/empty-honesty";
+import {
+  openCoachingActionsPageHref,
+  paginateOpenCoachingActions,
+  parseOpenCoachingActionsPage
+} from "@/lib/coaching/open-actions-pagination";
 import { loadAssignmentCoachingImpact, trainingEffectKpiHint, type CoachingImpact } from "@/lib/coaching-impact";
 import { canViewPeerQuality } from "@/lib/auth/permissions";
 import { canAccessTraining, getCurrentUser } from "@/lib/current-user";
@@ -217,6 +229,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
   const prefillsReviewId = cleanParam(rawSearchParams.reviewId);
   const prefillsConversationId = cleanParam(rawSearchParams.conversationId);
   const focusPlanId = cleanParam(rawSearchParams.planId);
+  const requestedActionsPage = parseOpenCoachingActionsPage(rawSearchParams.actionsPage);
   const isSupportAgent = user.role === "SUPPORT_AGENT";
   // Agents may view their own training tasks; team scoring, create forms, and
   // other operators' reviews stay manager-only.
@@ -572,6 +585,8 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
     .slice(0, 5);
   const resetFiltersHref = view === "active" ? "/coaching" : `/coaching?view=${view}`;
   const baseCoachingHref = viewHref(view, { q, assigneeId, category });
+  const openActionsPage = paginateOpenCoachingActions(openCoachingActions, requestedActionsPage);
+  const openActionsFilterParams = { view, q, assigneeId, category };
   const createTaskHref = `${baseCoachingHref}&create=1`;
   const createRuleHref = `${baseCoachingHref}&rule=1`;
   const createPlanHref = `${baseCoachingHref}&plan=1`;
@@ -731,8 +746,8 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
               </Chip>
             </CardAction>
           </CardHeader>
-          <CardContent className="flex flex-col gap-3 pt-(--card-spacing)">
-            {openCoachingActions.map((action) => {
+          <CardContent className="flex max-h-[28rem] flex-col gap-3 overflow-y-auto overscroll-contain pt-(--card-spacing)">
+            {openActionsPage.items.map((action) => {
               const conversationId = action.finding.review.conversationId;
               const overdue = isOverdue(action.dueAt, now);
               return (
@@ -785,6 +800,43 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
               );
             })}
           </CardContent>
+          {openActionsPage.pageCount > 1 ? (
+            <CardFooter className="border-t">
+              <Pagination
+                className="mx-0 w-full flex-wrap justify-between gap-3"
+                aria-label="Страницы открытых разборов"
+              >
+                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground" aria-live="polite">
+                  Стр. {openActionsPage.page} из {openActionsPage.pageCount} · показано {openActionsPage.items.length} из{" "}
+                  {openActionsPage.total}
+                </span>
+                <PaginationContent className="gap-2">
+                  {openActionsPage.page > 1 ? (
+                    <PaginationItem>
+                      <PaginationPrevious
+                        href={openCoachingActionsPageHref(openActionsPage.page - 1, openActionsFilterParams)}
+                        text="Назад"
+                        rel="prev"
+                        aria-label="Предыдущая страница открытых разборов"
+                        className="[&>span]:block"
+                      />
+                    </PaginationItem>
+                  ) : null}
+                  {openActionsPage.hasMore ? (
+                    <PaginationItem>
+                      <PaginationNext
+                        href={openCoachingActionsPageHref(openActionsPage.page + 1, openActionsFilterParams)}
+                        text="Дальше"
+                        rel="next"
+                        aria-label="Следующая страница открытых разборов"
+                        className="[&>span]:block"
+                      />
+                    </PaginationItem>
+                  ) : null}
+                </PaginationContent>
+              </Pagination>
+            </CardFooter>
+          ) : null}
         </Card>
       ) : null}
 
