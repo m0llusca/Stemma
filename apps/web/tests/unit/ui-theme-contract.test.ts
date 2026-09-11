@@ -261,6 +261,12 @@ describe("canonical UI theme contract", () => {
     expect(globals).toMatch(
       /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*\[data-qc-motion="chart-enter"\][\s\S]*animation:\s*none/
     );
+    expect(globals).toMatch(
+      /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*\[data-animation-active="true"\]\s*\.recharts-curve[\s\S]*animation:\s*none/
+    );
+    expect(globals).toMatch(
+      /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*svg\[data-animation-active="true"\]\s*rect\[data-slot="category-bar"\][\s\S]*animation:\s*none/
+    );
     expect(globals).not.toMatch(
       /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*transform:\s*none/
     );
@@ -270,6 +276,12 @@ describe("canonical UI theme contract", () => {
     expect(globals).toContain("@keyframes qc-skeleton-shimmer");
     expect(globals).toContain("@keyframes qc-kpi-bump");
     expect(globals).toContain("@keyframes qc-chart-enter");
+    expect(globals).toContain("@keyframes qc-chart-bar-grow-y");
+    expect(globals).toContain("@keyframes qc-chart-bar-grow-x");
+    expect(globals).toContain("@keyframes qc-chart-line-draw");
+    expect(globals).toContain("@keyframes qc-chart-mark-in");
+    expect(globals).toContain('[data-animation-active="true"] .recharts-curve');
+    expect(globals).toContain('svg[data-animation-active="true"] rect[data-slot="category-bar"]');
     expect(globals).toContain('[data-sonner-toast].cn-toast');
     expect(globals).toContain("var(--motion-ease-spring-toast)");
     expect(globals).toContain('[data-qc-motion="kpi-bump"]');

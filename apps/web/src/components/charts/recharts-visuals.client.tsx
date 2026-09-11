@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { Curve, Rectangle } from "recharts";
+import { Curve } from "recharts";
+import { AnimatedRectangle } from "@/components/charts/animated-rectangle";
 import {
   StaticChartContainer,
   type ChartConfig
@@ -142,24 +143,26 @@ export function QualityTrendVisual({
     plotWidth,
     plotHeight,
     barWidth,
+    domainIndexes,
     xFor,
     yForScore,
     yForVolume
   } = geometry;
   const xTickIndexes = new Set(
-    planXAxisTickIndexes(model.points.length, plotWidth)
+    planXAxisTickIndexes(domainIndexes.length, plotWidth)
   );
   const scoreSegments = geometry.lineSegments("score");
   const previousSegments = geometry.lineSegments("previous");
   const scorePoints = geometry.linePoints("score");
   const previousPoints = geometry.linePoints("previous");
+  const plotBottom = margin.top + plotHeight;
 
   return (
     <StaticChartContainer
       id={model.id}
       config={qualityTrendConfig}
-      className="aspect-[720/320] w-full min-w-0"
-      initialDimension={{ width: 720, height: 320 }}
+      className="aspect-[720/280] w-full min-w-0"
+      initialDimension={{ width: 720, height: 280 }}
     >
       {visible.has("target") ? (
         <ChartGoalBadge
@@ -199,12 +202,17 @@ export function QualityTrendVisual({
             </g>
           );
         })}
-        {chartData.map((point, index) =>
-          xTickIndexes.has(index) ? (
+        {domainIndexes.map((modelIndex, domainPosition) => {
+          const point = chartData[modelIndex];
+          if (!point || !xTickIndexes.has(domainPosition)) {
+            return null;
+          }
+
+          return (
             <text
               key={point.id}
               data-slot="x-axis-tick"
-              x={xFor(index)}
+              x={xFor(modelIndex)}
               y={height - 12}
               textAnchor="middle"
               fill="var(--muted-foreground)"
@@ -212,21 +220,26 @@ export function QualityTrendVisual({
             >
               {point.label}
             </text>
-          ) : null
-        )}
+          );
+        })}
         {visible.has("volume") ? (
           <g
             data-series="volume"
             data-tone="neutral"
-            data-animation-active="false"
+            data-animation-active="true"
           >
-            {chartData.map((point, index) => {
-              const barY = yForVolume(point.volume ?? 0);
-              const barHeight = margin.top + plotHeight - barY;
+            {domainIndexes.map((modelIndex) => {
+              const point = chartData[modelIndex];
+              const volume = point?.volume ?? 0;
+              if (!point || volume <= 0) {
+                return null;
+              }
+              const barY = yForVolume(volume);
+              const barHeight = plotBottom - barY;
               return (
-                <Rectangle
+                <AnimatedRectangle
                   key={point.id}
-                  x={xFor(index) - barWidth / 2}
+                  x={xFor(modelIndex) - barWidth / 2}
                   y={barY}
                   width={barWidth}
                   height={barHeight}
@@ -242,13 +255,15 @@ export function QualityTrendVisual({
           <g
             data-series="previous"
             data-marker="diamond"
-            data-animation-active="false"
+            data-animation-active="true"
+            data-connect-nulls="true"
             strokeDasharray="6 5"
             data-segment-count={previousSegments.length}
           >
             {previousSegments.map((segment, index) => (
               <Curve
                 key={`segment-${index}`}
+                pathLength={1}
                 type="linear"
                 points={segment}
                 fill="none"
@@ -278,12 +293,14 @@ export function QualityTrendVisual({
         {visible.has("score") ? (
           <g
             data-series="score"
-            data-animation-active="false"
+            data-animation-active="true"
+            data-connect-nulls="true"
             data-segment-count={scoreSegments.length}
           >
             {scoreSegments.map((segment, index) => (
               <Curve
                 key={`segment-${index}`}
+                pathLength={1}
                 type="monotone"
                 points={segment}
                 fill="none"
@@ -372,7 +389,7 @@ export function RankedDriverVisual({
         <g
           data-series="down"
           data-direction="negative"
-          data-animation-active="false"
+          data-animation-active="true"
         >
           {model.points.map((point, index) => {
             const bar = geometry.bar(index);
@@ -380,7 +397,7 @@ export function RankedDriverVisual({
               return null;
             }
             return (
-              <Rectangle
+              <AnimatedRectangle
                 key={point.id}
                 x={bar.x}
                 y={bar.y}
@@ -395,7 +412,7 @@ export function RankedDriverVisual({
         <g
           data-series="up"
           data-direction="positive"
-          data-animation-active="false"
+          data-animation-active="true"
         >
           {model.points.map((point, index) => {
             const bar = geometry.bar(index);
@@ -403,7 +420,7 @@ export function RankedDriverVisual({
               return null;
             }
             return (
-              <Rectangle
+              <AnimatedRectangle
                 key={point.id}
                 x={bar.x}
                 y={bar.y}
@@ -447,11 +464,18 @@ export function ScoreDistributionVisual({
   );
   const { width, height, margin, plotHeight } = geometry;
 
+  const yTicks = (() => {
+    const mid = Math.round(geometry.maximum / 2);
+    return mid === 0 || mid === geometry.maximum
+      ? [0, geometry.maximum]
+      : [0, mid, geometry.maximum];
+  })();
+
   return (
     <StaticChartContainer
       id={model.id}
       config={distributionConfig}
-      className="aspect-[560/260] w-full min-w-0"
+      className="aspect-[560/200] w-full min-w-0"
       initialDimension={{ width, height }}
     >
       <svg
@@ -460,21 +484,33 @@ export function ScoreDistributionVisual({
         tabIndex={-1}
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="none"
-        data-animation-active="false"
+        data-animation-active="true"
       >
-        {[0, 0.5, 1].map((ratio) => {
-          const y = margin.top + plotHeight * (1 - ratio);
+        {yTicks.map((tick) => {
+          const y =
+            margin.top +
+            plotHeight * (1 - tick / Math.max(1, geometry.maximum));
           return (
-            <line
-              key={ratio}
-              x1={margin.left}
-              x2={width - margin.right}
-              y1={y}
-              y2={y}
-              stroke="var(--border)"
-              strokeOpacity={0.55}
-              vectorEffect="non-scaling-stroke"
-            />
+            <g key={tick} data-slot="y-axis-tick">
+              <line
+                x1={margin.left}
+                x2={width - margin.right}
+                y1={y}
+                y2={y}
+                stroke="var(--border)"
+                strokeOpacity={0.55}
+                vectorEffect="non-scaling-stroke"
+              />
+              <text
+                x={margin.left - 8}
+                y={y + 4}
+                textAnchor="end"
+                fill="var(--muted-foreground)"
+                fontSize={11}
+              >
+                {tick}
+              </text>
+            </g>
           );
         })}
         <g data-series="count">
@@ -497,16 +533,6 @@ export function ScoreDistributionVisual({
                 fontSize={11}
               >
                 {model.points[index].label}
-              </text>
-              <text
-                x={bar.x + bar.width / 2}
-                y={Math.max(margin.top + 12, bar.y - 7)}
-                textAnchor="middle"
-                fill="var(--foreground)"
-                fontSize={11}
-                fontWeight={600}
-              >
-                {bar.value}
               </text>
             </g>
           ))}
@@ -551,7 +577,7 @@ export function PairedAiDriftVisual({
         tabIndex={-1}
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="none"
-        data-animation-active="false"
+        data-animation-active="true"
       >
         {[
           ["Уверенность модели", confidenceTop],
@@ -600,6 +626,7 @@ export function PairedAiDriftVisual({
           {confidenceSegments.map((segment, index) => (
             <polyline
               key={index}
+              pathLength={1}
               points={polylinePoints(segment)}
               fill="none"
               stroke="var(--color-confidence)"
@@ -628,6 +655,7 @@ export function PairedAiDriftVisual({
           {reserveSegments.map((segment, index) => (
             <polyline
               key={index}
+              pathLength={1}
               points={polylinePoints(segment)}
               fill="none"
               stroke="var(--color-reserve)"
@@ -697,7 +725,7 @@ export function ReasonTrendVisual({
         tabIndex={-1}
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="none"
-        data-animation-active="false"
+        data-animation-active="true"
       >
         {[0, 0.5, 1].map((ratio) => {
           const value = maximum * ratio;
@@ -732,6 +760,7 @@ export function ReasonTrendVisual({
           {previousSegments.map((segment, index) => (
             <polyline
               key={index}
+              pathLength={1}
               points={polylinePoints(segment)}
               fill="none"
               stroke="var(--color-previous)"
@@ -745,6 +774,7 @@ export function ReasonTrendVisual({
           {currentSegments.map((segment, index) => (
             <polyline
               key={index}
+              pathLength={1}
               points={polylinePoints(segment)}
               fill="none"
               stroke="var(--color-current)"
@@ -798,7 +828,7 @@ export function RankedBreakdownVisual({
         tabIndex={-1}
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="none"
-        data-animation-active="false"
+        data-animation-active="true"
       >
         <line
           data-slot="agreement-reference"

@@ -28,7 +28,7 @@ describe("sparkline geometry", () => {
     expect(chart.targetY).toBe(
       chart.height - SCORE_OVER_TIME_PLOT_PAD_Y
     );
-    expect(sparklinePath(chart.mapped)).toBe("M 12.0 100.0 L 348.0 14.0");
+    expect(sparklinePath(chart.mapped)).toBe("M 12.0 66.0 L 348.0 12.0");
   });
 
   it("tiles hit regions from padded midpoints without gaps", () => {

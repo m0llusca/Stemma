@@ -670,6 +670,80 @@
     var(--motion-ease-spring-panel) both;
 }
 
+@keyframes qc-chart-bar-grow-y {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes qc-chart-bar-grow-x {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes qc-chart-line-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes qc-chart-mark-in {
+  from {
+    opacity: 0;
+    transform: scale(0.55);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Series entrance for static SVG plots. Recharts `Rectangle` animates via
+   `AnimatedRectangle` (`isAnimationActive`) — do not also scale those nodes. */
+[data-animation-active="true"] .recharts-curve,
+[data-animation-active="true"] polyline,
+[data-animation-active="true"] path[data-slot="sparkline-line"] {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: qc-chart-line-draw var(--motion-duration-spring-enter)
+    var(--motion-ease-spring-panel) both;
+}
+
+[data-animation-active="true"] circle[data-point-id],
+[data-animation-active="true"] rect[data-point-id],
+[data-animation-active="true"] rect[data-marker],
+[data-animation-active="true"] circle[data-slot="sparkline-point"] {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: qc-chart-mark-in calc(var(--motion-duration-spring-enter) * 0.75)
+    var(--motion-ease-spring-panel) both;
+  animation-delay: 90ms;
+}
+
+svg[data-animation-active="true"] rect[data-slot="category-bar"],
+svg[data-animation-active="true"] g[data-series="count"] rect,
+svg[data-animation-active="true"] g[data-series="agreement"] rect {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: qc-chart-bar-grow-y var(--motion-duration-spring-enter)
+    var(--motion-ease-spring-panel) both;
+}
+
+svg[data-animation-active="true"] g[data-series="agreement"] rect {
+  transform-origin: left center;
+  animation-name: qc-chart-bar-grow-x;
+}
+
 [data-qc-motion="hover-lift"] {
   transition:
     transform var(--motion-duration-spring) var(--motion-ease-spring-panel),
@@ -768,7 +842,16 @@
   [data-qc-motion="kpi-bump"],
   [data-qc-motion="chart-enter"],
   [data-qc-motion="hover-lift"],
-  [data-sonner-toast] {
+  [data-sonner-toast],
+  [data-animation-active="true"] .recharts-curve,
+  [data-animation-active="true"] polyline,
+  [data-animation-active="true"] path[data-slot="sparkline-line"],
+  [data-animation-active="true"] circle[data-point-id],
+  [data-animation-active="true"] rect[data-point-id],
+  [data-animation-active="true"] rect[data-marker],
+  [data-animation-active="true"] circle[data-slot="sparkline-point"],
+  svg[data-animation-active="true"] rect[data-slot="category-bar"],
+  svg[data-animation-active="true"] g[data-series] rect {
     animation: none;
   }
 

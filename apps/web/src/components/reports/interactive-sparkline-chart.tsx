@@ -148,7 +148,7 @@ export function InteractiveSparklineChart({
       </div>
 
       <div
-        className="relative overflow-visible rounded-lg border border-border bg-card px-2.5 pb-3 pt-8"
+        className="relative overflow-visible rounded-lg border border-border bg-card px-2.5 pb-2 pt-3"
         ref={plotRef}
       >
         <svg
@@ -160,6 +160,7 @@ export function InteractiveSparklineChart({
           role="img"
           aria-label="Тренд средней оценки"
           focusable="false"
+          data-animation-active="true"
         >
           {gridTicks.map((ratio) => {
             const y = chart.padY + (1 - ratio) * (chart.height - chart.padY * 2);
@@ -218,6 +219,7 @@ export function InteractiveSparklineChart({
           <path
             d={chart.path}
             data-slot="sparkline-line"
+            pathLength={1}
             fill="none"
             stroke={CHART_SERIES_STROKE}
             strokeLinecap="round"
@@ -236,6 +238,7 @@ export function InteractiveSparklineChart({
                   cy={point.y}
                   r={isLatest ? CHART_MARKER_RADIUS_LAST : CHART_MARKER_RADIUS}
                   data-slot="sparkline-point"
+                  data-point-id={`${point.label}:${index}`}
                   fill={CHART_SERIES_STROKE}
                   stroke={CHART_SERIES_STROKE}
                   strokeWidth={CHART_SERIES_STROKE_WIDTH}
@@ -252,7 +255,10 @@ export function InteractiveSparklineChart({
             className="right-2.5 top-2"
           />
         ) : null}
-        <div className="pointer-events-none absolute inset-x-2.5 bottom-3 h-[200px]">
+        <div
+          className="pointer-events-none absolute inset-x-2.5 bottom-2"
+          style={{ height: chart.height }}
+        >
           {chart.points.map((point, index) => {
             const showPoint = () => setActiveIndex(index);
             const hidePoint = () => setActiveIndex(null);

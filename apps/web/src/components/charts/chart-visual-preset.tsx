@@ -4,8 +4,8 @@ import {
 } from "@/lib/charts/sparkline-geometry";
 import { cn } from "@/lib/utils";
 
-export const EXEC_RISK_CHART_MIN_HEIGHT_CLASS = "h-[240px]";
-export const SCORE_OVER_TIME_MIN_HEIGHT_CLASS = "min-h-[200px]";
+export const EXEC_RISK_CHART_MIN_HEIGHT_CLASS = "h-[180px]";
+export const SCORE_OVER_TIME_MIN_HEIGHT_CLASS = "min-h-[132px]";
 export const SCORE_OVER_TIME_PLOT_HEIGHT = SCORE_OVER_TIME_PLOT_HEIGHT_VALUE;
 
 export const CHART_SERIES_STROKE = "var(--chart-1)";

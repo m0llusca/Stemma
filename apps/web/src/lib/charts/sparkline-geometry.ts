@@ -1,7 +1,8 @@
 export const SCORE_OVER_TIME_FALLBACK_WIDTH = 360;
-export const SCORE_OVER_TIME_PLOT_HEIGHT = 200;
+/** Compact plot height — wide Lead columns used to look mostly empty at 200px. */
+export const SCORE_OVER_TIME_PLOT_HEIGHT = 132;
 export const SCORE_OVER_TIME_PLOT_PAD_X = 12;
-export const SCORE_OVER_TIME_PLOT_PAD_Y = 14;
+export const SCORE_OVER_TIME_PLOT_PAD_Y = 12;
 
 export type SparklineMappedPoint<T> = T & {
   x: number;

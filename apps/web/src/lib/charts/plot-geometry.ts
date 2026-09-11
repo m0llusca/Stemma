@@ -30,9 +30,12 @@ export type RankedSelectedMark = PlotCoordinate &
 
 export const QUALITY_TREND_VIEWBOX = Object.freeze({
   width: 720,
-  height: 320,
-  margin: Object.freeze({ top: 20, right: 18, bottom: 38, left: 42 })
+  height: 280,
+  margin: Object.freeze({ top: 16, right: 16, bottom: 34, left: 40 })
 });
+
+/** Volume bars share the score plot; cap them so a busy day is not a full-height glitch. */
+export const QUALITY_TREND_VOLUME_HEIGHT_FRACTION = 0.36;
 
 export const RANKED_DRIVER_VIEWBOX = Object.freeze({
   width: 440,
@@ -99,8 +102,8 @@ export function fitSvgLabel(
 
 export const SCORE_DISTRIBUTION_VIEWBOX = Object.freeze({
   width: 560,
-  height: 260,
-  margin: Object.freeze({ top: 18, right: 16, bottom: 44, left: 38 })
+  height: 200,
+  margin: Object.freeze({ top: 14, right: 14, bottom: 36, left: 36 })
 });
 
 export const PAIRED_AI_DRIFT_VIEWBOX = Object.freeze({
@@ -183,6 +186,45 @@ export function viewBoxPercent(
   };
 }
 
+function isEmptyQualityTrendPoint(
+  point: ChartModel<QualityTrendSeriesKey>["points"][number]
+) {
+  return point.values.score == null && (point.values.volume ?? 0) <= 0;
+}
+
+/**
+ * Drop leading/trailing empty calendar buckets so the plot does not stretch
+ * into blank days after (or before) the last evidence. Internal gaps stay for
+ * honest calendar spacing; score/previous lines connect across them.
+ */
+export function qualityTrendDomainIndexes(
+  points: ChartModel<QualityTrendSeriesKey>["points"]
+): number[] {
+  if (points.length === 0) {
+    return [];
+  }
+
+  let start = 0;
+  let end = points.length - 1;
+
+  while (start <= end && isEmptyQualityTrendPoint(points[start])) {
+    start += 1;
+  }
+  while (end >= start && isEmptyQualityTrendPoint(points[end])) {
+    end -= 1;
+  }
+
+  if (start > end) {
+    return points.map((_, index) => index);
+  }
+
+  const indexes: number[] = [];
+  for (let index = start; index <= end; index += 1) {
+    indexes.push(index);
+  }
+  return indexes;
+}
+
 export function buildQualityTrendGeometry(
   model: ChartModel<QualityTrendSeriesKey>,
   visibleSeries: readonly QualityTrendSeriesKey[]
@@ -191,15 +233,33 @@ export function buildQualityTrendGeometry(
   const plotWidth = width - margin.left - margin.right;
   const plotHeight = height - margin.top - margin.bottom;
   const visible = new Set(visibleSeries);
+  const domainIndexes = qualityTrendDomainIndexes(model.points);
+  const domainCount = domainIndexes.length;
+  const domainPosition = new Map(
+    domainIndexes.map((modelIndex, position) => [modelIndex, position])
+  );
   const maxVolume = Math.max(
     1,
-    ...model.points.map((point) => point.values.volume ?? 0)
+    ...domainIndexes.map((index) => model.points[index]?.values.volume ?? 0)
   );
-  const xFor = (index: number) =>
+  const xForDomainPosition = (position: number) =>
     margin.left +
-    (model.points.length <= 1
+    (domainCount <= 1
       ? plotWidth / 2
-      : (index / (model.points.length - 1)) * plotWidth);
+      : (position / (domainCount - 1)) * plotWidth);
+  const xFor = (index: number) => {
+    const position = domainPosition.get(index);
+    if (position != null) {
+      return xForDomainPosition(position);
+    }
+    if (domainCount === 0) {
+      return margin.left + plotWidth / 2;
+    }
+    if (index < domainIndexes[0]) {
+      return xForDomainPosition(0);
+    }
+    return xForDomainPosition(domainCount - 1);
+  };
   const yForScore = (value: number) =>
     margin.top +
     plotHeight -
@@ -207,40 +267,34 @@ export function buildQualityTrendGeometry(
   const yForVolume = (value: number) =>
     margin.top +
     plotHeight -
-    (Math.max(0, value) / maxVolume) * plotHeight;
+    (Math.max(0, value) / maxVolume) *
+      plotHeight *
+      QUALITY_TREND_VOLUME_HEIGHT_FRACTION;
   const targetValue =
     model.points.find((point) => point.values.target != null)?.values.target ??
     null;
-  const xPositions = model.points.map((_, index) => xFor(index));
+  const xPositions = domainIndexes.map((index) => xFor(index));
 
   function lineSegments(key: "score" | "previous") {
-    const segments: PlotCoordinate[][] = [];
-    let current: PlotCoordinate[] = [];
+    // connectNulls: one continuous polyline across internal empty days.
+    const connected: PlotCoordinate[] = [];
 
-    model.points.forEach((point, index) => {
-      const value = point.values[key];
+    for (const index of domainIndexes) {
+      const value = model.points[index]?.values[key];
       if (value == null) {
-        if (current.length > 0) {
-          segments.push(current);
-          current = [];
-        }
-        return;
+        continue;
       }
-
-      current.push({ x: xFor(index), y: yForScore(value) });
-    });
-
-    if (current.length > 0) {
-      segments.push(current);
+      connected.push({ x: xFor(index), y: yForScore(value) });
     }
 
-    return segments;
+    return connected.length > 0 ? [connected] : [];
   }
 
   function linePoints(key: "score" | "previous") {
-    return model.points.flatMap((point, index) => {
-      const value = point.values[key];
-      return value == null
+    return domainIndexes.flatMap((index) => {
+      const point = model.points[index];
+      const value = point?.values[key];
+      return value == null || !point
         ? []
         : [{ x: xFor(index), y: yForScore(value), pointId: point.id }];
     });
@@ -291,18 +345,23 @@ export function buildQualityTrendGeometry(
     clientX: number,
     bounds: Pick<DOMRect, "left" | "width">
   ) {
-    if (bounds.width <= 0) {
+    if (domainIndexes.length === 0) {
       return model.points.length > 0 ? 0 : null;
+    }
+
+    if (bounds.width <= 0) {
+      return domainIndexes[0] ?? null;
     }
 
     const ratio = Math.max(
       0,
       Math.min(1, (clientX - bounds.left) / bounds.width)
     );
-    return nearestIndex(xPositions, ratio * width);
+    const nearestDomain = nearestIndex(xPositions, ratio * width);
+    return nearestDomain == null ? null : domainIndexes[nearestDomain];
   }
 
-  const barStep = plotWidth / Math.max(1, model.points.length);
+  const barStep = plotWidth / Math.max(1, domainCount);
 
   return {
     width,
@@ -312,6 +371,7 @@ export function buildQualityTrendGeometry(
     plotHeight,
     maxVolume,
     targetValue,
+    domainIndexes,
     barWidth: Math.max(5, Math.min(24, barStep * 0.42)),
     xFor,
     yForScore,

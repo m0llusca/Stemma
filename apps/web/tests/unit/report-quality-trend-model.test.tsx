@@ -76,7 +76,7 @@ describe("reports page quality-trend model seam", () => {
 
     expect(container.querySelector('[data-series="score"]')).toHaveAttribute(
       "data-segment-count",
-      "2"
+      "1"
     );
     const tableRows = screen.getAllByRole("row");
     expect(tableRows).toHaveLength(4);
