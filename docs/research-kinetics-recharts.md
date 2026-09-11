@@ -54,7 +54,7 @@
 | Skeleton shimmer | `--motion-duration-shimmer`, `qc-skeleton-shimmer` | `[data-slot="skeleton"][data-qc-motion="static-loop"]` |
 | Status pill morph | `--motion-duration-morph`, `--motion-ease-spring-gentle` | `Badge` / `Chip` / `StatusBadge` |
 | Admin accordion | `--motion-ease-spring-panel`; chevron is Morphicons | `Accordion` panel; trigger uses `DisclosureMorphChevron` |
-| Icon morph swap (#117) | `morphicons` + `reducedMotion="user"` | CopyButton Copy↔Check; accordion / score-module chevron |
+| Icon morph swap (#117) | `morphicons` + `reducedMotion="user"` | CopyButton Copy↔Check; accordion / score-module chevron; top-nav Menu↔X, Search↔X, account ChevronDown↔Up |
 | Tab-pill glide (optional) | `--motion-ease-spring-glide` | `TabsTrigger`, `PageShell` tabs |
 | Chart enter (#109) | `--motion-duration-spring-enter`, `--motion-ease-spring-panel`, `qc-chart-enter` | `[data-qc-motion="chart-enter"]` on `StaticChartContainer` / score sparkline |
 

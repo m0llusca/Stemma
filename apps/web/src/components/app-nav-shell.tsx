@@ -6,7 +6,6 @@ import {
   Activity,
   ArrowRight,
   Bell,
-  ChevronDown,
   ClipboardCheck,
   GraduationCap,
   Menu,
@@ -14,7 +13,8 @@ import {
   Scale,
   Search,
   SlidersHorizontal,
-  TrendingUp
+  TrendingUp,
+  X
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { isAuthPath } from "@/lib/auth/auth-path";
@@ -36,6 +36,8 @@ import { TAKE_NEXT_LABEL } from "@/lib/review/take-next-copy";
 import type { DemoRoleSwitcher } from "@/lib/auth/demo-users";
 import { cn } from "@/lib/utils";
 import { AccountMenuDisclosure, DemoRoleSwitchMenu } from "@/components/auth/demo-role-switch";
+import { DisclosureMorphChevron } from "@/components/ui/disclosure-morph-chevron";
+import { MorphIcon } from "@/components/ui/morph-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -272,7 +274,7 @@ function AppNavShellChrome({
                     />
                   }
                 >
-                  <Menu className={cn(activeArea && "md:hidden")} />
+                  <MorphIcon icon={areaMenuOpen ? X : Menu} className={cn(activeArea && "md:hidden")} />
                   {activeArea && ActiveAreaIcon ? (
                     <>
                       <ActiveAreaIcon className="hidden md:block" data-icon="inline-start" />
@@ -355,7 +357,7 @@ function AppNavShellChrome({
           aria-expanded={commandOpen}
           onClick={openCommand}
         >
-          <Search data-icon="inline-start" />
+          <MorphIcon icon={commandOpen ? X : Search} data-icon="inline-start" />
           <span className="hidden truncate xl:inline">Поиск или команда</span>
           <Kbd className="ml-auto hidden xl:inline-flex">⌘K</Kbd>
         </Button>
@@ -502,7 +504,7 @@ function AppNavShellChrome({
               {demoSwitcher ? demoUserName : user.email}
             </span>
           </span>
-          <ChevronDown data-icon="inline-end" />
+          <DisclosureMorphChevron data-icon="inline-end" />
         </AccountMenuDisclosure>
       </div>
 
