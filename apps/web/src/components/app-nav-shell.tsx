@@ -141,7 +141,6 @@ function AppNavShellChrome({
   const searchParams = useSearchParams();
   const router = useRouter();
   const [commandOpen, setCommandOpen] = useState(false);
-  const showWorkPulse = pulseItems.length > 0 || canTakeNextCase;
 
   const [areaMenuOpen, setAreaMenuOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -152,6 +151,7 @@ function AppNavShellChrome({
     [pathname, search, areas]
   );
   const activeArea = areas.find((area) => area.id === activeAreaId);
+  const showPulseChrome = pulseItems.length > 0 || canTakeNextCase;
   const visibleCommands = useMemo(
     () =>
       navigation.commandItems
@@ -360,103 +360,101 @@ function AppNavShellChrome({
           <Kbd className="ml-auto hidden xl:inline-flex">⌘K</Kbd>
         </Button>
 
-{showWorkPulse ? (
-          <>
-                <Separator orientation="vertical" className="hidden h-6 sm:block" />
+        <Separator orientation="vertical" className="hidden h-6 sm:block" />
 
-        <div className="flex min-w-0 items-center gap-1.5 sm:gap-2" aria-label="Рабочий пульс">
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  className="size-11 sm:hidden"
-                  aria-label="Рабочий пульс"
-                />
-              }
-            >
-              <Activity />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              sideOffset={8}
-              className="w-60"
-              // Base UI names the popup after the icon-only trigger (aria-labelledby →
-              // trigger id, empty text), which would erase this menu's accessible name;
-              // pin the name to the visible label instead.
-              aria-labelledby="work-pulse-menu-label"
-            >
-              <DropdownMenuGroup>
-                <DropdownMenuLabel id="work-pulse-menu-label">Рабочий пульс</DropdownMenuLabel>
-                {pulseItems.map((item) => (
-                  <DropdownMenuItem
-                    key={item.label}
-                    render={
-                      <Link
-                        href={item.href}
-                        aria-label={`${item.label}: ${item.value}`}
-                      />
-                    }
-                    nativeButton={false}
-                  >
-                    <span>{item.label}</span>
-                    <Badge
-                      variant={pulseBadgeVariant(item.tone)}
-                      className="ml-auto"
-                    >
-                      {item.value}
-                    </Badge>
-                  </DropdownMenuItem>
-                ))}
-                {canTakeNextCase ? (
-                  <DropdownMenuItem
-                    aria-label={TAKE_NEXT_LABEL}
-                    onClick={runTakeNext}
-                  >
-                    <ArrowRight />
-                    <span>{TAKE_NEXT_LABEL}</span>
-                  </DropdownMenuItem>
-                ) : null}
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <div className="flex min-w-0 items-center gap-1">
-            {pulseItems.map((item) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                data-slot="button"
-                aria-label={`${item.label}: ${item.value}`}
-                className={cn(
-                  buttonVariants({ variant: "ghost", size: "sm" }),
-                  "hidden h-8 shrink-0 gap-1.5 px-1.5 text-muted-foreground sm:inline-flex"
-                )}
+        {showPulseChrome ? (
+          <div className="flex min-w-0 items-center gap-1.5 sm:gap-2" aria-label="Рабочий пульс">
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="size-11 sm:hidden"
+                    aria-label="Рабочий пульс"
+                  />
+                }
               >
-                <span className="hidden text-xs 2xl:inline">{item.label}</span>
-                <Badge variant={pulseBadgeVariant(item.tone)}>{item.value}</Badge>
-              </Link>
-            ))}
+                <Activity />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                sideOffset={8}
+                className="w-60"
+                // Base UI names the popup after the icon-only trigger (aria-labelledby →
+                // trigger id, empty text), which would erase this menu's accessible name;
+                // pin the name to the visible label instead.
+                aria-labelledby="work-pulse-menu-label"
+              >
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel id="work-pulse-menu-label">Рабочий пульс</DropdownMenuLabel>
+                  {pulseItems.map((item) => (
+                    <DropdownMenuItem
+                      key={item.label}
+                      render={
+                        <Link
+                          href={item.href}
+                          aria-label={`${item.label}: ${item.value}`}
+                        />
+                      }
+                      nativeButton={false}
+                    >
+                      <span>{item.label}</span>
+                      <Badge
+                        variant={pulseBadgeVariant(item.tone)}
+                        className="ml-auto"
+                      >
+                        {item.value}
+                      </Badge>
+                    </DropdownMenuItem>
+                  ))}
+                  {canTakeNextCase ? (
+                    <DropdownMenuItem
+                      aria-label={TAKE_NEXT_LABEL}
+                      onClick={runTakeNext}
+                    >
+                      <ArrowRight />
+                      <span>{TAKE_NEXT_LABEL}</span>
+                    </DropdownMenuItem>
+                  ) : null}
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <div className="flex min-w-0 items-center gap-1">
+              {pulseItems.map((item) => (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  data-slot="button"
+                  aria-label={`${item.label}: ${item.value}`}
+                  className={cn(
+                    buttonVariants({ variant: "ghost", size: "sm" }),
+                    "hidden h-8 shrink-0 gap-1.5 px-1.5 text-muted-foreground sm:inline-flex"
+                  )}
+                >
+                  <span className="hidden text-xs 2xl:inline">{item.label}</span>
+                  <Badge variant={pulseBadgeVariant(item.tone)}>{item.value}</Badge>
+                </Link>
+              ))}
+            </div>
+            {canTakeNextCase ? (
+              <Button
+                type="button"
+                size="sm"
+                aria-label={TAKE_NEXT_LABEL}
+                className="hidden shrink-0 sm:inline-flex"
+                onClick={runTakeNext}
+              >
+                <span className="hidden xl:inline">{TAKE_NEXT_LABEL}</span>
+                <ArrowRight data-icon="inline-end" />
+              </Button>
+            ) : null}
           </div>
-          {canTakeNextCase ? (
-            <Button
-              type="button"
-              size="sm"
-              aria-label={TAKE_NEXT_LABEL}
-              className="hidden max-w-40 shrink-0 sm:inline-flex"
-              onClick={runTakeNext}
-            >
-              <span className="hidden truncate md:inline">{TAKE_NEXT_LABEL}</span>
-              <ArrowRight data-icon="inline-end" />
-            </Button>
-          ) : null}
-        </div>
+        ) : null}
 
         <Separator orientation="vertical" className="hidden h-6 sm:block" />
-          </>
-        ) : null}
 
         <AccountMenuDisclosure
           triggerAriaLabel={

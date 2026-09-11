@@ -11,7 +11,9 @@ const mocks = vi.hoisted(() => ({
   revalidatePath: vi.fn(),
   encryptSecret: vi.fn(),
   channelUpsert: vi.fn(),
-  channelUpdate: vi.fn()
+  channelUpdate: vi.fn(),
+  channelFindUnique: vi.fn(),
+  probeMessagingChannelWebhook: vi.fn()
 }));
 
 vi.mock("next/cache", () => ({
@@ -31,11 +33,16 @@ vi.mock("@/lib/secrets", () => ({
   encryptSecret: mocks.encryptSecret
 }));
 
+vi.mock("@/lib/messaging/probe-channel", () => ({
+  probeMessagingChannelWebhook: mocks.probeMessagingChannelWebhook
+}));
+
 vi.mock("@/lib/db", () => ({
   prisma: {
     messagingChannel: {
       upsert: mocks.channelUpsert,
-      update: mocks.channelUpdate
+      update: mocks.channelUpdate,
+      findUnique: mocks.channelFindUnique
     }
   }
 }));
@@ -80,6 +87,8 @@ describe("messaging webhook SSRF guard", () => {
       displayName: "Slack",
       status: "active"
     });
+    mocks.channelFindUnique.mockResolvedValue(null);
+    mocks.probeMessagingChannelWebhook.mockResolvedValue({ ok: true });
     mocks.auditLog.mockResolvedValue({});
   });
 

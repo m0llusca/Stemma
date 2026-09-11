@@ -106,4 +106,20 @@ describe("getReviewQueuePageData write gate", () => {
     expect(deep.currentHref).toBe("/reviews?process=critical");
     expect(deep.filterResetHref).toBe("/reviews?qaAssignee=QA_ANALYST&due=overdue");
   });
+
+  it("scopes SUPPORT_AGENT queue by assigneeId only, never assignee name", async () => {
+    mocks.requirePagePermission.mockResolvedValue(user("SUPPORT_AGENT"));
+    const { getReviewQueuePageData } = await import("@/lib/review-queue-page-data");
+
+    await getReviewQueuePageData({ status: "queued" });
+
+    expect(mocks.getReviewQueue).toHaveBeenCalledWith(
+      "workspace-1",
+      { status: "all" },
+      { assigneeId: "support_agent-1" }
+    );
+    const [, filtersArg, scopeArg] = mocks.getReviewQueue.mock.calls[0];
+    expect(filtersArg).not.toHaveProperty("assignee");
+    expect(scopeArg).toEqual({ assigneeId: "support_agent-1" });
+  });
 });

@@ -183,7 +183,7 @@ describe("queue view actions", () => {
     mocks.prisma.conversation.findFirst.mockResolvedValue({ id: "conv-view" });
     const { filtersFromReviewsHref } = await import("@/lib/review/queue-href-filters");
     const { nextReviewWhere } = await import("@/lib/review/next-review-query");
-    const { selectNextReviewConversationId } = await import("@/lib/queue-view-actions");
+    const { selectNextReviewConversationId } = await import("@/lib/review/select-next-review-conversation");
 
     const href = "/reviews?due=overdue&assignee=%D0%9E%D0%BF%D0%B5%D1%80%D0%B0%D1%82%D0%BE%D1%80";
     const filters = filtersFromReviewsHref(href);

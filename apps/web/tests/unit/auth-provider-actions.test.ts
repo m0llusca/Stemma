@@ -13,7 +13,9 @@ const mocks = vi.hoisted(() => ({
       create: vi.fn()
     },
     user: {
-      updateMany: vi.fn()
+      findFirst: vi.fn(),
+      updateMany: vi.fn(),
+      count: vi.fn()
     },
     userIdentityGroup: {
       findMany: vi.fn()
@@ -99,6 +101,8 @@ describe("auth provider server actions", () => {
       isActive: true
     });
     mocks.prisma.auditLog.create.mockResolvedValue({});
+    mocks.prisma.user.findFirst.mockResolvedValue({ role: "VIEWER" });
+    mocks.prisma.user.count.mockResolvedValue(2);
     mocks.prisma.user.updateMany.mockResolvedValue({ count: 1 });
     mocks.prisma.userIdentityGroup.findMany.mockResolvedValue([]);
     mocks.prisma.groupRoleMapping.findMany.mockResolvedValue([]);

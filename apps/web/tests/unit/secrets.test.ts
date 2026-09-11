@@ -25,4 +25,19 @@ describe("secret encryption", () => {
 
     expect(() => encryptSecret("super-secret-token")).toThrow("QC_SECRET_KEY");
   });
+
+  it("refuses the soft fallback outside development and test", () => {
+    vi.stubEnv("NODE_ENV", "staging");
+    vi.stubEnv("QC_SECRET_KEY", "");
+
+    expect(() => encryptSecret("super-secret-token")).toThrow(/outside local development/);
+  });
+
+  it("allows the documented soft fallback in development when QC_SECRET_KEY is unset", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("QC_SECRET_KEY", "");
+
+    const encrypted = encryptSecret("dev-only-secret");
+    expect(decryptSecret(encrypted)).toBe("dev-only-secret");
+  });
 });

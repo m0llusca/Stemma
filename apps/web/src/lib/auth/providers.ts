@@ -1,5 +1,6 @@
 import type { IdentityProvider, RoleName } from "@prisma/client";
 import type { Prisma } from "@prisma/client";
+import { roleAfterLastAdminGuard } from "@/lib/auth/last-admin";
 import { prisma } from "@/lib/db";
 
 export type ExternalRoleClaims = {
@@ -28,7 +29,22 @@ type GroupRoleMappingCandidate = {
 };
 
 type IdentityPolicyClient = Pick<Prisma.TransactionClient, "groupRoleMapping" | "userIdentityGroup">;
-type IdentityPolicyRefreshClient = IdentityPolicyClient & Pick<Prisma.TransactionClient, "user">;
+type IdentityPolicyRefreshClient = IdentityPolicyClient &
+  Pick<Prisma.TransactionClient, "user"> & {
+    $queryRaw?: Prisma.TransactionClient["$queryRaw"];
+    $transaction?: <T>(callback: (tx: IdentityPolicyRefreshClient) => Promise<T>) => Promise<T>;
+  };
+
+function runInTransactionIfAvailable<T>(
+  client: IdentityPolicyRefreshClient,
+  callback: (tx: IdentityPolicyRefreshClient) => Promise<T>
+): Promise<T> {
+  if (typeof client.$transaction === "function") {
+    return client.$transaction(callback);
+  }
+
+  return callback(client);
+}
 
 const roleOrder: RoleName[] = ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT", "EXEC", "VIEWER"];
 const attributeKeys = {
@@ -227,20 +243,23 @@ export async function refreshIdentityPoliciesForUsers(
   const now = input.now ?? new Date();
   for (const userId of ids) {
     const policy = await resolveIdentityPolicyForUser(input.workspaceId, input.providerId, userId, {}, client);
-    await client.user.updateMany({
-      where: {
-        id: userId,
-        workspaceId: input.workspaceId,
-        OR: [
-          { sourceOfTruthProviderId: input.providerId },
-          {
-            externalIdentities: {
-              some: { providerId: input.providerId }
+    await runInTransactionIfAvailable(client, async (tx) => {
+      const role = await roleAfterLastAdminGuard(tx, input.workspaceId, userId, policy.role);
+      await tx.user.updateMany({
+        where: {
+          id: userId,
+          workspaceId: input.workspaceId,
+          OR: [
+            { sourceOfTruthProviderId: input.providerId },
+            {
+              externalIdentities: {
+                some: { providerId: input.providerId }
+              }
             }
-          }
-        ]
-      },
-      data: identityPolicyUpdateData(input.providerId, policy, now)
+          ]
+        },
+        data: identityPolicyUpdateData(input.providerId, { ...policy, role }, now)
+      });
     });
   }
 }

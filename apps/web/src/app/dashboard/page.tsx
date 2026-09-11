@@ -23,7 +23,7 @@ import { LeadSlaChart } from "@/components/dashboard/lead-sla-chart";
 import { buildOpsEmptyTriage } from "@/lib/dashboard/ops-empty-triage";
 import { buildExecRiskChartModel } from "@/lib/dashboard/exec-risk-home";
 import { canViewPeerQuality, hasPermission } from "@/lib/auth/permissions";
-import { canAccessDashboard, dashboardSkeletonVariantForRole, roleHomePath, welcomeBackResetHref } from "@/lib/auth/role-home";
+import { canAccessDashboard, dashboardSkeletonVariantForRole, queueFilterResetHref, roleHomePath, welcomeBackResetHref } from "@/lib/auth/role-home";
 import { emptyTriagePrimary } from "@/lib/dashboard/empty-triage";
 import { opsQueueKpiHref, OVERDUE_SLA_HREF, QUEUED_STATUS_HREF } from "@/lib/dashboard/queue-kpi-href";
 import { prisma } from "@/lib/db";
@@ -280,6 +280,13 @@ async function DashboardPageContent() {
   const thirtyDayHighRiskHref = reportReviewRangeHref(thirtyDaysStart, now, {
     riskLevel: "HIGH_OR_CRITICAL"
   });
+  // Zero high-risk mirrors exec chart: queue reset, not an empty filtered drill.
+  const highRiskKpiHref =
+    highRiskCount > 0
+      ? thirtyDayHighRiskHref
+      : queueFilterResetHref(user.role, { name: user.name });
+  const trainingOverdueHint =
+    overdueTrainingCount > 0 ? `${overdueTrainingCount} просрочено` : "Просроченных в текущем срезе нет";
   if (isExecDashboard) {
     return (
       <ExecRiskHome
@@ -478,7 +485,7 @@ async function DashboardPageContent() {
               }
             />
             <OperationKpiCard
-              href={thirtyDayHighRiskHref}
+              href={highRiskKpiHref}
               icon={TriangleAlert}
               value={highRiskCount}
               tone={highRiskCount > 0 ? "negative" : "neutral"}
@@ -500,13 +507,7 @@ async function DashboardPageContent() {
               value={activeTrainingCount}
               tone={trainingStatus.tone}
               label="Активных обучений"
-              hint={
-                overdueTrainingCount > 0
-                  ? `${overdueTrainingCount} просрочено`
-                  : activeTrainingCount > 0
-                    ? "Нет просроченных"
-                    : "Данных о сроках нет"
-              }
+              hint={trainingOverdueHint}
             />
           </>
         ) : (
@@ -538,13 +539,7 @@ async function DashboardPageContent() {
               value={activeTrainingCount}
               tone={trainingStatus.tone}
               label="Активных обучений"
-              hint={
-                overdueTrainingCount > 0
-                  ? `${overdueTrainingCount} просрочено`
-                  : activeTrainingCount > 0
-                    ? "Нет просроченных"
-                    : "Данных о сроках нет"
-              }
+              hint={trainingOverdueHint}
             />
           </>
         )}

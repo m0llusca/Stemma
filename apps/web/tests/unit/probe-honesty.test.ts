@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   activateWithoutProbeCopy,
+  activateProbePassedNotLiveCopy,
   adapterOperationalProfileTitle,
   adapterOperationalStepsLabel,
   adapterProfileStep,
@@ -17,6 +18,7 @@ import {
   diagnosticStatusTone,
   diagnosticStepLabel,
   diagnosticsNotLiveCertificationFooter,
+  isProbeBeforeSaveAllowed,
   probeBeforePersistCopy,
   probeBeforeSaveGate,
   probeStepStatusView,
@@ -107,22 +109,31 @@ describe("probe-before-save gate", () => {
     });
     expect(probeBeforeSaveGate("claim_live", { liveCertified: true }).action).toBe("allow");
     expect(probeBeforeSaveGate("claim_live", { liveCertified: true }).tone).toBe("positive");
+    expect(isProbeBeforeSaveAllowed(probeBeforeSaveGate("claim_live"))).toBe(false);
+    expect(isProbeBeforeSaveAllowed(probeBeforeSaveGate("claim_live", { liveCertified: true }))).toBe(true);
   });
 
-  it("warns fail-closed when activate or config save implies readiness without cert", () => {
+  it("blocks activate without a successful probe (probe-before-save fail-closed)", () => {
     expect(probeBeforeSaveGate("activate")).toEqual({
-      action: "warn",
-      tone: "warning",
+      action: "block",
+      tone: "negative",
       message: activateWithoutProbeCopy
     });
-    expect(probeBeforeSaveGate("activate", { probeSucceeded: true }).action).toBe("warn");
+    expect(isProbeBeforeSaveAllowed(probeBeforeSaveGate("activate"))).toBe(false);
+    expect(probeBeforeSaveGate("activate", { probeSucceeded: true })).toEqual({
+      action: "warn",
+      tone: "warning",
+      message: activateProbePassedNotLiveCopy
+    });
     expect(probeBeforeSaveGate("activate", { probeSucceeded: true }).tone).not.toBe("positive");
+    expect(isProbeBeforeSaveAllowed(probeBeforeSaveGate("activate", { probeSucceeded: true }))).toBe(true);
     expect(probeBeforeSaveGate("config_only")).toEqual({
       action: "warn",
       tone: "warning",
       message: saveDoesNotCertifyCopy
     });
     expect(probeBeforeSaveGate("activate", { liveCertified: true }).tone).toBe("positive");
+    expect(isProbeBeforeSaveAllowed(probeBeforeSaveGate("activate", { liveCertified: true }))).toBe(true);
   });
 
   it("never paints save success green without live cert", () => {

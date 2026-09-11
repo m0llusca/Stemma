@@ -1,4 +1,5 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { createRequire } from "node:module";
 import { join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -275,6 +276,7 @@ describe("canonical UI theme contract", () => {
     const switchSource = readFileSync(resolve(appRoot, "src/components/ui/switch.tsx"), "utf8");
     const badgeSource = readFileSync(resolve(appRoot, "src/components/ui/badge.tsx"), "utf8");
     const accordionSource = readFileSync(resolve(appRoot, "src/components/ui/accordion.tsx"), "utf8");
+    const morphIconSource = readFileSync(resolve(appRoot, "src/components/ui/morph-icon.tsx"), "utf8");
     const tabsSource = readFileSync(resolve(appRoot, "src/components/ui/tabs.tsx"), "utf8");
     const statKpiSource = readFileSync(resolve(appRoot, "src/components/ui/stat-kpi.tsx"), "utf8");
     const chartContainerSource = readFileSync(
@@ -287,13 +289,22 @@ describe("canonical UI theme contract", () => {
     expect(switchSource).toContain("--motion-duration-spring");
     expect(badgeSource).toContain("--motion-duration-morph");
     expect(badgeSource).toContain("--motion-ease-spring-gentle");
-    expect(accordionSource).toContain("--motion-ease-spring-overshoot");
+    expect(accordionSource).toContain("DisclosureMorphChevron");
+    expect(morphIconSource).toContain('reducedMotion = "user"');
+    expect(morphIconSource).toContain('spring = "snappy"');
     expect(tabsSource).toContain("--motion-ease-spring-glide");
     expect(statKpiSource).toContain('data-qc-motion="kpi-bump"');
     expect(chartContainerSource).toContain('data-qc-motion="chart-enter"');
     expect(packageJson).not.toMatch(/["']kinetics["']/);
     expect(packageJson).not.toMatch(/@kinetics\//);
-    expect(packageJson).not.toMatch(/["']morphicons["']/);
+    expect(packageJson).toMatch(/["']morphicons["']\s*:\s*["']1\.7\.1["']/);
+    expect(createRequire(resolve(appRoot, "package.json")).resolve("morphicons/react")).toMatch(
+      /morphicons[/\\]dist[/\\]react\.js$/
+    );
+    const nextConfigSource = readFileSync(resolve(appRoot, "next.config.ts"), "utf8");
+    expect(nextConfigSource).toContain("morphiconsReactFromApp");
+    expect(nextConfigSource).toContain("turbopack: {");
+    expect(nextConfigSource).toMatch(/"morphicons\/react": morphiconsReactFromApp/);
     expect(globals).not.toMatch(/magnetic[- ]cursor|liquid[- ]glass|cursor[- ]trail|speed-dial|scramble|typewriter/i);
   });
 

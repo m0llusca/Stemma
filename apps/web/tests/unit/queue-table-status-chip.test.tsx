@@ -53,6 +53,35 @@ describe("QueueTable status chip", () => {
     expect(screen.queryByText("Назначено")).not.toBeInTheDocument();
   });
 
+  it("keeps filtered returnTo on subject and open links like take-next", () => {
+    const row = conversation({ id: "conv-filter", subject: "Фильтр SLA" });
+    const returnTo = "/reviews?due=overdue&process=ai_exception";
+
+    render(<QueueTable conversations={[row]} qaAssignees={[]} returnTo={returnTo} canWriteReviews />);
+
+    const expected = `/reviews/conv-filter?returnTo=${encodeURIComponent(returnTo)}`;
+    expect(screen.getByRole("link", { name: "Фильтр SLA" })).toHaveAttribute("href", expected);
+    const openControl =
+      screen.queryByRole("link", { name: "Открыть" }) ??
+      screen.getByRole("button", { name: "Открыть" }).closest("a");
+    expect(openControl).toHaveAttribute("href", expected);
+  });
+
+  it("omits returnTo on row links when the queue is the default inbox", () => {
+    const row = conversation({ id: "conv-home", subject: "Базовая очередь" });
+
+    render(<QueueTable conversations={[row]} qaAssignees={[]} returnTo="/reviews" canWriteReviews />);
+
+    expect(screen.getByRole("link", { name: "Базовая очередь" })).toHaveAttribute(
+      "href",
+      "/reviews/conv-home"
+    );
+    const openControl =
+      screen.queryByRole("link", { name: "Открыть" }) ??
+      screen.getByRole("button", { name: "Открыть" }).closest("a");
+    expect(openControl).toHaveAttribute("href", "/reviews/conv-home");
+  });
+
   it("uses the same pending-reopen chip the preview helper returns", () => {
     const row = conversation({
       qaStatus: "FINALIZED",

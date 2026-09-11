@@ -4,6 +4,7 @@ import type { RoleName } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auditLog } from "@/lib/audit";
+import { assertCanDemoteAdminRole } from "@/lib/auth/last-admin";
 import { assertLocalPasswordPolicy, hashLocalPassword, normalizeLocalLogin } from "@/lib/auth/local-credentials";
 import { assertCanPersistSettings, requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -182,18 +183,7 @@ export async function updateUserAccess(formData: FormData) {
       throw new Error("Нельзя снять роль администратора с собственной учетной записи.");
     }
 
-    if (target.role === "ADMIN" && role !== "ADMIN") {
-      const adminCount = await tx.user.count({
-        where: {
-          workspaceId: actor.workspaceId,
-          role: "ADMIN"
-        }
-      });
-
-      if (adminCount <= 1) {
-        throw new Error("Нельзя снять роль администратора с последней учетной записи администратора.");
-      }
-    }
+    await assertCanDemoteAdminRole(tx, actor.workspaceId, target.role, role);
 
     const updated = await tx.user.update({
       where: { id: target.id },

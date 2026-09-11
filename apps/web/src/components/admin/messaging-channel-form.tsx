@@ -31,8 +31,9 @@ function SaveChannelSubmitButton() {
 }
 
 /**
- * Переключатель active/draft. Включение идёт через probeBeforeSaveGate("activate")
- * и не претендует на live cert. После submit страница revalidate'ится.
+ * Переключатель active/draft. Включение идёт через probe-before-save:
+ * webhook probe → probeBeforeSaveGate("activate") → persist only if allowed.
+ * claim_live без live cert блокируется. Не претендует на live cert.
  */
 export function MessagingChannelStatusToggle({
   kind,

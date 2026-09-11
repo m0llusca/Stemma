@@ -93,7 +93,10 @@ describe("admin connection chip wiring", () => {
     expect(integrationsPage).toContain("integrationConnectionTone(");
     expect(systemPage).toContain("integrationConnectionTone(");
     expect(integrationsPage).toContain("capability.certification.summary.status");
-    expect(systemPage).toContain("capability.certification.summary.status");
+    // System hub prefers Phase D evidence for connection chips; catalog is fallback only.
+    expect(systemPage).toContain("integrationCertBySource");
+    expect(systemPage).toContain("integrationConnectionTone(integration.status, certificationStatus)");
+    expect(systemPage).toContain(".certification.summary.status");
   });
 
   it("does not green system hub SSO/integrations strips without live cert coverage", () => {
@@ -130,13 +133,17 @@ describe("admin connection chip wiring", () => {
 });
 
 describe("probe-before-save action wiring", () => {
-  it("gates messaging and integration saves through probeBeforeSaveGate", () => {
+  it("gates messaging and integration saves through probeBeforeSaveGate before persist", () => {
     expect(messagingActions).toContain("probeBeforeSaveGate");
-    expect(messagingActions).toContain('status === "active" ? "activate" : "config_only"');
-    expect(messagingActions).toContain('probeBeforeSaveGate("activate")');
+    expect(messagingActions).toContain("isProbeBeforeSaveAllowed");
+    expect(messagingActions).toContain("probeMessagingChannelWebhook");
+    expect(messagingActions).toContain("gateMessagingLiveIntent");
+    expect(messagingActions).toContain('"claim_live"');
     expect(messagingActions).toContain("setMessagingChannelStatus");
     expect(messagingActions).not.toContain("Канал сохранен и активирован.");
     expect(integrationActions).toContain("probeBeforeSaveGate");
+    expect(integrationActions).toContain("isProbeBeforeSaveAllowed");
+    expect(integrationActions).toContain("claim_live");
     expect(integrationActions).not.toContain("Источник появился в списке подключений.");
     expect(connectWizard).toContain("probeBeforePersistCopy");
     expect(connectWizard).toContain("connectPersistedNotLiveCopy");

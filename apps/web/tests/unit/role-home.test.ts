@@ -100,12 +100,32 @@ describe("role-home", () => {
     expect(isGenericPostLoginPath("/auth/pending-access")).toBe(true);
     expect(isGenericPostLoginPath("/reviews?due=overdue")).toBe(false);
     expect(isGenericPostLoginPath("/self-review")).toBe(false);
+    expect(isGenericPostLoginPath("/reviews/")).toBe(true);
+    expect(isGenericPostLoginPath("/dashboard/")).toBe(true);
+    expect(isGenericPostLoginPath("/reviews#section")).toBe(true);
+    expect(isGenericPostLoginPath("/dashboard#pulse")).toBe(true);
+    expect(isGenericPostLoginPath("/reviews/?due=overdue")).toBe(false);
   });
 
   it("sanitizes open redirects to a generic sentinel", () => {
     expect(sanitizeReturnTo("https://evil.example/reviews")).toBe("/");
     expect(sanitizeReturnTo("//evil.example")).toBe("/");
     expect(sanitizeReturnTo("/reviews/abc")).toBe("/reviews/abc");
+  });
+
+  it("rejects backslash and WHATWG open-redirect edge cases", () => {
+    expect(sanitizeReturnTo("/\\evil.example")).toBe("/");
+    expect(sanitizeReturnTo("/\\\\evil.example")).toBe("/");
+    expect(sanitizeReturnTo("/reviews\\next")).toBe("/");
+    expect(sanitizeReturnTo("/\tevil")).toBe("/");
+    expect(sanitizeReturnTo("/reviews\u0000")).toBe("/");
+    expect(sanitizeReturnTo("/%2f%2fevil.example")).toBe("/");
+    expect(sanitizeReturnTo("//@evil.example")).toBe("/");
+    expect(sanitizeReturnTo("/reviews?next=https://evil.example")).toBe(
+      "/reviews?next=https://evil.example"
+    );
+    expect(sanitizeReturnTo("/reviews#section")).toBe("/reviews#section");
+    expect(sanitizeReturnTo("  /reviews/abc  ")).toBe("/reviews/abc");
   });
 
   it("resolves generic returnTo to role home and keeps intentional destinations", () => {

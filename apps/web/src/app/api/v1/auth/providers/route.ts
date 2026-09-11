@@ -151,7 +151,7 @@ export async function POST(request: Request) {
       samlCertificateRef: optionalValue(parsed.data.samlCertificateRef),
       config: parsed.data.config ?? {}
     });
-    validateLdapsProviderConfigForSave({
+    await validateLdapsProviderConfigForSave({
       type: parsed.data.type,
       status: parsed.data.status ?? "draft",
       ldapsUrl: optionalValue(parsed.data.ldapsUrl),

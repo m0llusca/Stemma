@@ -37,6 +37,7 @@ function signJwt(input: { kid: string; claims: OidcClaims; privateKey: ReturnTyp
 describe("OIDC helpers", () => {
   beforeEach(() => {
     clearOidcJwksCacheForTests();
+    vi.stubEnv("QC_ALLOW_PRIVATE_BASE_URLS", "1");
   });
 
   afterEach(() => {
@@ -76,9 +77,9 @@ describe("OIDC helpers", () => {
   });
 
   it("resolves client secrets from environment references", () => {
-    process.env.TEST_OIDC_SECRET = "secret-from-env";
+    process.env.QC_PROVIDER_OIDC_SECRET = "secret-from-env";
 
-    expect(resolveProviderClientSecret({ clientSecretRef: "env:TEST_OIDC_SECRET" })).toBe("secret-from-env");
+    expect(resolveProviderClientSecret({ clientSecretRef: "env:QC_PROVIDER_OIDC_SECRET" })).toBe("secret-from-env");
     expect(resolveProviderClientSecret({ clientSecretRef: "inline-secret" })).toBe("inline-secret");
   });
 
@@ -100,9 +101,10 @@ describe("OIDC helpers", () => {
   it("rejects inline client secrets in production", () => {
     vi.stubEnv("NODE_ENV", "production");
 
-    expect(() => assertProductionSecretReference("env:OIDC_SECRET")).not.toThrow();
+    expect(() => assertProductionSecretReference("env:QC_PROVIDER_OIDC_SECRET")).not.toThrow();
     expect(() => assertProductionSecretReference("inline-secret")).toThrow(/production/);
     expect(() => assertProductionSecretReference("vault:qc/oidc/client-secret")).toThrow(/vault:\/secret:/);
+    expect(() => assertProductionSecretReference("env:AUTH_SECRET")).toThrow(/allowlist/);
   });
 
   it("creates opaque state and nonce values", () => {

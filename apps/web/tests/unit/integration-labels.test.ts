@@ -166,7 +166,10 @@ describe("admin list columns and copy wiring", () => {
     expect(integrationDetailPage).not.toContain('? "Готово к живой сертификации"');
     expect(integrationDetailPage).not.toContain("свидетельствам боевого режима");
     expect(integrationDetailPage).toContain("integrationStatusLabel(integration.status, capability.certification.summary.status)");
-    expect(systemPage).toContain("integrationStatusLabel(integration.status, capability.certification.summary.status)");
+    // System hub prefers Phase D evidence for row badges (catalog is fallback only).
+    expect(systemPage).toContain("integrationCertBySource");
+    expect(systemPage).toContain("integrationStatusLabel(integration.status, certificationStatus)");
+    expect(systemPage).toContain("phaseDReport.integrations.filter((item) => isLiveCertified(item.status))");
   });
 
   it("keeps list/detail pre-cert wording aligned with the connect wizard", () => {

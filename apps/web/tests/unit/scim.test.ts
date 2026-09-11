@@ -326,15 +326,21 @@ describe("SCIM inbound provisioning", () => {
       updatedAt: new Date("2026-05-18T10:00:00.000Z")
     };
     mocks.prisma.externalIdentity.findFirst.mockResolvedValue(null);
+    // 1) email link lookup  2) last-admin soft-guard re-read  3) hydrated response
     mocks.prisma.user.findFirst
+      .mockResolvedValueOnce(existingAdmin)
       .mockResolvedValueOnce(existingAdmin)
       .mockResolvedValueOnce({
         ...existingAdmin,
         name: "Directory User",
         role: "VIEWER",
         sourceOfTruthProviderId: "provider-1",
-        externalIdentities: [{ externalId: "entra-user-1", providerSubject: "entra-user-1", displayName: "Directory User" }]
+        externalIdentities: [
+          { externalId: "entra-user-1", providerSubject: "entra-user-1", displayName: "Directory User" }
+        ]
       });
+    // Another ACTIVE ADMIN remains so demotion to VIEWER is allowed.
+    mocks.prisma.user.count.mockResolvedValue(2);
     mocks.prisma.userIdentityGroup.findMany.mockResolvedValue([]);
     mocks.prisma.groupRoleMapping.findMany.mockResolvedValue([]);
     mocks.prisma.user.update.mockResolvedValue({

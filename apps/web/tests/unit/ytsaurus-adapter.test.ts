@@ -1,6 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createYTsaurusAdapter } from "@/lib/integrations/data-source-adapters/ytsaurus";
 import { createYTsaurusServer } from "../fixtures/ytsaurus-server";
+
+beforeEach(() => {
+  vi.stubEnv("QC_ALLOW_PRIVATE_BASE_URLS", "1");
+});
 
 describe("YTsaurus adapter", () => {
   it("reads newline-delimited JSON table rows and normalizes them", async () => {

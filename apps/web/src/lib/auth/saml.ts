@@ -1,5 +1,6 @@
 import { SAML, ValidateInResponseTo, generateServiceProviderMetadata, type CacheProvider, type Profile } from "@node-saml/node-saml";
 import type { IdentityProvider, RoleName } from "@prisma/client";
+import { roleAfterLastAdminGuard } from "@/lib/auth/last-admin";
 import {
   assertProductionSecretReference,
   isEncryptedSecretReference,
@@ -452,12 +453,14 @@ export async function upsertUserFromSamlProfile(input: {
         }
       });
 
+      const role = await roleAfterLastAdminGuard(tx, input.workspaceId, existingIdentity.userId, policy.role);
+
       return tx.user.update({
         where: { id: existingIdentity.userId },
         data: {
           email,
           name: displayName,
-          role: policy.role,
+          role,
           sourceOfTruthProviderId: input.providerId,
           lastDirectorySyncAt: new Date(),
           ...directoryAttributes
@@ -487,8 +490,9 @@ export async function upsertUserFromSamlProfile(input: {
           ...directoryAttributes
         }
       }));
+    const role = await roleAfterLastAdminGuard(tx, input.workspaceId, linkedUser.id, policy.role);
     const needsUserUpdate =
-      linkedUser.role !== policy.role ||
+      linkedUser.role !== role ||
       linkedUser.name !== displayName ||
       linkedUser.sourceOfTruthProviderId !== input.providerId ||
       (policy.supportLine !== undefined && linkedUser.supportLine !== policy.supportLine) ||
@@ -498,7 +502,7 @@ export async function upsertUserFromSamlProfile(input: {
           where: { id: linkedUser.id },
           data: {
             name: displayName,
-            role: policy.role,
+            role,
             sourceOfTruthProviderId: input.providerId,
             lastDirectorySyncAt: new Date(),
             ...directoryAttributes
@@ -523,6 +527,6 @@ export async function upsertUserFromSamlProfile(input: {
 
   return {
     user,
-    role: policy.role as RoleName
+    role: user.role as RoleName
   };
 }

@@ -70,6 +70,45 @@ describe("form validity helpers", () => {
     expect(document.activeElement).toBe(form.elements.namedItem("criterion.1.score"));
   });
 
+  it("commands a controlled ReviewDisclosure open instead of writing details.open", () => {
+    const form = mountForm(`
+      <details data-review-disclosure-key="criterion-1" data-review-open="false">
+        <summary data-slot="review-disclosure-trigger" aria-expanded="false">Критерий</summary>
+        <input name="criterion.1.score" required value="" />
+      </details>
+    `);
+    const details = form.querySelector("details");
+    expect(details).toBeInstanceOf(HTMLDetailsElement);
+    let commandedNext: boolean | undefined;
+    details!.addEventListener("review-disclosure-command", ((event: CustomEvent<{ next?: boolean }>) => {
+      commandedNext = event.detail?.next;
+      details!.setAttribute("data-review-open", "true");
+      details!.querySelector("[data-slot='review-disclosure-trigger']")?.setAttribute("aria-expanded", "true");
+    }) as EventListener);
+
+    focusFirstInvalidControl(form);
+
+    expect(commandedNext).toBe(true);
+    expect(document.activeElement).toBe(form.elements.namedItem("criterion.1.score"));
+  });
+
+  it("still opens an uncontrolled details host by setting open", () => {
+    const form = mountForm(`
+      <details>
+        <summary>Секция</summary>
+        <input name="summary" required value="" />
+      </details>
+    `);
+    const details = form.querySelector("details");
+    expect(details).toBeInstanceOf(HTMLDetailsElement);
+    expect(details!.open).toBe(false);
+
+    focusFirstInvalidControl(form);
+
+    expect(details!.open).toBe(true);
+    expect(document.activeElement).toBe(form.elements.namedItem("summary"));
+  });
+
   it("writes the announcement into an aria-live region", () => {
     const region = document.createElement("div");
     region.setAttribute("aria-live", "assertive");

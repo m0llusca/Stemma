@@ -96,7 +96,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ provi
         parsed.data.samlCertificateRef !== undefined ? optionalValue(parsed.data.samlCertificateRef) : existingProvider.samlCertificateRef,
       config: parsed.data.config ?? parseConfigJson(existingProvider.configJson)
     });
-    validateLdapsProviderConfigForSave({
+    await validateLdapsProviderConfigForSave({
       type: existingProvider.type,
       status: parsed.data.status ?? existingProvider.status,
       ldapsUrl: parsed.data.ldapsUrl !== undefined ? optionalValue(parsed.data.ldapsUrl) : existingProvider.ldapsUrl,

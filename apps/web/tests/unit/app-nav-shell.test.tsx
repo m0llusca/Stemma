@@ -333,6 +333,21 @@ describe("app nav shell", () => {
     expect(screen.queryByRole("option", { name: /Взять следующий/ })).toBeNull();
   });
 
+  it("hides pulse chrome when there are no pulse items and take-next is gated off", () => {
+    render(<AppNavShell {...baseProps} pulseItems={[]} canTakeNextCase={false} />);
+
+    expect(screen.queryByLabelText("Рабочий пульс")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Рабочий пульс" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Взять следующий" })).toBeNull();
+  });
+
+  it("keeps take-next pulse chrome when pulse items are empty but write is allowed", () => {
+    render(<AppNavShell {...baseProps} pulseItems={[]} canTakeNextCase />);
+
+    expect(screen.getByRole("button", { name: "Рабочий пульс" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Взять следующий" })).toBeInTheDocument();
+  });
+
   it("moves a highlighted result with Up/Down and activates it with Enter", () => {
     render(<AppNavShell {...baseProps} />);
 

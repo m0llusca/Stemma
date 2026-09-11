@@ -7,7 +7,9 @@ const mocks = vi.hoisted(() => ({
   revalidatePath: vi.fn(),
   encryptSecret: vi.fn(),
   channelUpsert: vi.fn(),
-  channelUpdate: vi.fn()
+  channelUpdate: vi.fn(),
+  channelFindUnique: vi.fn(),
+  probeMessagingChannelWebhook: vi.fn()
 }));
 
 vi.mock("next/cache", () => ({
@@ -27,11 +29,16 @@ vi.mock("@/lib/secrets", () => ({
   encryptSecret: mocks.encryptSecret
 }));
 
+vi.mock("@/lib/messaging/probe-channel", () => ({
+  probeMessagingChannelWebhook: mocks.probeMessagingChannelWebhook
+}));
+
 vi.mock("@/lib/db", () => ({
   prisma: {
     messagingChannel: {
       upsert: mocks.channelUpsert,
-      update: mocks.channelUpdate
+      update: mocks.channelUpdate,
+      findUnique: mocks.channelFindUnique
     }
   }
 }));
@@ -70,16 +77,28 @@ describe("messaging channel admin actions", () => {
       kind: "slack",
       status: "draft"
     });
+    mocks.channelFindUnique.mockResolvedValue({
+      configJson: JSON.stringify({ webhookUrl: "https://hooks.slack.com/services/T000/B000/XXXX" })
+    });
+    mocks.probeMessagingChannelWebhook.mockResolvedValue({ ok: true });
     mocks.auditLog.mockResolvedValue({});
   });
 
-  it("upserts a channel with configJson.webhookUrl and an encrypted secretRef", async () => {
+  it("probes before upsert and warns that activate is not live certification", async () => {
     const { saveMessagingChannel } = await import("@/lib/messaging-actions");
+    const { activateProbePassedNotLiveCopy } = await import("@/lib/integrations/probe-honesty");
 
     const state = await saveMessagingChannel({ status: "idle" }, buildSaveForm());
 
     expect(mocks.requireCurrentUserPermission).toHaveBeenCalledWith("backend_jobs:manage");
     expect(mocks.assertCanPersistSettings).toHaveBeenCalled();
+    expect(mocks.probeMessagingChannelWebhook).toHaveBeenCalledWith({
+      kind: "slack",
+      webhookUrl: "https://hooks.slack.com/services/T000/B000/XXXX"
+    });
+    expect(mocks.probeMessagingChannelWebhook.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.channelUpsert.mock.invocationCallOrder[0]
+    );
 
     expect(mocks.channelUpsert).toHaveBeenCalledTimes(1);
     const args = mocks.channelUpsert.mock.calls[0][0];
@@ -107,9 +126,40 @@ describe("messaging channel admin actions", () => {
 
     expect(state.status).toBe("success");
     expect(state.tone).toBe("warning");
-    expect(state.message).toMatch(/не подтверждает live-готовность/i);
+    expect(state.message).toContain(activateProbePassedNotLiveCopy);
     expect(state.message).not.toMatch(/сертификац\w+ пройден/i);
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/admin/channels");
+  });
+
+  it("blocks activate when probe fails and does not persist", async () => {
+    mocks.probeMessagingChannelWebhook.mockResolvedValue({
+      ok: false,
+      error: "Probe не прошёл: webhook недоступен. Включение отменено."
+    });
+    const { saveMessagingChannel } = await import("@/lib/messaging-actions");
+
+    const state = await saveMessagingChannel({ status: "idle" }, buildSaveForm());
+
+    expect(state.status).toBe("error");
+    expect(state.tone).toBe("negative");
+    expect(state.message).toMatch(/probe|недоступен/i);
+    expect(mocks.channelUpsert).not.toHaveBeenCalled();
+  });
+
+  it("blocks claim_live without live cert before persist", async () => {
+    const { saveMessagingChannel } = await import("@/lib/messaging-actions");
+    const { claimLiveWithoutCertCopy } = await import("@/lib/integrations/probe-honesty");
+
+    const state = await saveMessagingChannel(
+      { status: "idle" },
+      buildSaveForm({ claimLive: "1", status: "draft" })
+    );
+
+    expect(mocks.probeMessagingChannelWebhook).toHaveBeenCalled();
+    expect(state.status).toBe("error");
+    expect(state.tone).toBe("negative");
+    expect(state.message).toBe(claimLiveWithoutCertCopy);
+    expect(mocks.channelUpsert).not.toHaveBeenCalled();
   });
 
   it("warns that a draft save is not live certification", async () => {
@@ -120,6 +170,7 @@ describe("messaging channel admin actions", () => {
       buildSaveForm({ status: "draft" })
     );
 
+    expect(mocks.probeMessagingChannelWebhook).not.toHaveBeenCalled();
     expect(state.status).toBe("success");
     expect(state.tone).toBe("warning");
     expect(state.message).toMatch(/≠ живая сертификация/);
@@ -139,6 +190,41 @@ describe("messaging channel admin actions", () => {
     expect(args.create.secretRef).toBeNull();
   });
 
+  it("preserves existing configJson when webhook URL is left blank on update", async () => {
+    const { saveMessagingChannel } = await import("@/lib/messaging-actions");
+
+    const state = await saveMessagingChannel(
+      { status: "idle" },
+      buildSaveForm({ webhookUrl: "", token: "", status: "draft" })
+    );
+
+    expect(state.status).toBe("success");
+    expect(mocks.channelFindUnique).toHaveBeenCalled();
+    const args = mocks.channelUpsert.mock.calls[0][0];
+    // Blank form webhook must not wipe the masked/stored URL on update.
+    expect(args.update).not.toHaveProperty("configJson");
+    // Create path still gets an explicit (empty) config for first-time inserts.
+    expect(JSON.parse(args.create.configJson)).toEqual({ webhookUrl: "" });
+  });
+
+  it("activates with blank form webhook by reusing the stored URL", async () => {
+    const { saveMessagingChannel } = await import("@/lib/messaging-actions");
+
+    const state = await saveMessagingChannel(
+      { status: "idle" },
+      buildSaveForm({ webhookUrl: "", token: "" })
+    );
+
+    expect(state.status).toBe("success");
+    expect(mocks.probeMessagingChannelWebhook).toHaveBeenCalledWith({
+      kind: "slack",
+      webhookUrl: "https://hooks.slack.com/services/T000/B000/XXXX"
+    });
+    const args = mocks.channelUpsert.mock.calls[0][0];
+    expect(args.update).not.toHaveProperty("configJson");
+    expect(args.update.status).toBe("active");
+  });
+
   it("rejects a kind that is not in the messaging channel registry", async () => {
     const { saveMessagingChannel } = await import("@/lib/messaging-actions");
 
@@ -148,13 +234,15 @@ describe("messaging channel admin actions", () => {
     expect(mocks.channelUpsert).not.toHaveBeenCalled();
   });
 
-  it("requires a webhook URL when activating a channel", async () => {
+  it("requires a webhook URL when activating a channel with no stored URL", async () => {
+    mocks.channelFindUnique.mockResolvedValue(null);
     const { saveMessagingChannel } = await import("@/lib/messaging-actions");
 
     const state = await saveMessagingChannel({ status: "idle" }, buildSaveForm({ webhookUrl: "" }));
 
     expect(state.status).toBe("error");
     expect(mocks.channelUpsert).not.toHaveBeenCalled();
+    expect(mocks.probeMessagingChannelWebhook).not.toHaveBeenCalled();
   });
 
   it("never exposes the raw secret in the audit metadata", async () => {
@@ -178,6 +266,7 @@ describe("messaging channel admin actions", () => {
 
     expect(mocks.requireCurrentUserPermission).toHaveBeenCalledWith("backend_jobs:manage");
     expect(mocks.assertCanPersistSettings).toHaveBeenCalled();
+    expect(mocks.probeMessagingChannelWebhook).not.toHaveBeenCalled();
     expect(mocks.channelUpdate).toHaveBeenCalledWith({
       where: { workspaceId_kind: { workspaceId: "workspace-1", kind: "slack" } },
       data: { status: "draft" }
@@ -187,29 +276,49 @@ describe("messaging channel admin actions", () => {
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/admin/channels");
   });
 
-  it("warns fail-closed when the status toggle enables delivery without a probe", async () => {
+  it("probes before status toggle activate and does not claim live cert", async () => {
     mocks.channelUpdate.mockResolvedValue({
       id: "channel-1",
       kind: "slack",
       status: "active"
     });
     const { setMessagingChannelStatus } = await import("@/lib/messaging-actions");
-    const { activateWithoutProbeCopy } = await import("@/lib/integrations/probe-honesty");
+    const { activateProbePassedNotLiveCopy } = await import("@/lib/integrations/probe-honesty");
     const formData = new FormData();
     formData.set("kind", "slack");
     formData.set("status", "active");
 
     const state = await setMessagingChannelStatus({ status: "idle" }, formData);
 
+    expect(mocks.probeMessagingChannelWebhook).toHaveBeenCalled();
+    expect(mocks.probeMessagingChannelWebhook.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.channelUpdate.mock.invocationCallOrder[0]
+    );
     expect(mocks.channelUpdate).toHaveBeenCalledWith({
       where: { workspaceId_kind: { workspaceId: "workspace-1", kind: "slack" } },
       data: { status: "active" }
     });
     expect(state.status).toBe("success");
     expect(state.tone).toBe("warning");
-    expect(state.message).toContain(activateWithoutProbeCopy);
+    expect(state.message).toContain(activateProbePassedNotLiveCopy);
     expect(state.message).not.toMatch(/сертификац\w+ пройден/i);
     expect(state.message).not.toMatch(/live-ready/i);
+  });
+
+  it("blocks status toggle activate when probe fails", async () => {
+    mocks.probeMessagingChannelWebhook.mockResolvedValue({
+      ok: false,
+      error: "Probe не прошёл: webhook недоступен. Включение отменено."
+    });
+    const { setMessagingChannelStatus } = await import("@/lib/messaging-actions");
+    const formData = new FormData();
+    formData.set("kind", "slack");
+    formData.set("status", "active");
+
+    const state = await setMessagingChannelStatus({ status: "idle" }, formData);
+
+    expect(state.status).toBe("error");
+    expect(mocks.channelUpdate).not.toHaveBeenCalled();
   });
 
   it("rejects an unknown status in setMessagingChannelStatus", async () => {
