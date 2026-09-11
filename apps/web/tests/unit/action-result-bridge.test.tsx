@@ -228,7 +228,10 @@ describe("scheduleNavigationCommitFallback", () => {
       .mockImplementation(vi.fn());
 
     scheduleNavigationCommitFallback("/reviews?status=unreviewed");
-    await vi.advanceTimersByTimeAsync(2200);
+    // Soft budget is 15s so slow RSC soft-nav is not mistaken for a stuck router.
+    await vi.advanceTimersByTimeAsync(14_500);
+    expect(assign).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(600);
 
     expect(assign).toHaveBeenCalledWith("/reviews?status=unreviewed");
   });
@@ -241,7 +244,7 @@ describe("scheduleNavigationCommitFallback", () => {
     scheduleNavigationCommitFallback("/reviews?status=unreviewed");
     await vi.advanceTimersByTimeAsync(400);
     window.history.replaceState(null, "", "/reviews?status=unreviewed");
-    await vi.advanceTimersByTimeAsync(2200);
+    await vi.advanceTimersByTimeAsync(15_200);
 
     expect(assign).not.toHaveBeenCalled();
   });
