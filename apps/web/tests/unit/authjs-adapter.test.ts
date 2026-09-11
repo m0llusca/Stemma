@@ -597,8 +597,8 @@ describe("Auth.js AuthSession adapter", () => {
   it("updateSession refreshes expiry and returns the current adapter session", async () => {
     const adapter = await createAdapter();
     const refreshedExpiry = new Date("2026-05-29T09:00:00.000Z");
-    mocks.prisma.authSession.updateMany.mockResolvedValue({ count: 1 });
     mocks.prisma.authSession.findUnique.mockResolvedValue(authSessionRow({ expiresAt: refreshedExpiry }));
+    mocks.prisma.authSession.update.mockResolvedValue(authSessionRow({ expiresAt: refreshedExpiry, lastSeenAt: fixedNow }));
 
     await expect(
       adapter.updateSession?.({
@@ -611,23 +611,18 @@ describe("Auth.js AuthSession adapter", () => {
       expires: refreshedExpiry
     });
 
-    expect(mocks.prisma.authSession.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          sessionTokenHash: hashSessionToken("raw-session-token"),
-          status: "ACTIVE"
-        }),
-        data: expect.objectContaining({
-          expiresAt: refreshedExpiry,
-          lastSeenAt: fixedNow
-        })
-      })
-    );
+    expect(mocks.prisma.authSession.update).toHaveBeenCalledWith({
+      where: { id: "session-1" },
+      data: {
+        expiresAt: refreshedExpiry,
+        lastSeenAt: fixedNow
+      }
+    });
   });
 
   it("updateSession returns null when the session is no longer valid", async () => {
     const adapter = await createAdapter();
-    mocks.prisma.authSession.updateMany.mockResolvedValue({ count: 0 });
+    mocks.prisma.authSession.findUnique.mockResolvedValue(null);
 
     await expect(
       adapter.updateSession?.({
@@ -636,6 +631,6 @@ describe("Auth.js AuthSession adapter", () => {
       })
     ).resolves.toBeNull();
 
-    expect(mocks.prisma.authSession.findUnique).not.toHaveBeenCalled();
+    expect(mocks.prisma.authSession.update).not.toHaveBeenCalled();
   });
 });
