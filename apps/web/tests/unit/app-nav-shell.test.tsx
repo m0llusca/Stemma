@@ -464,6 +464,20 @@ describe("app nav shell", () => {
     expect(queryAreaMenu()).toBeNull();
   });
 
+  it("morphs top-bar Menu/Search/account chevron through Morphicons", () => {
+    render(<AppNavShell {...baseProps} />);
+
+    const sections = screen.getByRole("button", { name: "Разделы" });
+    expect(sections.querySelector('[data-slot="morph-icon"]')).not.toBeNull();
+
+    const search = screen.getByRole("button", { name: "Поиск или команда" });
+    expect(search.querySelector('[data-slot="morph-icon"]')).not.toBeNull();
+
+    const account = screen.getByRole("button", { name: /Профиль:/ });
+    expect(account.querySelector('[data-slot="disclosure-morph-chevron"]')).not.toBeNull();
+    expect(account.querySelector('[data-slot="morph-icon"]')).not.toBeNull();
+  });
+
   it("derives the compact menu and full navigation from the same active-area contract", () => {
     mocks.pathname = "/reviews/abc";
     render(<AppNavShell {...baseProps} />);
