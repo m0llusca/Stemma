@@ -15,6 +15,10 @@ import type { OtrsOperationRequest } from "@/lib/integrations/otrs-family/reques
 import type { CustomConversationInput } from "@/lib/validation/custom-api";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/activation-events", () => ({
+  emitActivationEvent: vi.fn(async () => ({ emitted: true }))
+}));
+
 const baseConfig = buildDefaultOtrsConnectorConfig();
 
 function configWithLimits(limits: Partial<OtrsConnectorConfig["limits"]>): OtrsConnectorConfig {

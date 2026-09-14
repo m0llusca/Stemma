@@ -2,7 +2,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { resetWebhookIngressRateLimitsForTests } from "@/lib/api/rate-limit";
 
 const mocks = vi.hoisted(() => ({
-  ingestWebhookEvent: vi.fn()
+  ingestWebhookEvent: vi.fn(),
+  ingressUpsert: vi.fn()
+}));
+
+vi.mock("@/lib/db", () => ({
+  prisma: {
+    ingressRateLimit: {
+      upsert: mocks.ingressUpsert
+    }
+  }
 }));
 
 vi.mock("@/lib/webhooks/inbound", () => ({
@@ -19,6 +28,7 @@ describe("public webhook route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetWebhookIngressRateLimitsForTests();
+    mocks.ingressUpsert.mockResolvedValue({ requestCount: 1 });
     mocks.ingestWebhookEvent.mockResolvedValue({
       status: "processed",
       eventId: "event-1",

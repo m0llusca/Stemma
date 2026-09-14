@@ -62,6 +62,10 @@ vi.mock("@/lib/audit", () => ({
   auditLog: mocks.auditLog
 }));
 
+vi.mock("@/lib/activation-events", () => ({
+  emitActivationEvent: vi.fn(async () => ({ emitted: true }))
+}));
+
 vi.mock("@/lib/current-user", () => ({
   canFinalizeReview: mocks.canFinalizeReview,
   canSaveReviewDraft: mocks.canSaveReviewDraft,
