@@ -275,7 +275,8 @@ describe("OTRS-family diagnostics", () => {
         sessionCreateMethod: "POST" as const
       },
       advanced: {
-        routeOverridesEnabled: true
+        routeOverridesEnabled: true,
+        pollingFallbackAcknowledged: false
       },
       routes: {
         ticketSearchPath: "/TicketSearch",

@@ -8,6 +8,7 @@ import {
 } from "@/lib/integrations/otrs-family/credentials";
 import { runOtrsDiagnostics } from "@/lib/integrations/otrs-family/diagnostics";
 import { createOtrsPreviewRun, type CreateOtrsPreviewRunInput } from "@/lib/integrations/otrs-family/import-plan";
+import { recordOtrsCertificationRun } from "@/lib/integrations/otrs-family/certification";
 
 type DiagnosticsServiceDb = {
   integration: {
@@ -195,6 +196,66 @@ export function summarizeOtrsCertificationInput(input: {
       skipped: input.skipped
     }
   };
+}
+
+function stepSucceeded(steps: Array<{ key: string; status: string }>, key: string) {
+  return steps.some((step) => step.key === key && (step.status === "succeeded" || step.status === "warning"));
+}
+
+function asOtrsFamilySource(source: string): "otrs" | "znuny" | "otobo" {
+  if (source === "znuny" || source === "otobo" || source === "otrs") {
+    return source;
+  }
+  return "otrs";
+}
+
+/**
+ * Persist a live-cert run from diagnostic steps + optional preview import counts.
+ * Fail-closed: webhookOk only when polling fallback is acknowledged or a webhook exists.
+ */
+export async function recordOtrsCertificationFromEvidence(input: {
+  workspaceId: string;
+  integrationId: string;
+  actorId: string;
+  diagnosticRunId: string;
+  imported?: number;
+  skipped?: number;
+}) {
+  const [integration, steps, webhookCount] = await Promise.all([
+    prisma.integration.findFirst({
+      where: { id: input.integrationId, workspaceId: input.workspaceId },
+      select: { id: true, source: true, configJson: true }
+    }),
+    prisma.integrationDiagnosticStep.findMany({
+      where: { diagnosticRunId: input.diagnosticRunId },
+      select: { key: true, status: true }
+    }),
+    prisma.webhookEndpoint.count({
+      where: { workspaceId: input.workspaceId, status: "active" }
+    })
+  ]);
+
+  if (!integration) {
+    throw new Error("OTRS integration was not found in the requested workspace.");
+  }
+
+  const config = parseOtrsConnectorConfig(integration.configJson);
+  const certInput = summarizeOtrsCertificationInput({
+    source: asOtrsFamilySource(integration.source),
+    routeDetected: stepSucceeded(steps, "config") || stepSucceeded(steps, "webservice"),
+    authOk: stepSucceeded(steps, "auth"),
+    ticketSearchOk: stepSucceeded(steps, "ticket_search") || stepSucceeded(steps, "ticket_get"),
+    webhookOk: Boolean(config.advanced.pollingFallbackAcknowledged) || webhookCount > 0,
+    imported: input.imported ?? 0,
+    skipped: input.skipped ?? 0
+  });
+
+  return recordOtrsCertificationRun({
+    workspaceId: input.workspaceId,
+    integrationId: input.integrationId,
+    actorId: input.actorId,
+    ...certInput
+  });
 }
 
 function createDiagnosticClient(

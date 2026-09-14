@@ -8,6 +8,7 @@ import {
   needsCoachingFollowUp,
   type CoachingOfferParams
 } from "@/lib/coaching-follow-up";
+import { emitActivationEvent } from "@/lib/activation-events";
 import { auditLog } from "@/lib/audit";
 import { sanitizeReturnTo } from "@/lib/auth/role-home";
 import { canFinalizeReview, canSaveReviewDraft, canSelfReview, getCurrentUser } from "@/lib/current-user";
@@ -688,6 +689,17 @@ async function finalizeReviewCore(formData: FormData) {
 
   revalidatePath("/reviews");
   revalidatePath(`/reviews/${conversationId}`);
+
+  if (reviewSource === "HUMAN" && finalizedReviewId) {
+    await emitActivationEvent({
+      event: "activation.first_review_finalized",
+      workspaceId: user.workspaceId,
+      actorId: user.id,
+      targetType: "review",
+      targetId: finalizedReviewId,
+      metadata: { conversationId, scorecardId: scorecard.id }
+    });
+  }
 
   const agentName = conversation.assigneeName?.trim() ?? "";
   const coachingOffer: CoachingOfferParams | null =

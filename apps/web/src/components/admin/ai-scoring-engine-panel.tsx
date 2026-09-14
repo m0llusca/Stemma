@@ -105,7 +105,28 @@ export function AiScoringEnginePanel({
               </Badge>
             </div>
           </CardHeader>
-          <CardContent className="pt-4">
+          <CardContent className="flex flex-col gap-4 pt-4">
+            {provider.provider === "yandexgpt" ? (
+              <div className="rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-sm text-muted-foreground">
+                <p className="font-medium text-foreground">Чеклист YandexGPT (Foundation Models)</p>
+                <ul className="mt-1.5 list-disc space-y-1 pl-4">
+                  <li>API-ключ сервисного аккаунта с ролью `ai.languageModels.user`</li>
+                  <li>Catalog ID (folder) в поле ниже — без него запросы отклоняются</li>
+                  <li>Модель: `yandexgpt/latest` / `yandexgpt-lite/latest` / `yandexgpt-32k/latest`</li>
+                  <li>
+                    Docs:{" "}
+                    <a
+                      className="underline underline-offset-2"
+                      href="https://yandex.cloud/en/docs/foundation-models/"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Yandex Cloud Foundation Models
+                    </a>
+                  </li>
+                </ul>
+              </div>
+            ) : null}
             <AiProviderKeyForm
               key={provider.provider}
               provider={provider.provider}

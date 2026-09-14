@@ -1,11 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  enforceWebhookIngressRateLimit,
-  resetWebhookIngressRateLimitsForTests
-} from "@/lib/api/rate-limit";
 
 const mocks = vi.hoisted(() => ({
+  upsert: vi.fn(),
   ingestWebhookEvent: vi.fn()
+}));
+
+vi.mock("@/lib/db", () => ({
+  prisma: {
+    ingressRateLimit: {
+      upsert: mocks.upsert
+    }
+  }
 }));
 
 vi.mock("@/lib/webhooks/inbound", () => ({
@@ -34,59 +39,89 @@ function signedRequest(requestId: string) {
 
 describe("enforceWebhookIngressRateLimit", () => {
   beforeEach(() => {
-    resetWebhookIngressRateLimitsForTests();
+    vi.clearAllMocks();
   });
 
-  it("allows up to the limit then rejects further requests in the window", () => {
+  it("allows up to the limit then rejects further requests in the window", async () => {
+    const { enforceWebhookIngressRateLimit } = await import("@/lib/api/rate-limit");
     const nowMs = 1_750_000_000_000;
+    let count = 0;
+    mocks.upsert.mockImplementation(async () => {
+      count += 1;
+      return { requestCount: count };
+    });
+
     for (let i = 0; i < 3; i += 1) {
       expect(
-        enforceWebhookIngressRateLimit({
+        (
+          await enforceWebhookIngressRateLimit({
+            workspaceId: "ws",
+            endpointId: "ep",
+            limit: 3,
+            windowMs: 60_000,
+            nowMs
+          })
+        ).ok
+      ).toBe(true);
+    }
+
+    expect(
+      (
+        await enforceWebhookIngressRateLimit({
           workspaceId: "ws",
           endpointId: "ep",
           limit: 3,
           windowMs: 60_000,
           nowMs
-        }).ok
-      ).toBe(true);
-    }
-
-    expect(
-      enforceWebhookIngressRateLimit({
-        workspaceId: "ws",
-        endpointId: "ep",
-        limit: 3,
-        windowMs: 60_000,
-        nowMs
-      }).ok
+        })
+      ).ok
     ).toBe(false);
   });
 
-  it("scopes buckets per workspace and endpoint", () => {
+  it("scopes buckets per workspace and endpoint", async () => {
+    const { enforceWebhookIngressRateLimit } = await import("@/lib/api/rate-limit");
     const nowMs = 1_750_000_000_000;
+    mocks.upsert.mockResolvedValue({ requestCount: 1 });
+
     expect(
-      enforceWebhookIngressRateLimit({
-        workspaceId: "ws-a",
-        endpointId: "ep",
-        limit: 1,
-        nowMs
-      }).ok
+      (
+        await enforceWebhookIngressRateLimit({
+          workspaceId: "ws-a",
+          endpointId: "ep",
+          limit: 1,
+          nowMs
+        })
+      ).ok
     ).toBe(true);
     expect(
-      enforceWebhookIngressRateLimit({
-        workspaceId: "ws-b",
-        endpointId: "ep",
-        limit: 1,
-        nowMs
-      }).ok
+      (
+        await enforceWebhookIngressRateLimit({
+          workspaceId: "ws-b",
+          endpointId: "ep",
+          limit: 1,
+          nowMs
+        })
+      ).ok
     ).toBe(true);
+
+    expect(mocks.upsert).toHaveBeenCalledTimes(2);
+    expect(mocks.upsert.mock.calls[0]?.[0]?.where?.workspaceId_routeKey_windowStart?.workspaceId).toBe(
+      "ws-a"
+    );
+    expect(mocks.upsert.mock.calls[1]?.[0]?.where?.workspaceId_routeKey_windowStart?.workspaceId).toBe(
+      "ws-b"
+    );
   });
 });
 
 describe("public webhook route rate limit", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    resetWebhookIngressRateLimitsForTests();
+    let count = 0;
+    mocks.upsert.mockImplementation(async () => {
+      count += 1;
+      return { requestCount: count };
+    });
     mocks.ingestWebhookEvent.mockResolvedValue({
       status: "processed",
       eventId: "event-1",

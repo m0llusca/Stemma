@@ -1,3 +1,4 @@
+import { emitActivationEvent } from "@/lib/activation-events";
 import { prisma } from "@/lib/db";
 import { upsertCustomConversation, type ImportedConversation } from "@/lib/conversation-import";
 import { customConversationSchema, type CustomConversationInput } from "@/lib/validation/custom-api";
@@ -647,6 +648,20 @@ async function finalizeSelectedOtrsImportRun(args: {
     await db.$transaction((tx) => finalizeImportRun(tx));
   } else {
     await finalizeImportRun(db);
+  }
+
+  if (importedCount > 0) {
+    await emitActivationEvent({
+      event: "activation.first_import_completed",
+      workspaceId: input.workspaceId,
+      targetType: "integration_run",
+      targetId: input.integrationRunId,
+      metadata: {
+        integrationId: input.integrationId,
+        importedCount,
+        source: String(run.source ?? "otrs")
+      }
+    });
   }
 }
 

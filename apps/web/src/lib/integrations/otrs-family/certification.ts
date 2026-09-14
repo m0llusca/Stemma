@@ -1,3 +1,4 @@
+import { emitActivationEvent } from "@/lib/activation-events";
 import {
   appendCertificationStep,
   createCertificationRun,
@@ -81,8 +82,24 @@ export function buildOtrsCertificationSteps(input: OtrsCertificationInput): Cert
     {
       stepKey: "evidence_lock",
       position: 6,
-      status: "passed",
-      detail: "Диагностика подготовлена для evidence ledger."
+      status:
+        input.diagnostics.routeDetected &&
+        input.diagnostics.authOk &&
+        (input.sampleImport.imported > 0 || input.diagnostics.ticketSearchOk)
+          ? "passed"
+          : "blocked",
+      detail:
+        input.diagnostics.routeDetected &&
+        input.diagnostics.authOk &&
+        (input.sampleImport.imported > 0 || input.diagnostics.ticketSearchOk)
+          ? "Диагностика и sample evidence готовы для ledger."
+          : "Evidence lock ждёт успешную диагностику и sample import или TicketSearch.",
+      hint:
+        input.diagnostics.routeDetected &&
+        input.diagnostics.authOk &&
+        (input.sampleImport.imported > 0 || input.diagnostics.ticketSearchOk)
+          ? undefined
+          : "Повторите diagnostics/preview, пока auth и sample/TicketSearch не зелёные."
     }
   ];
 }
@@ -108,14 +125,44 @@ export async function recordOtrsCertificationRun(input: OtrsCertificationRunInpu
 
   const hasFailure = steps.some((step) => step.status === "failed");
   const hasBlocker = steps.some((step) => step.status === "blocked");
-  return finalizeCertificationRun({
+  const status = hasFailure ? "failed" : hasBlocker ? "blocked" : "passed";
+  const blockingStep = steps.find((step) => step.status === "failed" || step.status === "blocked");
+  const finalized = await finalizeCertificationRun({
     workspaceId: input.workspaceId,
     runId: run.id,
-    status: hasFailure ? "failed" : hasBlocker ? "blocked" : "passed",
+    status,
+    nextAction:
+      status === "passed"
+        ? {
+            label: "Импортировать выборку в очередь",
+            description: "Live cert пройден. Заберите sample в /reviews и завершите первую проверку.",
+            href: "/reviews"
+          }
+        : blockingStep
+          ? {
+              label: "Закрыть блокер live cert",
+              description: blockingStep.hint ?? blockingStep.detail,
+              stepKey: blockingStep.stepKey
+            }
+          : undefined,
     summary: {
       imported: input.sampleImport.imported,
       skipped: input.sampleImport.skipped,
       source: input.source
     }
   });
+
+  if (status === "passed") {
+    await emitActivationEvent({
+      event: "activation.live_cert_achieved",
+      workspaceId: input.workspaceId,
+      actorId: input.actorId,
+      targetType: "integration",
+      targetId: input.integrationId,
+      metadata: { source: input.source, runId: run.id },
+      oncePerWorkspace: false
+    });
+  }
+
+  return finalized;
 }

@@ -52,7 +52,8 @@ describe("OTRS-family connector config", () => {
         caFingerprint: null
       },
       advanced: {
-        routeOverridesEnabled: false
+        routeOverridesEnabled: false,
+        pollingFallbackAcknowledged: false
       },
       timeZone: "UTC"
     });
@@ -79,7 +80,8 @@ describe("OTRS-family connector config", () => {
       parseOtrsConnectorConfig({
         product: "otrs_ce_6",
         advanced: {
-          routeOverridesEnabled: true
+          routeOverridesEnabled: true,
+          pollingFallbackAcknowledged: false
         },
         routes: {
           ticketSearchPath: "/CustomSearch",
@@ -242,7 +244,8 @@ describe("OTRS-family connector config", () => {
       parseOtrsConnectorConfig({
         product: "otrs_ce_6",
         advanced: {
-          routeOverridesEnabled: true
+          routeOverridesEnabled: true,
+          pollingFallbackAcknowledged: false
         },
         routes: {
           ticketSearchMethod: "GET",

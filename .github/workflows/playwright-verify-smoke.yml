@@ -1,0 +1,49 @@
+name: Playwright verify-DB smoke
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  pull_request:
+    types: [labeled]
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    if: github.event_name != 'pull_request' || github.event.label.name == 'playwright-verify'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: qc_app
+          POSTGRES_PASSWORD: qc_app
+          POSTGRES_DB: qc_app_demo_verify
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U qc_app -d qc_app_demo_verify"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      CI: "1"
+      DATABASE_URL: postgresql://qc_app:qc_app@localhost:55432/qc_app_demo_verify?schema=public
+      TEST_DATABASE_URL: postgresql://qc_app:qc_app@localhost:55432/qc_app_demo_verify?schema=public
+      AUTH_SECRET: playwright-verify-auth-secret-32chars
+      QC_SECRET_KEY: playwright-verify-qc-secret-key-32
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx prisma migrate deploy
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test --project=chromium tests/e2e/demo-data-current.spec.ts

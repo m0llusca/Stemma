@@ -34,42 +34,43 @@ processing, or via `--once` on a timer.
 
 ### 2. Authenticated HTTP (`POST /api/v1/jobs/run`)
 
-Workspace-scoped. Auth is an **admin UI session** with the `backend_jobs:manage`
-permission (ADMIN role), plus same-origin CSRF checks (`Origin` / `Referer` must match
-the app origin). There is **no Bearer API-token path** for this endpoint today.
+Workspace-scoped. Auth is either:
 
-Body: `{ "limit"?: 1..20, "workerId"?: string }`. Intended for interactive/admin use
-from the app (or a same-origin caller that already holds a session cookie), not for
-unattended platform cron with a static token.
+1. **Admin UI session** with `backend_jobs:manage` (ADMIN), plus same-origin CSRF
+   (`Origin` / `Referer` must match the app origin), or
+2. **API token** with scope `jobs:write` (`Authorization: Bearer …` or `x-api-key`).
+
+Claiming uses Postgres `FOR UPDATE SKIP LOCKED`, so multiple workers can drain safely.
+
+Body: `{ "limit"?: 1..20, "workerId"?: string }`.
 
 ```bash
-# Example: session cookie + CSRF-safe Origin from an authenticated browser/admin context
+# Session (interactive / admin UI)
 curl -fsS -X POST https://<host>/api/v1/jobs/run \
   -H "cookie: qc_session=<session>" \
   -H "origin: https://<host>" \
   -H "content-type: application/json" \
   -d '{"limit":20}'
+
+# Machine auth (cron / sidecar)
+curl -fsS -X POST https://<host>/api/v1/jobs/run \
+  -H "authorization: Bearer <api-token-with-jobs:write>" \
+  -H "content-type: application/json" \
+  -d '{"limit":20,"workerId":"cron-1"}'
 ```
 
-For unattended production drains, prefer the **CLI worker** below. A future machine-auth
-option (e.g. signed cron secret or scoped API token) may be added later; until then do
-not rely on Bearer tokens for `/jobs/run`.
+For multi-workspace unattended drains, the **CLI worker** still covers all workspaces
+in one process. The HTTP endpoint always scopes to the session/token workspace.
 
 ## Cron examples
 
-System crontab (every 2 minutes, CLI `--once`) — preferred for production:
+System crontab (every 2 minutes, CLI `--once`) — preferred for multi-workspace:
 
 ```cron
 */2 * * * *  cd /srv/qc_app/apps/web && DATABASE_URL=... /usr/bin/npm run jobs:run -- --once >> /var/log/qc-jobs.log 2>&1
 ```
 
-A 1–5 minute CLI cadence keeps AI scoring, notification delivery, and scheduled exports
-responsive. The HTTP endpoint is per-workspace (session user’s workspace); the CLI loop
-covers all workspaces in one process.
-
-> **Note:** Hitting `/api/v1/jobs/run` from Vercel Cron (or similar) will **not** work
-> without a browser session + CSRF-compliant Origin. Use `npm run jobs:run -- --once`
-> instead until machine auth exists.
+Or HTTP with a `jobs:write` token on a 1–5 minute cadence for a single workspace.
 
 ## AI scoring provider keys
 

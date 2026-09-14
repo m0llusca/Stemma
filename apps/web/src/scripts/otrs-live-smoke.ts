@@ -173,7 +173,8 @@ async function buildRuntime(): Promise<SmokeRuntime> {
     ...(process.env.OTRS_TIME_ZONE?.trim() ? { timeZone: process.env.OTRS_TIME_ZONE.trim() } : {}),
     advanced: {
       ...defaultConfig.advanced,
-      routeOverridesEnabled: defaultConfig.advanced.routeOverridesEnabled || routeOverridesEnabled
+      routeOverridesEnabled: defaultConfig.advanced.routeOverridesEnabled || routeOverridesEnabled,
+      pollingFallbackAcknowledged: defaultConfig.advanced.pollingFallbackAcknowledged
     },
     routes: {
       ...defaultConfig.routes,

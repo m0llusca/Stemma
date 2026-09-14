@@ -89,7 +89,9 @@ const rawConfigSchema = z
       .optional(),
     advanced: z
       .object({
-        routeOverridesEnabled: z.boolean().optional()
+        routeOverridesEnabled: z.boolean().optional(),
+        /** Operator acknowledges polling is the live path when webhook is not ready. */
+        pollingFallbackAcknowledged: z.boolean().optional()
       })
       .passthrough()
       .optional(),
@@ -177,7 +179,8 @@ const rawConfigSchema = z
         caFingerprint: value.tls?.caFingerprint ?? null
       },
       advanced: {
-        routeOverridesEnabled: value.advanced?.routeOverridesEnabled ?? false
+        routeOverridesEnabled: value.advanced?.routeOverridesEnabled ?? false,
+        pollingFallbackAcknowledged: value.advanced?.pollingFallbackAcknowledged ?? false
       },
       timeZone: value.timeZone ?? "UTC"
     };

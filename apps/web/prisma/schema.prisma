@@ -163,6 +163,7 @@ model Workspace {
   certificationRuns         CertificationRun[]
   certificationEvidence     CertificationEvidence[]
   apiTokens                 ApiToken[]
+  ingressRateLimits         IngressRateLimit[]
   conversations             Conversation[]
   scorecards                Scorecard[]
   reviews                   Review[]
@@ -591,6 +592,21 @@ model ApiRateLimit {
   updatedAt    DateTime @updatedAt
 
   @@unique([apiTokenId, routeKey, windowStart])
+  @@index([workspaceId, windowStart])
+}
+
+/** Shared ingress limiter (webhooks) — no API token; keyed by workspace + route. */
+model IngressRateLimit {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  routeKey     String
+  windowStart  DateTime
+  requestCount Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([workspaceId, routeKey, windowStart])
   @@index([workspaceId, windowStart])
 }
 

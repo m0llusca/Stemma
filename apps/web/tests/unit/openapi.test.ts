@@ -31,7 +31,10 @@ describe("openapi contract", () => {
     expect(document.paths["/webhooks/{endpointId}"].post.responses["413"]).toEqual({
       description: "Webhook payload слишком большой"
     });
-    expect(document.paths["/jobs/run"].post.security).toEqual([{ sessionCookie: [] }]);
+    expect(document.paths["/jobs/run"].post.security).toEqual([
+      { sessionCookie: [] },
+      { bearerApiToken: [] }
+    ]);
     expect(document.components.schemas.IntegrationCapability.required).toContain("supportedEvents");
     expect(document.components.schemas.ScoreSummary).toMatchObject({
       type: "object",

@@ -77,45 +77,57 @@ export function rateLimitHeaders(result: RateLimitResult) {
   };
 }
 
-/**
- * Process-local bucket for public webhook ingress (no API token).
- * Applies before signature verification so forged/retry storms are throttled.
- * Multi-instance deploys should front this with an edge/shared limiter later.
- */
-const webhookIngressBuckets = new Map<string, { windowStart: number; count: number }>();
-
 export const defaultWebhookIngressLimit = 120;
 export const defaultWebhookIngressWindowMs = 60_000;
 
-/** Test-only: clear in-memory webhook ingress buckets. */
-export function resetWebhookIngressRateLimitsForTests() {
-  webhookIngressBuckets.clear();
-}
-
-export function enforceWebhookIngressRateLimit(input: {
+/**
+ * Shared DB bucket for public webhook ingress (no API token).
+ * Applies before signature verification so forged/retry storms are throttled
+ * across workers — not a process-local Map.
+ */
+export async function enforceWebhookIngressRateLimit(input: {
   workspaceId: string;
   endpointId: string;
   limit?: number;
   windowMs?: number;
   nowMs?: number;
-}): RateLimitResult {
+}): Promise<RateLimitResult> {
   const limit = input.limit ?? defaultWebhookIngressLimit;
   const windowMs = input.windowMs ?? defaultWebhookIngressWindowMs;
-  const nowMs = input.nowMs ?? Date.now();
-  const windowStartMs = Math.floor(nowMs / windowMs) * windowMs;
-  const resetAt = new Date(windowStartMs + windowMs);
-  const key = `${input.workspaceId}:${input.endpointId}`;
-  const existing = webhookIngressBuckets.get(key);
+  const now = new Date(input.nowMs ?? Date.now());
+  const windowStart = floorToWindow(now, windowMs);
+  const resetAt = new Date(windowStart.getTime() + windowMs);
+  const routeKey = `webhook:${input.endpointId}`;
 
-  if (!existing || existing.windowStart !== windowStartMs) {
-    webhookIngressBuckets.set(key, { windowStart: windowStartMs, count: 1 });
-    return { ok: true, limit, remaining: Math.max(0, limit - 1), resetAt };
-  }
+  const bucket = await prisma.ingressRateLimit.upsert({
+    where: {
+      workspaceId_routeKey_windowStart: {
+        workspaceId: input.workspaceId,
+        routeKey,
+        windowStart
+      }
+    },
+    create: {
+      workspaceId: input.workspaceId,
+      routeKey,
+      windowStart,
+      requestCount: 1
+    },
+    update: {
+      requestCount: {
+        increment: 1
+      }
+    }
+  });
 
-  existing.count += 1;
-  const remaining = Math.max(0, limit - existing.count);
+  const remaining = Math.max(0, limit - bucket.requestCount);
 
-  return existing.count <= limit
+  return bucket.requestCount <= limit
     ? { ok: true, limit, remaining, resetAt }
     : { ok: false, limit, remaining: 0, resetAt };
+}
+
+/** @deprecated No-op kept so older tests that clear in-memory buckets still compile. */
+export function resetWebhookIngressRateLimitsForTests() {
+  // Shared limiter is DB-backed; tests mock prisma.ingressRateLimit instead.
 }

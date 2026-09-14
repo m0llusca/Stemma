@@ -50,6 +50,7 @@ import { getIntegrationCapability } from "@/lib/integrations/capabilities";
 import { adminHubAccessTone, adminHubIntegrationsTone } from "@/lib/integrations/connection-tone";
 import { integrationConnectionTone } from "@/lib/integrations/connection-tone";
 import { externalSourceLabel, integrationStatusLabel } from "@/lib/labels";
+import { QUEUE_OLDEST_AGE_ALERT_MS } from "@/lib/jobs/queue-health";
 import { backendJobStatusView, backendJobTypeLabel, integrationRunStatusView, queueNameLabel } from "@/lib/operational-status";
 import { getRuntimeConfigDiagnostics } from "@/lib/runtime-config";
 import { queueDirectorySync } from "@/lib/system-enqueue-actions";
@@ -287,6 +288,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
     failedJobs,
     succeededJobsToday,
     recentJobs,
+    oldestQueuedJob,
     providers,
     integrations,
     recentRuns,
@@ -317,6 +319,11 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
           take: 1
         }
       }
+    }),
+    prisma.backendJob.findFirst({
+      where: { workspaceId: user.workspaceId, status: "QUEUED" },
+      orderBy: [{ createdAt: "asc" }],
+      select: { id: true, type: true, createdAt: true, runAfter: true }
     }),
     prisma.identityProvider.findMany({
       where: { workspaceId: user.workspaceId },
@@ -360,6 +367,18 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
     }),
     getPhaseDReadinessReport(user.workspaceId)
   ]);
+  const oldestQueuedAgeMs = oldestQueuedJob
+    ? Math.max(
+        0,
+        now.getTime() - (oldestQueuedJob.runAfter?.getTime() ?? oldestQueuedJob.createdAt.getTime())
+      )
+    : 0;
+  const oldestQueuedAgeAlert = Boolean(oldestQueuedJob && oldestQueuedAgeMs >= QUEUE_OLDEST_AGE_ALERT_MS);
+  const oldestQueuedAgeLabel = oldestQueuedJob
+    ? oldestQueuedAgeMs >= 60_000
+      ? `${Math.floor(oldestQueuedAgeMs / 60_000)} мин`
+      : `${Math.floor(oldestQueuedAgeMs / 1000)} с`
+    : "—";
   const runtime = getRuntimeConfigDiagnostics();
   const providerWarnings = providers.filter((provider) => provider.status !== "active" && provider.type !== "DEMO").length;
   const liveSsoCount = phaseDReport.identityProviders.filter((provider) => isLiveCertified(provider.status)).length;
@@ -591,18 +610,34 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
                       hint: "завершены за сутки",
                       tone: succeededJobsToday > 0 ? "success" : "neutral"
                     },
-                    { label: "Ошибки", value: failedJobs, hint: "требуют разбора", tone: failedJobs > 0 ? "danger" : "success" }
+                    { label: "Ошибки", value: failedJobs, hint: "требуют разбора", tone: failedJobs > 0 ? "danger" : "success" },
+                    {
+                      label: "Возраст очереди",
+                      value: oldestQueuedAgeLabel,
+                      hint: oldestQueuedAgeAlert
+                        ? `старше ${QUEUE_OLDEST_AGE_ALERT_MS / 60_000} мин — SLO`
+                        : "самая старая QUEUED",
+                      tone: oldestQueuedAgeAlert ? "danger" : queuedJobs > 0 ? "warning" : "success"
+                    }
                   ]}
                 />
 
-                {failedJobs > 0 || queuedJobs > 0 ? (
-                  <Alert variant={failedJobs > 0 ? "destructive" : "default"}>
+                {failedJobs > 0 || queuedJobs > 0 || oldestQueuedAgeAlert ? (
+                  <Alert variant={failedJobs > 0 || oldestQueuedAgeAlert ? "destructive" : "default"}>
                     <AlertTriangle aria-hidden="true" />
-                    <AlertTitle>{failedJobs > 0 ? "Есть задачи с ошибками" : "Очередь ожидает обработки"}</AlertTitle>
+                    <AlertTitle>
+                      {failedJobs > 0
+                        ? "Есть задачи с ошибками"
+                        : oldestQueuedAgeAlert
+                          ? "Очередь застряла дольше SLO"
+                          : "Очередь ожидает обработки"}
+                    </AlertTitle>
                     <AlertDescription>
                       {failedJobs > 0
                         ? "Разберите последние события и повторите запуск после исправления причины."
-                        : "Запустите обработчик вручную или дождитесь расписания, если это плановый импорт."}
+                        : oldestQueuedAgeAlert
+                          ? "Самая старая задача в QUEUED превышает порог 15 минут. Проверьте worker и machine-auth cron."
+                          : "Запустите обработчик вручную или дождитесь расписания, если это плановый импорт."}
                     </AlertDescription>
                   </Alert>
                 ) : null}

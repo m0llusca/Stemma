@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   prisma: {
     $transaction: vi.fn(),
+    $queryRaw: vi.fn(),
     backendJob: {
       create: vi.fn(),
       findFirst: vi.fn(),
@@ -32,6 +33,9 @@ const mocks = vi.hoisted(() => ({
       deleteMany: vi.fn()
     },
     apiRateLimit: {
+      deleteMany: vi.fn()
+    },
+    ingressRateLimit: {
       deleteMany: vi.fn()
     },
     ssoRequestState: {
@@ -107,6 +111,29 @@ describe("backend job queue", () => {
     vi.clearAllMocks();
     mocks.prisma.$transaction.mockImplementation(async (callback) => callback(mocks.prisma));
     mocks.prisma.review.findMany.mockResolvedValue([]);
+    // Bridge SKIP LOCKED claims to the legacy findFirst/updateMany mocks so
+    // execute/dispatch tests stay focused on job handlers, not claim SQL.
+    mocks.prisma.$queryRaw.mockImplementation(async () => {
+      const nextJob = await mocks.prisma.backendJob.findFirst();
+      if (!nextJob) {
+        return [];
+      }
+      const claimed = await mocks.prisma.backendJob.updateMany({
+        where: {
+          id: nextJob.id,
+          status: "QUEUED",
+          lockedAt: null
+        },
+        data: {}
+      });
+      if (claimed.count === 0) {
+        return [];
+      }
+      const job = await mocks.prisma.backendJob.findUnique({
+        where: { id: nextJob.id }
+      });
+      return job ? [job] : [];
+    });
   });
 
   it("enqueues jobs through a provided transaction client", async () => {
@@ -144,8 +171,7 @@ describe("backend job queue", () => {
     expect(mocks.prisma.backendJob.create).not.toHaveBeenCalled();
   });
 
-  it("claims the next queued job with a guarded update", async () => {
-    const queuedJob = backendJob();
+  it("claims the next queued job with SKIP LOCKED", async () => {
     const runningJob = backendJob({
       status: "RUNNING",
       attempts: 1,
@@ -153,52 +179,20 @@ describe("backend job queue", () => {
       lockedBy: "worker-a",
       startedAt: new Date("2026-05-04T08:01:00.000Z")
     });
-    mocks.prisma.backendJob.findFirst.mockResolvedValue(queuedJob);
-    mocks.prisma.backendJob.updateMany.mockResolvedValue({ count: 1 });
-    mocks.prisma.backendJob.findUnique.mockResolvedValue(runningJob);
+    mocks.prisma.$queryRaw.mockResolvedValue([runningJob]);
 
     const { claimNextBackendJob } = await import("@/lib/jobs/queue");
     const claimed = await claimNextBackendJob("worker-a");
 
     expect(claimed).toEqual(runningJob);
-    expect(mocks.prisma.backendJob.findFirst).toHaveBeenCalledWith({
-      where: {
-        status: "QUEUED",
-        lockedAt: null,
-        runAfter: {
-          lte: expect.any(Date)
-        }
-      },
-      orderBy: [{ priority: "asc" }, { createdAt: "asc" }]
-    });
-    expect(mocks.prisma.backendJob.updateMany).toHaveBeenCalledWith({
-      where: {
-        id: "job-1",
-        status: "QUEUED",
-        lockedAt: null,
-        runAfter: {
-          lte: expect.any(Date)
-        }
-      },
-      data: {
-        status: "RUNNING",
-        attempts: {
-          increment: 1
-        },
-        lockedAt: expect.any(Date),
-        lockedBy: "worker-a",
-        startedAt: expect.any(Date),
-        finishedAt: null,
-        errorMessage: null
-      }
-    });
+    expect(mocks.prisma.$queryRaw).toHaveBeenCalledTimes(1);
+    const sqlChunks = mocks.prisma.$queryRaw.mock.calls[0]?.[0] as TemplateStringsArray;
+    expect(Array.from(sqlChunks).join(" ")).toContain("FOR UPDATE SKIP LOCKED");
+    expect(mocks.prisma.backendJob.findFirst).not.toHaveBeenCalled();
+    expect(mocks.prisma.backendJob.updateMany).not.toHaveBeenCalled();
   });
 
-  it("claims jobs from a requested queue", async () => {
-    const queuedJob = backendJob({
-      id: "job-integrations",
-      queueName: "integrations"
-    });
+  it("claims jobs from a requested queue via SKIP LOCKED filters", async () => {
     const runningJob = backendJob({
       id: "job-integrations",
       status: "RUNNING",
@@ -208,31 +202,20 @@ describe("backend job queue", () => {
       lockedBy: "worker-a",
       startedAt: new Date("2026-05-04T08:01:00.000Z")
     });
-    mocks.prisma.backendJob.findFirst.mockResolvedValue(queuedJob);
-    mocks.prisma.backendJob.updateMany.mockResolvedValue({ count: 1 });
-    mocks.prisma.backendJob.findUnique.mockResolvedValue(runningJob);
+    mocks.prisma.$queryRaw.mockResolvedValue([runningJob]);
 
     const { claimNextBackendJob } = await import("@/lib/jobs/queue");
-    const claimed = await claimNextBackendJob("worker-a", { queueName: "integrations" });
+    const claimed = await claimNextBackendJob("worker-a", {
+      queueName: "integrations"
+    });
 
     expect(claimed).toEqual(runningJob);
-    expect(mocks.prisma.backendJob.findFirst).toHaveBeenCalledWith({
-      where: {
-        status: "QUEUED",
-        lockedAt: null,
-        queueName: "integrations",
-        runAfter: {
-          lte: expect.any(Date)
-        }
-      },
-      orderBy: [{ priority: "asc" }, { createdAt: "asc" }]
-    });
+    expect(mocks.prisma.$queryRaw).toHaveBeenCalledTimes(1);
+    const values = mocks.prisma.$queryRaw.mock.calls[0]?.slice(1) ?? [];
+    expect(values).toContain("integrations");
   });
 
   it("claims jobs only from a requested workspace when a workspace filter is provided", async () => {
-    const queuedJob = backendJob({
-      workspaceId: "workspace-1"
-    });
     const runningJob = backendJob({
       workspaceId: "workspace-1",
       status: "RUNNING",
@@ -241,118 +224,52 @@ describe("backend job queue", () => {
       lockedBy: "worker-a",
       startedAt: new Date("2026-05-04T08:01:00.000Z")
     });
-    mocks.prisma.backendJob.findFirst.mockResolvedValue(queuedJob);
-    mocks.prisma.backendJob.updateMany.mockResolvedValue({ count: 1 });
-    mocks.prisma.backendJob.findUnique.mockResolvedValue(runningJob);
+    mocks.prisma.$queryRaw.mockResolvedValue([runningJob]);
 
     const { claimNextBackendJob } = await import("@/lib/jobs/queue");
-    const claimed = await claimNextBackendJob("worker-a", { workspaceId: "workspace-1" });
+    const claimed = await claimNextBackendJob("worker-a", {
+      workspaceId: "workspace-1"
+    });
 
     expect(claimed).toEqual(runningJob);
-    expect(mocks.prisma.backendJob.findFirst).toHaveBeenCalledWith({
-      where: {
-        status: "QUEUED",
-        lockedAt: null,
-        workspaceId: "workspace-1",
-        runAfter: {
-          lte: expect.any(Date)
-        }
-      },
-      orderBy: [{ priority: "asc" }, { createdAt: "asc" }]
-    });
-    expect(mocks.prisma.backendJob.updateMany).toHaveBeenCalledWith({
-      where: {
-        id: "job-1",
-        status: "QUEUED",
-        lockedAt: null,
-        workspaceId: "workspace-1",
-        runAfter: {
-          lte: expect.any(Date)
-        }
-      },
-      data: expect.objectContaining({
-        status: "RUNNING",
-        lockedBy: "worker-a"
-      })
-    });
+    const values = mocks.prisma.$queryRaw.mock.calls[0]?.slice(1) ?? [];
+    expect(values).toContain("workspace-1");
   });
 
-  it("does not return a job if another worker wins the claim race", async () => {
-    mocks.prisma.backendJob.findFirst.mockResolvedValueOnce(backendJob()).mockResolvedValueOnce(null);
-    mocks.prisma.backendJob.updateMany.mockResolvedValue({ count: 0 });
+  it("returns null when SKIP LOCKED finds no runnable job", async () => {
+    mocks.prisma.$queryRaw.mockResolvedValue([]);
 
     const { claimNextBackendJob } = await import("@/lib/jobs/queue");
     const claimed = await claimNextBackendJob("worker-b");
 
     expect(claimed).toBeNull();
-    expect(mocks.prisma.backendJob.updateMany).toHaveBeenCalledTimes(1);
-    expect(mocks.prisma.backendJob.findUnique).not.toHaveBeenCalled();
+    expect(mocks.prisma.$queryRaw).toHaveBeenCalledTimes(1);
   });
 
-  it("claims the next candidate when another worker steals the first contested job", async () => {
-    const contestedJob = backendJob({ id: "job-contested" });
-    const nextCandidate = backendJob({ id: "job-next" });
-    const runningNextJob = backendJob({
-      id: "job-next",
+  it("lets a second worker claim a different row while the first is locked", async () => {
+    const first = backendJob({
+      id: "job-a",
       status: "RUNNING",
-      attempts: 1,
-      lockedAt: new Date("2026-05-04T08:01:00.000Z"),
-      lockedBy: "worker-b",
-      startedAt: new Date("2026-05-04T08:01:00.000Z")
+      lockedBy: "worker-a",
+      attempts: 1
     });
-    mocks.prisma.backendJob.findFirst.mockResolvedValueOnce(contestedJob).mockResolvedValueOnce(nextCandidate);
-    mocks.prisma.backendJob.updateMany.mockResolvedValueOnce({ count: 0 }).mockResolvedValueOnce({ count: 1 });
-    mocks.prisma.backendJob.findUnique.mockResolvedValue(runningNextJob);
+    const second = backendJob({
+      id: "job-b",
+      status: "RUNNING",
+      lockedBy: "worker-b",
+      attempts: 1
+    });
+    mocks.prisma.$queryRaw
+      .mockResolvedValueOnce([first])
+      .mockResolvedValueOnce([second]);
 
     const { claimNextBackendJob } = await import("@/lib/jobs/queue");
-    const claimed = await claimNextBackendJob("worker-b");
+    const claimedA = await claimNextBackendJob("worker-a");
+    const claimedB = await claimNextBackendJob("worker-b");
 
-    expect(claimed).toEqual(runningNextJob);
-    expect(mocks.prisma.backendJob.findFirst).toHaveBeenCalledTimes(2);
-    expect(mocks.prisma.backendJob.updateMany).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({
-        where: expect.objectContaining({
-          id: "job-contested",
-          status: "QUEUED",
-          lockedAt: null
-        })
-      })
-    );
-    expect(mocks.prisma.backendJob.updateMany).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({
-        where: expect.objectContaining({
-          id: "job-next",
-          status: "QUEUED",
-          lockedAt: null
-        })
-      })
-    );
-    expect(mocks.prisma.backendJob.findUnique).toHaveBeenCalledTimes(1);
-    expect(mocks.prisma.backendJob.findUnique).toHaveBeenCalledWith({ where: { id: "job-next" } });
-  });
-
-  it("stops claiming after exhausting claim retries when every candidate is contested", async () => {
-    mocks.prisma.backendJob.findFirst
-      .mockResolvedValueOnce(backendJob({ id: "job-a" }))
-      .mockResolvedValueOnce(backendJob({ id: "job-b" }))
-      .mockResolvedValueOnce(backendJob({ id: "job-c" }));
-    mocks.prisma.backendJob.updateMany.mockResolvedValue({ count: 0 });
-
-    const { claimNextBackendJob } = await import("@/lib/jobs/queue");
-    const claimed = await claimNextBackendJob("worker-b");
-
-    expect(claimed).toBeNull();
-    expect(mocks.prisma.backendJob.findFirst).toHaveBeenCalledTimes(3);
-    expect(mocks.prisma.backendJob.updateMany).toHaveBeenCalledTimes(3);
-    expect(mocks.prisma.backendJob.updateMany).toHaveBeenNthCalledWith(
-      3,
-      expect.objectContaining({
-        where: expect.objectContaining({ id: "job-c" })
-      })
-    );
-    expect(mocks.prisma.backendJob.findUnique).not.toHaveBeenCalled();
+    expect(claimedA?.id).toBe("job-a");
+    expect(claimedB?.id).toBe("job-b");
+    expect(mocks.prisma.$queryRaw).toHaveBeenCalledTimes(2);
   });
 
   it("recovers stale running jobs and fails exhausted stale jobs", async () => {
@@ -1165,18 +1082,11 @@ describe("backend job queue", () => {
       orderBy: [{ lockedAt: "asc" }, { createdAt: "asc" }],
       take: 20
     });
-    expect(mocks.prisma.backendJob.findFirst).toHaveBeenCalledWith({
-      where: {
-        status: "QUEUED",
-        lockedAt: null,
-        queueName: "integrations",
-        workspaceId: "workspace-1",
-        runAfter: {
-          lte: expect.any(Date)
-        }
-      },
-      orderBy: [{ priority: "asc" }, { createdAt: "asc" }]
-    });
+    expect(mocks.prisma.$queryRaw).toHaveBeenCalled();
+    const claimValues = mocks.prisma.$queryRaw.mock.calls.at(-1)?.slice(1) ?? [];
+    expect(claimValues).toEqual(
+      expect.arrayContaining(["integrations", "workspace-1"])
+    );
   });
 
   it("cleans up only expired operational data from the job workspace", async () => {
@@ -1200,6 +1110,7 @@ describe("backend job queue", () => {
     mocks.prisma.authSession.updateMany.mockResolvedValue({ count: 2 });
     mocks.prisma.idempotencyKey.deleteMany.mockResolvedValue({ count: 3 });
     mocks.prisma.apiRateLimit.deleteMany.mockResolvedValue({ count: 4 });
+    mocks.prisma.ingressRateLimit.deleteMany.mockResolvedValue({ count: 0 });
     mocks.prisma.ssoRequestState.deleteMany.mockResolvedValue({ count: 5 });
     mocks.prisma.webhookIngestEvent.updateMany.mockResolvedValue({ count: 6 });
     mocks.prisma.backendJobEvent.create.mockResolvedValue({});
@@ -1225,6 +1136,14 @@ describe("backend job queue", () => {
       }
     });
     expect(mocks.prisma.apiRateLimit.deleteMany).toHaveBeenCalledWith({
+      where: {
+        workspaceId: "workspace-1",
+        windowStart: {
+          lt: expect.any(Date)
+        }
+      }
+    });
+    expect(mocks.prisma.ingressRateLimit.deleteMany).toHaveBeenCalledWith({
       where: {
         workspaceId: "workspace-1",
         windowStart: {

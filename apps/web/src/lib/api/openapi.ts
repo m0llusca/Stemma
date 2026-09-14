@@ -404,8 +404,8 @@ export function buildOpenApiDocument() {
       },
       "/jobs/run": {
         post: {
-          security: sessionSecurity,
-          summary: "Запустить доступные фоновые задачи вручную",
+          security: [...sessionSecurity, ...bearerSecurity],
+          summary: "Запустить доступные фоновые задачи (session или API token jobs:write)",
           responses: {
             "200": { description: "Задачи обработаны" },
             "400": { description: "Некорректные параметры запуска" }

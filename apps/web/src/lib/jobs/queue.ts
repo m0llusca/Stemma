@@ -66,6 +66,7 @@ type JobClient = Pick<
   | "authSession"
   | "idempotencyKey"
   | "apiRateLimit"
+  | "ingressRateLimit"
   | "ssoRequestState"
   | "webhookIngestEvent"
   | "reportSnapshot"
@@ -297,61 +298,87 @@ export async function cancelBackendJob(input: { workspaceId: string; jobId: stri
 export async function claimNextBackendJob(workerId: string, filters: { queueName?: string; workspaceId?: string } = {}) {
   const now = new Date();
 
-  for (let attempt = 0; attempt < backendJobQueueDefaults.claimRetries; attempt += 1) {
-    const nextJob = await prisma.backendJob.findFirst({
-      where: {
-        status: "QUEUED",
-        lockedAt: null,
-        ...(filters.queueName ? { queueName: filters.queueName } : {}),
-        ...(filters.workspaceId !== undefined ? { workspaceId: filters.workspaceId } : {}),
-        runAfter: {
-          lte: now
-        }
-      },
-      orderBy: [{ priority: "asc" }, { createdAt: "asc" }]
-    });
+  // Single atomic claim: SKIP LOCKED lets concurrent workers take different
+  // rows without optimistic-CAS retry storms under load.
+  const claimed = await prisma.$queryRaw<
+    Array<{
+      id: string;
+      workspaceId: string;
+      type: string;
+      status: string;
+      queueName: string;
+      priority: number;
+      payloadJson: string;
+      resultJson: string;
+      errorMessage: string | null;
+      attempts: number;
+      maxAttempts: number;
+      runAfter: Date;
+      lockedAt: Date | null;
+      lockedBy: string | null;
+      startedAt: Date | null;
+      finishedAt: Date | null;
+      createdById: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+    }>
+  >`
+    WITH next AS (
+      SELECT id
+      FROM "BackendJob"
+      WHERE status = 'QUEUED'::"BackendJobStatus"
+        AND "lockedAt" IS NULL
+        AND "runAfter" <= ${now}
+        AND (${filters.queueName ?? null}::text IS NULL OR "queueName" = ${filters.queueName ?? null})
+        AND (${filters.workspaceId ?? null}::text IS NULL OR "workspaceId" = ${filters.workspaceId ?? null})
+      ORDER BY priority ASC, "createdAt" ASC
+      FOR UPDATE SKIP LOCKED
+      LIMIT 1
+    )
+    UPDATE "BackendJob" AS job
+    SET
+      status = 'RUNNING'::"BackendJobStatus",
+      attempts = job.attempts + 1,
+      "lockedAt" = ${now},
+      "lockedBy" = ${workerId},
+      "startedAt" = ${now},
+      "finishedAt" = NULL,
+      "errorMessage" = NULL,
+      "updatedAt" = ${now}
+    FROM next
+    WHERE job.id = next.id
+    RETURNING
+      job.id,
+      job."workspaceId",
+      job.type::text AS type,
+      job.status::text AS status,
+      job."queueName",
+      job.priority,
+      job."payloadJson",
+      job."resultJson",
+      job."errorMessage",
+      job.attempts,
+      job."maxAttempts",
+      job."runAfter",
+      job."lockedAt",
+      job."lockedBy",
+      job."startedAt",
+      job."finishedAt",
+      job."createdById",
+      job."createdAt",
+      job."updatedAt"
+  `;
 
-    if (!nextJob) {
-      return null;
-    }
-
-    const claimed = await prisma.backendJob.updateMany({
-      where: {
-        id: nextJob.id,
-        status: "QUEUED",
-        lockedAt: null,
-        ...(filters.workspaceId !== undefined ? { workspaceId: filters.workspaceId } : {}),
-        runAfter: {
-          lte: now
-        }
-      },
-      data: {
-        status: "RUNNING",
-        attempts: {
-          increment: 1
-        },
-        lockedAt: now,
-        lockedBy: workerId,
-        startedAt: now,
-        finishedAt: null,
-        errorMessage: null
-      }
-    });
-
-    if (claimed.count === 0) {
-      continue;
-    }
-
-    const job = await prisma.backendJob.findUnique({
-      where: { id: nextJob.id }
-    });
-
-    if (job) {
-      return job;
-    }
+  const row = claimed[0];
+  if (!row) {
+    return null;
   }
 
-  return null;
+  return {
+    ...row,
+    type: row.type as never,
+    status: row.status as never
+  };
 }
 
 export async function recoverStaleBackendJobs(input: {
@@ -681,8 +708,15 @@ async function runRetentionCleanupJob(client: JobClient, job: BackendJob) {
   const backendJobPayloadCutoff = new Date(now.getTime() - dayMs * 14);
   const emptyPayloadJson = "{}";
 
-  const [sessions, idempotencyKeys, rateLimits, ssoRequestStates, webhookIngestEvents, backendJobPayloads] =
-    await Promise.all([
+  const [
+    sessions,
+    idempotencyKeys,
+    rateLimits,
+    ingressRateLimits,
+    ssoRequestStates,
+    webhookIngestEvents,
+    backendJobPayloads
+  ] = await Promise.all([
       client.authSession.updateMany({
         where: {
           workspaceId: job.workspaceId,
@@ -702,6 +736,14 @@ async function runRetentionCleanupJob(client: JobClient, job: BackendJob) {
         }
       }),
       client.apiRateLimit.deleteMany({
+        where: {
+          workspaceId: job.workspaceId,
+          windowStart: {
+            lt: rateLimitCutoff
+          }
+        }
+      }),
+      client.ingressRateLimit.deleteMany({
         where: {
           workspaceId: job.workspaceId,
           windowStart: {
@@ -752,7 +794,7 @@ async function runRetentionCleanupJob(client: JobClient, job: BackendJob) {
   await recordJobEvent(client, job.id, "info", "Очистка устаревших backend-записей выполнена.", {
     sessions: sessions.count,
     idempotencyKeys: idempotencyKeys.count,
-    rateLimits: rateLimits.count,
+    rateLimits: rateLimits.count + ingressRateLimits.count,
     ssoRequestStates: ssoRequestStates.count,
     webhookIngestEvents: webhookIngestEvents.count,
     backendJobPayloads: backendJobPayloads.count
@@ -762,7 +804,7 @@ async function runRetentionCleanupJob(client: JobClient, job: BackendJob) {
     result: {
       expiredSessions: sessions.count,
       deletedIdempotencyKeys: idempotencyKeys.count,
-      deletedRateLimitBuckets: rateLimits.count,
+      deletedRateLimitBuckets: rateLimits.count + ingressRateLimits.count,
       deletedSsoRequestStates: ssoRequestStates.count,
       scrubbedWebhookIngestPayloads: webhookIngestEvents.count,
       scrubbedBackendJobPayloads: backendJobPayloads.count

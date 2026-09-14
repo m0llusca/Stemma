@@ -83,6 +83,23 @@ export async function createCalibrationSession(formData: FormData) {
     throw new Error("Участники калибровки должны принадлежать текущему рабочему пространству.");
   }
 
+  const baselineReviews = await prisma.review.findMany({
+    where: {
+      workspaceId: user.workspaceId,
+      conversationId: { in: uniqueConversationIds },
+      reviewSource: "HUMAN",
+      status: "FINALIZED"
+    },
+    orderBy: [{ finalizedAt: "desc" }],
+    select: { id: true, conversationId: true }
+  });
+  const baselineByConversation = new Map<string, string>();
+  for (const review of baselineReviews) {
+    if (!baselineByConversation.has(review.conversationId)) {
+      baselineByConversation.set(review.conversationId, review.id);
+    }
+  }
+
   const session = await prisma.$transaction(async (tx) => {
     const created = await tx.calibrationSession.create({
       data: {
@@ -94,7 +111,10 @@ export async function createCalibrationSession(formData: FormData) {
         dueAt: dateField(formData, "dueAt"),
         notes,
         items: {
-          create: uniqueConversationIds.map((conversationId) => ({ conversationId }))
+          create: uniqueConversationIds.map((conversationId) => ({
+            conversationId,
+            baselineReviewId: baselineByConversation.get(conversationId) ?? null
+          }))
         },
         participants: {
           create: uniqueParticipantIds.map((participantId) => ({ userId: participantId }))

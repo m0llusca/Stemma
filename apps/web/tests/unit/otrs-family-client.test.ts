@@ -160,7 +160,8 @@ describe("OTRS-family HTTP client", () => {
         ticketSearch: "session"
       },
       advanced: {
-        routeOverridesEnabled: true
+        routeOverridesEnabled: true,
+        pollingFallbackAcknowledged: false
       },
       routes: {
         ticketSearchPath: "/TicketSearch"
@@ -224,7 +225,8 @@ describe("OTRS-family HTTP client", () => {
     const config = parseOtrsConnectorConfig({
       product: "otrs_ce_6",
       advanced: {
-        routeOverridesEnabled: true
+        routeOverridesEnabled: true,
+        pollingFallbackAcknowledged: false
       },
       routes: {
         ticketSearchPath: "/CustomTicketSearch",
@@ -314,7 +316,8 @@ describe("OTRS-family HTTP client", () => {
     const config = parseOtrsConnectorConfig({
       product: "otrs_ce_6",
       advanced: {
-        routeOverridesEnabled: true
+        routeOverridesEnabled: true,
+        pollingFallbackAcknowledged: false
       },
       routes: {
         ticketSearchMethod: "GET"

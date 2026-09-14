@@ -569,7 +569,8 @@ describe("OTRS-family preview/import planning", () => {
         sessionCreateMethod: "POST"
       },
       advanced: {
-        routeOverridesEnabled: true
+        routeOverridesEnabled: true,
+        pollingFallbackAcknowledged: false
       },
       routes: {
         ...baseConfig.routes,

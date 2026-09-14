@@ -19,7 +19,7 @@ import {
 } from "@/lib/integration-setup-schema";
 import { parseOtrsConnectorConfig } from "@/lib/integrations/otrs-family/config";
 import { upsertIntegrationSecretSlot } from "@/lib/integrations/otrs-family/credentials";
-import { createOtrsPreview, runOtrsConnectorDiagnostics } from "@/lib/integrations/otrs-family/service";
+import { createOtrsPreview, recordOtrsCertificationFromEvidence, runOtrsConnectorDiagnostics } from "@/lib/integrations/otrs-family/service";
 import { isProtectedLiveEnvGate } from "@/lib/certification/readiness-report";
 import {
   isProbeBeforeSaveAllowed,
@@ -960,6 +960,19 @@ export async function runOtrsDiagnosticsAction(formData: FormData) {
 
   revalidateIntegrationAdminPaths(integrationId);
 
+  if (diagnosticRunId) {
+    try {
+      await recordOtrsCertificationFromEvidence({
+        workspaceId: user.workspaceId,
+        integrationId,
+        actorId: user.id,
+        diagnosticRunId
+      });
+    } catch {
+      // Live-cert ledger must not fail the diagnostics UX path.
+    }
+  }
+
   return {
     integrationId,
     diagnosticRunId,
@@ -1016,6 +1029,22 @@ export async function createOtrsPreviewAction(formData: FormData) {
   });
 
   revalidateIntegrationAdminPaths(integrationId);
+
+  const diagnosticRunId = String((preview.diagnosticRun as { id?: unknown }).id ?? "");
+  if (diagnosticRunId) {
+    try {
+      await recordOtrsCertificationFromEvidence({
+        workspaceId: user.workspaceId,
+        integrationId,
+        actorId: user.id,
+        diagnosticRunId,
+        imported: preview.items.length,
+        skipped: 0
+      });
+    } catch {
+      // Live-cert ledger must not fail the preview UX path.
+    }
+  }
 
   return {
     integrationId,

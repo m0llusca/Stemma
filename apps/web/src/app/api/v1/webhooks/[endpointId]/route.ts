@@ -67,7 +67,7 @@ export async function POST(request: Request, context: RouteContext) {
     return apiError("bad_request", "Заголовок x-qc-workspace-id обязателен.", 400, requestId);
   }
 
-  const rateLimit = enforceWebhookIngressRateLimit({ workspaceId, endpointId });
+  const rateLimit = await enforceWebhookIngressRateLimit({ workspaceId, endpointId });
 
   if (!rateLimit.ok) {
     return apiError("rate_limited", "Превышен лимит запросов webhook.", 429, {

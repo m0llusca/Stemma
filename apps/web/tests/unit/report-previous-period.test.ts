@@ -34,6 +34,7 @@ describe("loadPreviousFinalizedReviews narrow select", () => {
 
     expect(call.include).toBeUndefined();
     expect(call.select).toEqual({
+      id: true,
       totalScore: true,
       finalizedAt: true,
       conversation: {
@@ -51,9 +52,18 @@ describe("loadPreviousFinalizedReviews narrow select", () => {
           criterion: {
             select: {
               block: true,
-              kind: true
+              kind: true,
+              weight: true
             }
           }
+        }
+      },
+      findings: {
+        select: {
+          category: true,
+          riskLevel: true,
+          ownerType: true,
+          rootCause: true
         }
       }
     });

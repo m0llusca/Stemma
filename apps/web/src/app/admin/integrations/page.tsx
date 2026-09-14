@@ -607,7 +607,17 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
       })
     }
   ];
-  const integrationSetupHint = activeSources.length > 0 ? null : getSettingCoachmark("integrations");
+  const integrationSetupHint =
+    activeSources.length === 0
+      ? getSettingCoachmark("integrations")
+      : certifiedSources === 0
+        ? {
+            title: "Золотой путь: первая сертифицированная проверка",
+            body: "1) Диагностика → 2) Live-cert без fake-green → 3) Импорт выборки → 4) «Взять следующий» в очереди. Не подключайте второй источник, пока первый не сертифицирован.",
+            href: "/reviews?due=overdue",
+            actionLabel: "Открыть очередь"
+          }
+        : null;
   const integrationAction =
     failedDiagnostics > 0
       ? {

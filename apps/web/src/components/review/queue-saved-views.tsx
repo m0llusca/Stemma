@@ -45,7 +45,9 @@ export function QueueSavedViews({
       href: `/reviews?qaAssignee=${encodeURIComponent(currentAssigneeName)}&due=overdue`,
       tone: "danger"
     },
+    { label: "В работе", href: "/reviews?qaStatus=IN_PROGRESS", tone: "info" },
     { label: "Просрочено", href: "/reviews?due=overdue", tone: "danger" },
+    { label: "Риск", href: "/reviews?riskLevel=HIGH_OR_CRITICAL", tone: "warning" },
     { label: "Критические", href: "/reviews?process=critical", tone: "danger" },
     { label: "Переответы", href: "/reviews?process=reanswer", tone: "warning" },
     { label: "Апелляции", href: "/reviews?process=appeal", tone: "warning" },

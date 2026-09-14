@@ -1,3 +1,4 @@
+import { AGENT_TRUST_APPEAL_HINT } from "@/lib/feedback/agent-trust-defaults";
 import { russianPlural } from "@/lib/reports/report-format";
 
 export type SelfReviewTriageTone = "accent" | "success" | "warning";
@@ -43,8 +44,8 @@ export function buildSelfReviewTriage(input: SelfReviewTriageInput): SelfReviewT
       title: `${russianPlural(input.pendingInboxCount, ["проверка ждёт", "проверки ждут", "проверок ждут"])} вашего ответа`,
       description:
         input.appealCount > 0
-          ? `Среди них ${input.appealCount} с открытой апелляцией. Примите оценку или оспорьте конкретный пункт с обоснованием.`
-          : "Примите оценку, если замечания понятны; спорный пункт можно оспорить.",
+          ? `Среди них ${input.appealCount} с открытой апелляцией. ${AGENT_TRUST_APPEAL_HINT}`
+          : "Примите оценку, если замечания понятны; спорный пункт можно оспорить с цитатой из переписки.",
       action: input.inboxHref
         ? {
             label: "Ответить сейчас",

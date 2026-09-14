@@ -565,23 +565,38 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
     <div id="review-evidence" className="flex flex-col gap-4">
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
       {canSeeAiQualityDrafts ? (
-        <Card className="border-(--ai-border) bg-(--ai-soft)" aria-label="ИИ-подсказки проверки">
-          <CardHeader className="flex-row items-start justify-between gap-3 space-y-0 border-b border-border/60 pb-3">
+        <Collapsible
+          defaultOpen={pendingAiDraftCount > 0}
+          className="group min-w-0 overflow-clip rounded-xl border border-(--ai-border) bg-(--ai-soft) data-open:md:col-span-2"
+        >
+          <CollapsibleTrigger
+            className="flex w-full min-w-0 cursor-pointer items-start justify-between gap-3 px-5 py-4 text-left"
+            aria-label="ИИ-подсказки проверки"
+          >
             <div className="min-w-0">
               <p className="text-xs font-medium uppercase tracking-wide text-(--ai-ink)">ИИ-контроль</p>
-              <CardTitle className="mt-1 text-base">ИИ-предложения</CardTitle>
-              <CardDescription>
-                Подсказки показывают гипотезу и доказательства; решение принимаете вы — примите, отклоните или измените предложение.
-              </CardDescription>
+              <h2 className="mt-1 text-base font-semibold text-foreground">ИИ-предложения</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Подсказки показывают гипотезу и доказательства; решение принимаете вы.
+              </p>
             </div>
-            <StatusChip
-              label="Ожидают"
-              value={pendingAiDraftCount}
-              numeric
-              tone={pendingAiDraftCount > 0 ? "warning" : "neutral"}
-            />
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2 pt-3">
+            <div className="flex shrink-0 items-center gap-2">
+              <StatusChip
+                label="Ожидают"
+                value={pendingAiDraftCount}
+                numeric
+                tone={pendingAiDraftCount > 0 ? "warning" : "neutral"}
+              />
+              <span
+                className="disclosure-chevron flex size-8 shrink-0 items-center justify-center rounded-md text-primary transition-transform group-data-open:rotate-180"
+                aria-hidden="true"
+              >
+                <ChevronDown className="size-4" />
+              </span>
+            </div>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="flex flex-col gap-2 border-t border-border/60 px-5 py-3">
             {aiDrafts.length > 0 ? (
               aiDrafts.map((draft) => (
                 <article
@@ -623,8 +638,9 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
                 description="Когда ИИ предложит оценку, её можно будет принять, отклонить или изменить здесь."
               />
             )}
-          </CardContent>
-        </Card>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       ) : null}
 
       <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2.5" aria-label="Сводка доказательств проверки">

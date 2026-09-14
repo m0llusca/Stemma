@@ -31,10 +31,11 @@ const descriptors = {
     key: `ev1_${"D".repeat(43)}` as const
   }
 };
-const reportsPageSource = readFileSync(
-  join(process.cwd(), "src/app/reports/page.tsx"),
-  "utf8"
-);
+const reportsPageSource = [
+  readFileSync(join(process.cwd(), "src/app/reports/page.tsx"), "utf8"),
+  readFileSync(join(process.cwd(), "src/lib/reports/load-report-page-model.ts"), "utf8"),
+  readFileSync(join(process.cwd(), "src/components/reports/report-page-views.tsx"), "utf8")
+].join("\n");
 
 describe("report evidence model links", () => {
   it("disables automatic prefetch for safe report-page local links without changing their scroll behavior", () => {

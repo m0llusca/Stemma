@@ -2,7 +2,7 @@ import type { RoleName } from "@prisma/client";
 import { KeyRound, ShieldCheck, UserCog, UsersRound } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
-import { CreateUserDialog } from "@/app/admin/users/create-user-dialog";
+import { AdminDialog } from "@/components/admin/admin-dialog";
 import { CoachCallout } from "@/components/guidance/coach-callout";
 import { PageSkeleton } from "@/components/loading-states";
 import { createLocalUser, updateUserAccess } from "@/lib/admin-user-actions";
@@ -296,7 +296,8 @@ async function AdminUsersPageContent({ searchParams }: AdminUsersPageProps) {
           }))}
           actions={
             <>
-              <CreateUserDialog
+              <AdminDialog
+                wide
                 triggerLabel={
                   <>
                     <UserCog className="size-4" aria-hidden="true" />
@@ -367,7 +368,7 @@ async function AdminUsersPageContent({ searchParams }: AdminUsersPageProps) {
                     </Button>
                   </div>
                 </form>
-              </CreateUserDialog>
+              </AdminDialog>
               <Button
                 variant="outline"
                 render={<Link href="/admin/access" />}

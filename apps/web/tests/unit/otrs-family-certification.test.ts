@@ -3,7 +3,11 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/certification/runs", () => ({
   createCertificationRun: vi.fn(async () => ({ id: "run-1", status: "running" })),
   appendCertificationStep: vi.fn(async (input) => ({ id: `step-${input.position}`, ...input })),
-  finalizeCertificationRun: vi.fn(async () => ({ id: "run-1", status: "blocked" }))
+  finalizeCertificationRun: vi.fn(async (input) => ({ id: "run-1", status: input.status, nextAction: input.nextAction }))
+}));
+
+vi.mock("@/lib/activation-events", () => ({
+  emitActivationEvent: vi.fn(async () => ({ emitted: true }))
 }));
 
 describe("OTRS-family certification bridge", () => {
@@ -35,5 +39,55 @@ describe("OTRS-family certification bridge", () => {
       status: "blocked",
       hint: "Настройте webhook или подтвердите polling fallback для Znuny."
     });
+    expect(steps.find((step) => step.stepKey === "evidence_lock")).toMatchObject({
+      status: "passed"
+    });
+  });
+
+  it("blocks evidence_lock when diagnostics are incomplete", async () => {
+    const { buildOtrsCertificationSteps } = await import("@/lib/integrations/otrs-family/certification");
+    const steps = buildOtrsCertificationSteps({
+      source: "otrs",
+      diagnostics: {
+        routeDetected: true,
+        authOk: false,
+        ticketSearchOk: false,
+        webhookOk: false
+      },
+      sampleImport: { imported: 0, skipped: 0 }
+    });
+
+    expect(steps.find((step) => step.stepKey === "evidence_lock")).toMatchObject({
+      status: "blocked"
+    });
+  });
+
+  it("records a blocking nextAction when live cert is not passed", async () => {
+    const { finalizeCertificationRun } = await import("@/lib/certification/runs");
+    const { recordOtrsCertificationRun } = await import("@/lib/integrations/otrs-family/certification");
+
+    await recordOtrsCertificationRun({
+      workspaceId: "ws-1",
+      integrationId: "int-1",
+      actorId: "user-1",
+      source: "otrs",
+      diagnostics: {
+        routeDetected: true,
+        authOk: true,
+        ticketSearchOk: true,
+        webhookOk: false
+      },
+      sampleImport: { imported: 1, skipped: 0 }
+    });
+
+    expect(finalizeCertificationRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "blocked",
+        nextAction: expect.objectContaining({
+          label: "Закрыть блокер live cert",
+          stepKey: "webhook_or_polling_check"
+        })
+      })
+    );
   });
 });

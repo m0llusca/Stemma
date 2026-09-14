@@ -43,10 +43,11 @@ describe("cross-link wiring between review, coaching, and calibration", () => {
   });
 
   it("reports overview wires QA × CSAT matrix drill-downs", () => {
-    const source = readFileSync(join(root, "src/app/reports/page.tsx"), "utf8");
-    expect(source).toContain("computeQaCsatMatrix");
-    expect(source).toContain("QaCsatMatrixPanel");
-    expect(source).toContain("qaScoreBand");
+    const loader = readFileSync(join(root, "src/lib/reports/load-report-page-model.ts"), "utf8");
+    const views = readFileSync(join(root, "src/components/reports/report-page-views.tsx"), "utf8");
+    expect(loader).toContain("computeQaCsatMatrix");
+    expect(views).toContain("QaCsatMatrixPanel");
+    expect(loader).toContain("qaScoreBand");
   });
 
   it("calibration lists appeal outcome signals without auto-editing scorecards", () => {

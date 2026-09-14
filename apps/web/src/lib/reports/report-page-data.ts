@@ -81,6 +81,7 @@ export async function loadPreviousFinalizedReviews(workspaceId: string, period: 
   return prisma.review.findMany({
     where: reviewWhere(workspaceId, period),
     select: {
+      id: true,
       totalScore: true,
       finalizedAt: true,
       conversation: {
@@ -98,9 +99,18 @@ export async function loadPreviousFinalizedReviews(workspaceId: string, period: 
           criterion: {
             select: {
               block: true,
-              kind: true
+              kind: true,
+              weight: true
             }
           }
+        }
+      },
+      findings: {
+        select: {
+          category: true,
+          riskLevel: true,
+          ownerType: true,
+          rootCause: true
         }
       }
     }

@@ -57,7 +57,7 @@ export const otrsConnectionProfile: SourceConnectionProfile = {
       });
       const detectedConfig: Record<string, unknown> = { webServiceName };
       if (routes.ticketGet || routes.ticketSearch) {
-        detectedConfig.advanced = { routeOverridesEnabled: true };
+        detectedConfig.advanced = { routeOverridesEnabled: true, pollingFallbackAcknowledged: false };
         detectedConfig.routes = {
           ...(routes.ticketGet
             ? { ticketGetPath: routes.ticketGet.path, ticketGetMethod: routes.ticketGet.method }

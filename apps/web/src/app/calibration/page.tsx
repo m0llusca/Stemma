@@ -39,6 +39,13 @@ import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { createCalibrationSession, updateCalibrationSessionStatus } from "@/lib/calibration-actions";
 import { computeCalibrationItemAgreement, type CalibrationCriterionKind } from "@/lib/calibration/agreement";
 import {
+  CALIBRATION_ALIGNMENT_BAND,
+  CALIBRATION_RITUAL_DEFAULT_NAME,
+  CALIBRATION_RITUAL_MIN_CONVERSATIONS,
+  CALIBRATION_RITUAL_MIN_PARTICIPANTS,
+  defaultCalibrationDueDate
+} from "@/lib/calibration/ritual-defaults";
+import {
   aggregateReviewerVolume,
   listLowAgreementCalibrationItems,
   type ReviewerQualityCalibrationItemInput
@@ -53,7 +60,7 @@ import { requirePagePermission } from "@/lib/page-permission";
 
 export const dynamic = "force-dynamic";
 
-const ALIGNMENT_BAND = 10;
+const ALIGNMENT_BAND = CALIBRATION_ALIGNMENT_BAND;
 
 type CalibrationPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -723,7 +730,10 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
         <Card aria-label="Новая калибровка">
           <CardHeader className="border-b">
             <CardTitle>Новая калибровка</CardTitle>
-            <CardDescription>Выберите проверяющих и обращения. После создания участники получат один и тот же набор для оценки.</CardDescription>
+            <CardDescription>
+              Ритуал недели: ≥{CALIBRATION_RITUAL_MIN_CONVERSATIONS} обращений и ≥{CALIBRATION_RITUAL_MIN_PARTICIPANTS}{" "}
+              проверяющих. Эталон ±{ALIGNMENT_BAND} баллов — после оценок разберите расхождения.
+            </CardDescription>
             <CardAction>
               <Button variant="outline" size="sm" render={<Link href={closeNewSessionHref} />} nativeButton={false}>
                 Скрыть
@@ -735,11 +745,11 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
               <FieldGroup className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <Field>
                   <FieldLabel htmlFor="calibration-name">Название</FieldLabel>
-                  <Input id="calibration-name" name="name" required defaultValue="Калибровка недели" />
+                  <Input id="calibration-name" name="name" required defaultValue={CALIBRATION_RITUAL_DEFAULT_NAME} />
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="calibration-due">Срок</FieldLabel>
-                  <Input id="calibration-due" name="dueAt" type="date" />
+                  <Input id="calibration-due" name="dueAt" type="date" defaultValue={defaultCalibrationDueDate()} />
                 </Field>
                 <Field className="sm:col-span-2 lg:col-span-1">
                   <FieldLabel htmlFor="calibration-notes">Заметки</FieldLabel>
@@ -770,8 +780,16 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
 
                 <FieldSet>
                   <FieldLegend>Обращения</FieldLegend>
+                  <p className="mb-2 text-xs text-muted-foreground">
+                    Сигналы апелляций предвыбраны — ритуал недели начинается с расхождений.
+                  </p>
                   <div className="grid max-h-56 gap-2 overflow-y-auto pr-1">
-                    {conversations.map((conversation) => (
+                    {conversations.map((conversation) => {
+                      const appealPrefill = appealSignalConversationIds
+                        .slice(0, CALIBRATION_RITUAL_MIN_CONVERSATIONS)
+                        .includes(conversation.id);
+
+                      return (
                       <FieldLabel
                         key={conversation.id}
                         className="cursor-pointer items-start rounded-lg border border-border bg-background px-3 py-2.5 font-normal has-data-checked:border-primary/40 has-data-checked:bg-primary/5"
@@ -779,6 +797,7 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
                         <Checkbox
                           name="conversationId"
                           value={conversation.id}
+                          defaultChecked={appealPrefill}
                           className="mt-0.5"
                         />
                         <span className="flex min-w-0 flex-col gap-0.5 text-sm leading-snug">
@@ -786,7 +805,8 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
                           <span className="text-muted-foreground">{conversation.subject}</span>
                         </span>
                       </FieldLabel>
-                    ))}
+                      );
+                    })}
                   </div>
                 </FieldSet>
               </div>

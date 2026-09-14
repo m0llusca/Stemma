@@ -2,6 +2,7 @@
 
 import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { emitActivationEvent } from "@/lib/activation-events";
 import { auditLog } from "@/lib/audit";
 import {
   canAcknowledgeFeedback,
@@ -281,6 +282,18 @@ export async function updateReviewFeedback(formData: FormData) {
   revalidatePath("/self-review");
   if (action === "appeal_confirmed" || action === "appeal_corrected") {
     revalidatePath("/calibration");
+  }
+
+  if (action === "acknowledged" || action === "appeal_confirmed") {
+    await emitActivationEvent({
+      event: "activation.feedback_acknowledged",
+      workspaceId: user.workspaceId,
+      actorId: user.id,
+      targetType: "review",
+      targetId: review.id,
+      metadata: { conversationId: review.conversationId, action },
+      oncePerWorkspace: false
+    });
   }
 }
 

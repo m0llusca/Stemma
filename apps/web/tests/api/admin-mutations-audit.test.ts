@@ -34,6 +34,10 @@ vi.mock("@/lib/jobs/queue", () => ({
   runDueBackendJobs: mocks.runDueBackendJobs
 }));
 
+vi.mock("@/lib/jobs/queue-health", () => ({
+  reportQueueAgeIfNeeded: vi.fn().mockResolvedValue({ alert: false, oldestAgeMs: 0, oldestQueued: null })
+}));
+
 vi.mock("@/lib/observability", () => ({
   logBackendEvent: mocks.logBackendEvent
 }));
@@ -232,7 +236,9 @@ describe("admin backend mutation audit logging", () => {
       targetId: "worker-1",
       metadata: {
         processed: 2,
-        workerId: "worker-1"
+        workerId: "worker-1",
+        auth: "session",
+        apiTokenId: null
       }
     });
     expect(mocks.logBackendEvent).toHaveBeenCalledWith({
@@ -241,7 +247,9 @@ describe("admin backend mutation audit logging", () => {
       workspaceId: "workspace-1",
       actorId: "user-1",
       metadata: {
-        processed: 2
+        processed: 2,
+        auth: "session",
+        apiTokenId: undefined
       }
     });
   });
@@ -264,7 +272,9 @@ describe("admin backend mutation audit logging", () => {
       targetId: "manual",
       metadata: {
         processed: 2,
-        workerId: null
+        workerId: null,
+        auth: "session",
+        apiTokenId: null
       }
     });
   });
@@ -299,7 +309,9 @@ describe("admin backend mutation audit logging", () => {
       workspaceId: "workspace-1",
       actorId: "user-1",
       metadata: {
-        processed: 2
+        processed: 2,
+        auth: "session",
+        apiTokenId: undefined
       }
     });
     expect(mocks.logBackendEvent).toHaveBeenCalledWith({
