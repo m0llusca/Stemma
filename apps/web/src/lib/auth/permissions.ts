@@ -94,8 +94,7 @@ export class PermissionDeniedError extends Error {
 export function isPermissionDeniedError(error: unknown): error is PermissionDeniedError {
   return (
     error instanceof PermissionDeniedError ||
-    (error instanceof Error &&
-      (error.name === "PermissionDeniedError" || error.message === permissionDeniedMessage))
+    (error instanceof Error && error.name === "PermissionDeniedError")
   );
 }
 

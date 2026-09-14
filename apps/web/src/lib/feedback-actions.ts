@@ -18,7 +18,11 @@ import {
   trainingCreatedToastMessage,
   trainingStatusToastMessage
 } from "@/lib/feedback-toast-messages";
-import { recordReviewEvent, CALIBRATION_APPEAL_SIGNAL_ACTION } from "@/lib/review-events";
+import {
+  recordReviewEvent,
+  CALIBRATION_APPEAL_SIGNAL_ACTION,
+  QA_REOPENED_ACTION
+} from "@/lib/review-events";
 import { trainingAssignmentDefaultsFromFinding } from "@/lib/coaching-follow-up";
 import { assertFeedbackTransition, reviewFeedbackTransitionStatuses } from "@/lib/review-lifecycle";
 
@@ -61,7 +65,8 @@ async function loadReviewForAction(reviewId: string, workspaceId: string) {
       conversation: {
         select: {
           assigneeName: true,
-          assigneeId: true
+          assigneeId: true,
+          qaStatus: true
         }
       }
     }
@@ -182,6 +187,52 @@ export async function updateReviewFeedback(formData: FormData) {
       metadata: { comment }
     });
 
+    // Corrected appeal reopens scoring: conversation FINALIZED → REOPENED so a
+    // new HUMAN draft cycle can start. Prior finalized review stays history.
+    if (action === "appeal_corrected" && review.conversation.qaStatus === "FINALIZED") {
+      const reopened = await tx.conversation.updateMany({
+        where: {
+          id: review.conversationId,
+          workspaceId: user.workspaceId,
+          qaStatus: "FINALIZED"
+        },
+        data: { qaStatus: "REOPENED" }
+      });
+
+      if (reopened.count === 1) {
+        const reopenReason = comment || "Апелляция скорректирована";
+        await auditLog(
+          {
+            workspaceId: user.workspaceId,
+            actorId: user.id,
+            action: QA_REOPENED_ACTION,
+            targetType: "conversation",
+            targetId: review.conversationId,
+            metadata: {
+              qaStatus: "REOPENED",
+              reason: reopenReason,
+              sourceAction: "appeal_corrected",
+              reviewId: review.id
+            }
+          },
+          tx
+        );
+        await recordReviewEvent(tx, {
+          workspaceId: user.workspaceId,
+          reviewId: review.id,
+          conversationId: review.conversationId,
+          actorId: user.id,
+          action: QA_REOPENED_ACTION,
+          fromStatus: "FINALIZED",
+          toStatus: "REOPENED",
+          metadata: {
+            reason: reopenReason,
+            sourceAction: "appeal_corrected"
+          }
+        });
+      }
+    }
+
     // Appeal outcomes seed a calibration signal (no scorecard auto-edit).
     if (action === "appeal_confirmed" || action === "appeal_corrected") {
       const appealOutcome = action === "appeal_corrected" ? "corrected" : "confirmed";
@@ -225,6 +276,7 @@ export async function updateReviewFeedback(formData: FormData) {
   });
 
   revalidatePath(`/reviews/${review.conversationId}`);
+  revalidatePath("/reviews");
   revalidatePath("/coaching");
   revalidatePath("/self-review");
   if (action === "appeal_confirmed" || action === "appeal_corrected") {

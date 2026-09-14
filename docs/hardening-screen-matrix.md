@@ -4,13 +4,13 @@ Walk checklist for epic [#116](https://github.com/m0llusca/Stemma/issues/116). A
 
 Child streams:
 
-- [#118](https://github.com/m0llusca/Stemma/issues/118) dead clicks / expand-collapse / silent no-op — **visual** closed on master [`13eadb0`](https://github.com/m0llusca/Stemma/commit/13eadb008fc863b286a8fa7954e6051042d49408) (PR #123). Remaining P1: [#125](https://github.com/m0llusca/Stemma/issues/125) `aria-expanded` sync — **not** a merge blocker
-- [#119](https://github.com/m0llusca/Stemma/issues/119) charts (Exec SVG bars, Lead sparkline, `/reports`)
-- [#117](https://github.com/m0llusca/Stemma/issues/117) Morphicons — reopen of reject [#108](https://github.com/m0llusca/Stemma/issues/108)
+- [#118](https://github.com/m0llusca/Stemma/issues/118) dead clicks / expand-collapse / silent no-op — **visual** closed on master [`13eadb0`](https://github.com/m0llusca/Stemma/commit/13eadb008fc863b286a8fa7954e6051042d49408) (PR #123). [#125](https://github.com/m0llusca/Stemma/issues/125) `aria-expanded` sync is **implemented** (`review-disclosure.tsx` React SoT); remaining work is the live walk, not a merge blocker
+- [#119](https://github.com/m0llusca/Stemma/issues/119) charts (Exec SVG bars, Lead sparkline, `/reports`) — shipped
+- [#117](https://github.com/m0llusca/Stemma/issues/117) Morphicons — wired (`MorphIcon`, nav, CopyButton, accordion chevron, `prefers-reduced-motion`); remaining work is the live walk
 
-### #118 status
+### #118 / #117 / #125 status
 
-Visual open/close+hold on score modules (click + Enter) shipped in #123 / master `13eadb0` (accepted tip **`b6d4a6c`**). LIVE SoT = **controlled `<details>` / `<summary>`**. `#118` cells stay `—` until Джамал marks the walk; note «visual fixed `13eadb0`; walk remaining surfaces». `aria-expanded` lag ≠ visual FAIL → [#125](https://github.com/m0llusca/Stemma/issues/125).
+Visual open/close+hold on score modules (click + Enter) shipped in #123 / master `13eadb0` (accepted tip **`b6d4a6c`**). LIVE SoT = **controlled `<details>` / `<summary>`** with React `open` + `aria-expanded` (`review-disclosure.tsx`). Morphicons shipped on nav/copy/chevron. Matrix cells stay `—` until Джамал marks the walk; code for #117/#125 is on master.
 
 LIVE: https://offering-vendor-late-homes.trycloudflare.com (ephemeral; tip `master`).
 

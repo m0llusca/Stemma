@@ -1,11 +1,7 @@
 "use client";
 
-import {
-  MorphIcon as MorphiconsIcon,
-  type MorphIconProps
-} from "morphicons/react";
+import { MorphIcon as MorphiconsIcon, type MorphIconProps } from "morphicons/react";
 import { kineticsMorphSpring } from "@stemma/kinetics";
-import { useMemo } from "react";
 
 import { asMorphIcon, type MorphableIcon } from "@/lib/ui/lucide-morph";
 import { cn } from "@/lib/utils";
@@ -17,13 +13,8 @@ export type AppMorphIconProps = Omit<MorphIconProps, "icon" | "from" | "to"> & {
 };
 
 /**
- * Product MorphIcon. Pass lucide-react icons; `asMorphIcon` unwraps them.
- * Honors `prefers-reduced-motion` (instant swap). Spring comes from
- * `@stemma/kinetics` (`kineticsMorphSpring` ≈ morph slot / 350ms).
- *
- * IconNodes are memoized by the lucide component identity so Morphicons'
- * reference equality (`icon !== prev`) still sees a real prop change when
- * the call site swaps Menu↔X / Search↔X / idle↔active.
+ * Product MorphIcon. lucide-react components are mapped to lucide data so
+ * Morphicons sees a real `icon` identity change (Menu→X, Copy→Check).
  */
 export function MorphIcon({
   icon,
@@ -35,24 +26,15 @@ export function MorphIcon({
   spring = kineticsMorphSpring,
   ...props
 }: AppMorphIconProps) {
-  const resolvedIcon = useMemo(
-    () => (icon === undefined ? undefined : asMorphIcon(icon)),
-    [icon]
-  );
-  const resolvedFrom = useMemo(
-    () => (from === undefined ? undefined : asMorphIcon(from)),
-    [from]
-  );
-  const resolvedTo = useMemo(
-    () => (to === undefined ? undefined : asMorphIcon(to)),
-    [to]
-  );
+  const resolvedIcon = icon === undefined ? undefined : asMorphIcon(icon);
+  const resolvedFrom = from === undefined ? undefined : asMorphIcon(from);
+  const resolvedTo = to === undefined ? undefined : asMorphIcon(to);
 
   return (
     <MorphiconsIcon
       icon={resolvedIcon}
-      from={resolvedFrom}
-      to={resolvedTo}
+      {...(resolvedFrom === undefined ? {} : { from: resolvedFrom })}
+      {...(resolvedTo === undefined ? {} : { to: resolvedTo })}
       size={size}
       reducedMotion={reducedMotion}
       spring={spring}

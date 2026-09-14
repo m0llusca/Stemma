@@ -7,7 +7,8 @@ import { WelcomeBackBanner } from "@/components/guidance/welcome-back-banner";
 import { PageSkeleton } from "@/components/loading-states";
 import { EvidenceDrawer } from "@/components/operations/evidence-drawer";
 import { OperationKpiCard, type OperationKpiDelta } from "@/components/operations/operation-kpi-card";
-import { SparklineChart, type SparklineDatum } from "@/components/reports/report-charts";
+import { QualityWeekChart } from "@/components/dashboard/quality-week-chart.client";
+import type { SparklineDatum } from "@/components/reports/report-charts";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
@@ -570,7 +571,7 @@ async function DashboardPageContent() {
               />
             ) : (
               <div className="grid min-w-0 gap-3 content-start">
-                <SparklineChart points={trendPoints} target={90} />
+                <QualityWeekChart points={trendPoints} target={90} />
               </div>
             )}
           </CardContent>

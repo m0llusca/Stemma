@@ -9,6 +9,9 @@ const mocks = vi.hoisted(() => {
     review: {
       update: vi.fn()
     },
+    conversation: {
+      updateMany: vi.fn()
+    },
     reviewFeedbackEvent: {
       create: vi.fn()
     }
@@ -96,7 +99,7 @@ function reviewRecord(overrides: Record<string, unknown> = {}) {
     feedbackStatus: "new",
     appealStatus: "none",
     reanswerStatus: "not_needed",
-    conversation: { assigneeName: "Оператор", assigneeId: "agent-1", ...conversation },
+    conversation: { assigneeName: "Оператор", assigneeId: "agent-1", qaStatus: "FINALIZED", ...conversation },
     ...rest
   };
 }
@@ -117,6 +120,7 @@ describe("feedback action scope enforcement", () => {
     mocks.tx.trainingAssignment.create.mockResolvedValue({ id: "assignment-1" });
     mocks.tx.trainingAssignment.updateMany.mockResolvedValue({ count: 1 });
     mocks.tx.review.update.mockResolvedValue({ id: "review-1" });
+    mocks.tx.conversation.updateMany.mockResolvedValue({ count: 1 });
     mocks.tx.reviewFeedbackEvent.create.mockResolvedValue({ id: "event-1" });
     mocks.auditLog.mockResolvedValue({});
     mocks.recordReviewEvent.mockResolvedValue({});
@@ -287,12 +291,31 @@ describe("feedback action scope enforcement", () => {
 
     await updateReviewFeedback(formData);
 
+    expect(mocks.tx.conversation.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "conversation-1",
+        workspaceId: "workspace-1",
+        qaStatus: "FINALIZED"
+      },
+      data: { qaStatus: "REOPENED" }
+    });
     expect(mocks.recordReviewEvent).toHaveBeenCalledWith(
       mocks.tx,
       expect.objectContaining({
         action: CALIBRATION_APPEAL_SIGNAL_ACTION,
         metadata: expect.objectContaining({
           appealOutcome: "corrected",
+          sourceAction: "appeal_corrected"
+        })
+      })
+    );
+    expect(mocks.recordReviewEvent).toHaveBeenCalledWith(
+      mocks.tx,
+      expect.objectContaining({
+        action: "qa.reopened",
+        fromStatus: "FINALIZED",
+        toStatus: "REOPENED",
+        metadata: expect.objectContaining({
           sourceAction: "appeal_corrected"
         })
       })

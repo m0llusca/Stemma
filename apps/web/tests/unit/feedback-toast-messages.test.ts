@@ -12,7 +12,9 @@ describe("feedbackToastMessage", () => {
       "Апелляция подана. Руководитель рассмотрит её в течение 2 дней. Статус сотрудника не меняется."
     );
     expect(feedbackToastMessage("appeal_confirmed")).toBe("Оценка подтверждена.");
-    expect(feedbackToastMessage("appeal_corrected")).toBe("Оценка скорректирована.");
+    expect(feedbackToastMessage("appeal_corrected")).toBe(
+      "Оценка скорректирована. Проверка открыта для нового цикла."
+    );
     expect(feedbackToastMessage("reanswer_requested")).toBe("Запрошен переответ клиенту.");
     expect(feedbackToastMessage("reanswer_completed")).toBe("Переответ отмечен выполненным.");
   });

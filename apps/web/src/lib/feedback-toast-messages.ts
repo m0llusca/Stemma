@@ -10,7 +10,7 @@ const FEEDBACK_TOAST_MESSAGES: Record<string, string> = {
   appeal_opened:
     "Апелляция подана. Руководитель рассмотрит её в течение 2 дней. Статус сотрудника не меняется.",
   appeal_confirmed: "Оценка подтверждена.",
-  appeal_corrected: "Оценка скорректирована.",
+  appeal_corrected: "Оценка скорректирована. Проверка открыта для нового цикла.",
   reanswer_requested: "Запрошен переответ клиенту.",
   reanswer_completed: "Переответ отмечен выполненным."
 };

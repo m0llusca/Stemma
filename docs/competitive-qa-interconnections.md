@@ -103,7 +103,7 @@ Cross-check: code grep + [business-logic-adversarial-audit.md](business-logic-ad
 
 | # | Interconnection | Status | Evidence (quick) |
 | --- | --- | --- | --- |
-| 1 | Sampling → queue `OUT_OF_SAMPLE` exclusion | **Wired** | `sampling-engine.ts` (`outOfSampleSamplingType`); `nextReviewWhere` / `buildReviewQueueWhere`; audit **S2** fixed. Note: queue **summary** counts may still include OOS (remaining risk). |
+| 1 | Sampling → queue `OUT_OF_SAMPLE` exclusion | **Wired** | `sampling-engine.ts` (`outOfSampleSamplingType`); `nextReviewWhere` / `buildReviewQueueWhere` / `getReviewQueueSummary`; audit **S2** fixed. |
 | 2 | Finalize → feedback + ack | **Wired** | `review-actions` finalize; `feedback-actions` acknowledge; self-review UI; messaging on training/feedback. |
 | 3 | Scored / pinned → coaching (same IDs) | **Wired** | Finalize offers coaching CTA; `/coaching` prefills + persists `reviewId`/`conversationId` on `CoachingPlan` (FKs `onDelete: SetNull`, migration `20260906123433_coaching_plan_origin_fks`); review detail lists `originLinkedPlans`; timeline pins; self-review pins + closable `CoachingAction`; `TrainingAssignment.reviewId` exists. |
 | 4 | Report / KPI → conversation + review | **Wired** | Dashboard KPI/focus → `/reviews?…`; reports use `reportReviewHref` + `resolveReportEvidence` → `/reviews/{conversationId}`. `REPORT_EXPORT` job now ships filtered rows + summary metrics (`finalizedCount` / `averageScore` / critical / high-risk). |

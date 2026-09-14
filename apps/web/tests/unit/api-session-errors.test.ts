@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { permissionDeniedMessage } from "@/lib/api/user-facing-errors";
+import { PermissionDeniedError } from "@/lib/auth/permissions";
 
-const permissionDeniedMessage = "Недостаточно прав для выполнения операции.";
 const authRequiredMessage = "Нет активной сессии. Войдите снова, чтобы продолжить.";
 
 const mocks = vi.hoisted(() => ({
@@ -174,7 +175,7 @@ describe("v1 session-authenticated GET routes", () => {
     });
 
     it("returns a structured 403 envelope when the permission is denied", async () => {
-      mocks.requireCurrentUserPermission.mockRejectedValue(new Error(permissionDeniedMessage));
+      mocks.requireCurrentUserPermission.mockRejectedValue(new PermissionDeniedError());
 
       const GET = await route.load();
       const response = await GET(getRequest(route.url));

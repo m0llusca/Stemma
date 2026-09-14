@@ -21,7 +21,7 @@ const chartConfig = {
   }
 } satisfies ChartConfig;
 
-/** Lead SLA bars share the static SVG painter — not the Exec client island. */
+/** Lead SLA bars share the Recharts plot — not the Exec table chrome. */
 export function LeadSlaChart({ bars }: { bars: readonly ExecRiskChartBar[] }) {
   const summary = bars.map((bar) => `${bar.label}: ${bar.value}`).join(". ");
 

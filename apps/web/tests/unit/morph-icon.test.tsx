@@ -5,16 +5,23 @@ import { Check, Copy } from "lucide-react";
 import { MorphIcon } from "@/components/ui/morph-icon";
 
 describe("MorphIcon", () => {
-  it("renders an svg and honors the reduced-motion user policy", () => {
-    const { container, rerender } = render(<MorphIcon icon={Copy} data-icon="inline-start" />);
+  it("swaps the path when the lucide-react icon changes", () => {
+    const { container, rerender } = render(
+      <MorphIcon icon={Copy} data-icon="inline-start" reducedMotion="always" />
+    );
     const svg = container.querySelector('[data-slot="morph-icon"]');
     expect(svg).not.toBeNull();
     expect(svg?.tagName.toLowerCase()).toBe("svg");
     expect(svg).toHaveAttribute("data-icon", "inline-start");
     expect(svg).toHaveAttribute("aria-hidden", "true");
+    const firstD = svg?.querySelector("path")?.getAttribute("d");
 
-    rerender(<MorphIcon icon={Check} data-icon="inline-start" />);
-    expect(container.querySelector('[data-slot="morph-icon"]')).not.toBeNull();
+    rerender(<MorphIcon icon={Check} data-icon="inline-start" reducedMotion="always" />);
+    const after = container.querySelector('[data-slot="morph-icon"]');
+    const nextD = after?.querySelector("path")?.getAttribute("d");
+    expect(firstD).toBeTruthy();
+    expect(nextD).toBeTruthy();
+    expect(nextD).not.toBe(firstD);
   });
 
   it("instant-swaps when the OS asks for reduced motion", () => {

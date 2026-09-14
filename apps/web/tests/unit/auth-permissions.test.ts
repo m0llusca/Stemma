@@ -1,6 +1,13 @@
 import type { RoleName } from "@prisma/client";
 import { describe, expect, it } from "vitest";
-import { canViewPeerQuality, getPermissions, hasPermission, PermissionDeniedError, requirePermission } from "@/lib/auth/permissions";
+import {
+  canViewPeerQuality,
+  getPermissions,
+  hasPermission,
+  isPermissionDeniedError,
+  PermissionDeniedError,
+  requirePermission
+} from "@/lib/auth/permissions";
 
 describe("auth permissions", () => {
   it("allows admins to manage backend jobs and auth providers", () => {
@@ -94,5 +101,12 @@ describe("auth permissions", () => {
         "scorecards:manage"
       )
     ).toThrow("Недостаточно прав для выполнения операции.");
+  });
+
+  it("identifies permission denials by error class, not Russian copy", () => {
+    expect(isPermissionDeniedError(new PermissionDeniedError())).toBe(true);
+    expect(
+      isPermissionDeniedError(new Error("Недостаточно прав для выполнения операции."))
+    ).toBe(false);
   });
 });

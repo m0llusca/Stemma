@@ -35,11 +35,8 @@ Supporting tests: `cross-link-wiring`, `coaching-action-actions`, `coaching-foll
 
 | Item | Why still open |
 | --- | --- |
-| Queue summary OOS | `getReviewQueueSummary` still uses `scopedConversationWhere` (may include `OUT_OF_SAMPLE` in totals); listing/take-next already exclude |
 | Appeal → auto scorecard edit | Signals only; no automatic criterion rewrite |
 | Blind GraderQA / external LMS | Intentionally out of scope (lite / no LMS) |
-| `appeal_corrected` scoring reopen | Status-only product semantics (deferred by design) |
-| Session API 403 exact Russian string | Polish; no cross-tenant leak observed |
 
 P0–P2 competitive loops from [competitive §4](competitive-qa-interconnections.md) are **wired** (lite where noted). No active finish-everything backlog beyond the rows above.
 

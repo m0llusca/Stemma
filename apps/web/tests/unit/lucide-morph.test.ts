@@ -25,7 +25,12 @@ describe("asMorphIcon", () => {
     }
   });
 
+  it("caches a distinct IconNode per lucide-react component", () => {
+    expect(asMorphIcon(Menu)).toBe(asMorphIcon(Menu));
+    expect(asMorphIcon(Menu)).not.toBe(asMorphIcon(X));
+  });
+
   it("rejects objects that are not lucide-react icons", () => {
-    expect(() => asMorphIcon({ displayName: "Menu" })).toThrow(/Lucide IconNode/);
+    expect(() => asMorphIcon({ displayName: "NotAnIcon" })).toThrow(/Lucide IconNode/);
   });
 });

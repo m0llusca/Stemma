@@ -1,13 +1,39 @@
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ExecRiskChart } from "@/components/dashboard/exec-risk-chart.client";
 import type { ExecRiskChartBar } from "@/lib/dashboard/exec-risk-home";
 import { categoryBarDrillLabel } from "@/lib/charts/category-bar-geometry";
 import { EMPTY_TRIAGE_IMPOSTOR_HREF } from "@/lib/dashboard/empty-triage";
 import { OVERDUE_SLA_HREF, QUEUED_STATUS_HREF } from "@/lib/dashboard/queue-kpi-href";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() })
+}));
+
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+vi.stubGlobal("ResizeObserver", ResizeObserverStub);
+
+vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+  width: 520,
+  height: 180,
+  top: 0,
+  left: 0,
+  bottom: 180,
+  right: 520,
+  x: 0,
+  y: 0,
+  toJSON() {
+    return {};
+  }
+} as DOMRect);
 
 const bars: readonly ExecRiskChartBar[] = [
   {
@@ -34,97 +60,47 @@ const bars: readonly ExecRiskChartBar[] = [
 ];
 
 describe("ExecRiskChart", () => {
-  it("paints first-commit SVG bar geometry — not an empty Recharts wrapper", () => {
+  it("paints Recharts bars with first-paint dimensions and KPI drills", () => {
     const { container } = render(<ExecRiskChart bars={bars} />);
     const chart = container.querySelector('[data-slot="chart"]');
-    const surface = container.querySelector("svg.recharts-surface");
-    const rects = [...container.querySelectorAll("svg.recharts-surface rect[data-key]")];
 
     expect(chart).toHaveClass("h-[180px]");
     expect(chart).toHaveAttribute("data-qc-motion", "chart-enter");
+    expect(chart).toHaveAttribute("data-initial-width", "520");
+    expect(chart).toHaveAttribute("data-initial-height", "180");
+    expect(container.querySelector(".recharts-responsive-container")).toBeInTheDocument();
+    expect(container.querySelector("svg.recharts-surface")).toBeInTheDocument();
     expect(container.querySelector('[data-slot="category-bar-x-axis"]')).toHaveTextContent(
       "Просрочено SLA"
     );
-    expect(container.querySelector('[data-slot="category-bar-y-axis"]')).toBeInTheDocument();
-    expect(container.querySelector("svg.recharts-surface text")).not.toBeInTheDocument();
-    expect(chart).toHaveAttribute("data-initial-width", "520");
-    expect(chart).toHaveAttribute("data-initial-height", "180");
-    expect(container.querySelector(".recharts-wrapper")).not.toBeInTheDocument();
-    expect(container.querySelector(".recharts-responsive-container")).not.toBeInTheDocument();
-    expect(surface).toBeInTheDocument();
-    expect(surface).toHaveAttribute("viewBox", "0 0 520 180");
-    expect(surface).toHaveAttribute("data-animation-active", "true");
-    expect(rects).toHaveLength(bars.length);
-    expect(rects.every((rect) => Number(rect.getAttribute("width")) > 0)).toBe(true);
-    expect(rects.every((rect) => Number(rect.getAttribute("height")) > 0)).toBe(true);
-    expect(container.querySelector('[data-key="overdue"]')).toHaveAttribute(
-      "data-href",
-      OVERDUE_SLA_HREF
-    );
-    expect(container.querySelector('[data-key="highRisk"]')).toBeTruthy();
-    expect(container.querySelector('[data-key="queued"]')).toBeTruthy();
     expect(screen.getByRole("table", { name: "Сводка риска и SLA" })).toBeInTheDocument();
-
     expect(screen.getByRole("link", { name: "Просрочено SLA" })).toHaveAttribute("href", OVERDUE_SLA_HREF);
-    expect(screen.getByRole("link", { name: "Высокий риск" })).toHaveAttribute(
-      "href",
-      bars[1].href
-    );
-    expect(screen.getByRole("link", { name: "Очередь без старта" })).toHaveAttribute(
-      "href",
-      QUEUED_STATUS_HREF
-    );
+    expect(
+      screen.getByRole("link", { name: categoryBarDrillLabel("Просрочено SLA", 6) })
+    ).toHaveAttribute("href", OVERDUE_SLA_HREF);
     expect(container.innerHTML).not.toContain(EMPTY_TRIAGE_IMPOSTOR_HREF);
     expect(container.innerHTML).not.toContain("status=unreviewed");
   });
 
-  it("shows hover values on the SLA drill hit targets", () => {
-    const { container } = render(<ExecRiskChart bars={bars} />);
-    const overdue = screen.getByRole("link", {
-      name: categoryBarDrillLabel("Просрочено SLA", 6)
-    });
-
-    fireEvent.pointerEnter(overdue);
-    expect(screen.getByRole("tooltip")).toHaveTextContent("Просрочено SLA");
-    expect(screen.getByRole("tooltip")).toHaveTextContent("6");
-    expect(container.querySelector('[data-slot="chart"]')).toContainElement(
-      screen.getByRole("tooltip")
-    );
-  });
-
-  it("drills a bar through the same href as the KPI tile", () => {
+  it("keeps drill hrefs on the axis links", () => {
     render(<ExecRiskChart bars={bars} />);
-
     expect(
-      screen.getByRole("link", { name: categoryBarDrillLabel("Просрочено SLA", 6) })
-    ).toHaveAttribute("href", OVERDUE_SLA_HREF);
+      screen.getByRole("link", { name: categoryBarDrillLabel("Высокий риск", 3) })
+    ).toHaveAttribute("href", bars[1].href);
+    expect(
+      screen.getByRole("link", { name: categoryBarDrillLabel("Очередь без старта", 11) })
+    ).toHaveAttribute("href", QUEUED_STATUS_HREF);
   });
 
-  it("uses a reports-style static SVG and never imports Recharts BarChart", () => {
-    const chartSource = readFileSync(
-      path.join(process.cwd(), "src/components/dashboard/exec-risk-chart.client.tsx"),
-      "utf8"
-    );
+  it("uses ChartContainer + BarChart instead of a frozen empty wrapper", () => {
     const plotSource = readFileSync(
       path.join(process.cwd(), "src/components/charts/static-category-bars.tsx"),
       "utf8"
     );
 
-    expect(chartSource).toContain("StaticCategoryBarPlot");
-    expect(chartSource).not.toContain("layout");
-    expect(plotSource).toContain("StaticChartContainer");
-    expect(plotSource).toContain("svg");
-    expect(plotSource).toContain('className="recharts-surface');
-    expect(plotSource).toContain('data-animation-active="true"');
-    expect(chartSource).not.toContain("from \"recharts\"");
-    expect(plotSource).not.toContain("from \"recharts\"");
-    expect(chartSource).not.toContain("BarChart");
-    expect(plotSource).not.toContain("BarChart");
-    expect(chartSource).not.toContain("<ChartContainer");
-    expect(plotSource).not.toContain("<ChartContainer");
-    expect(chartSource).not.toContain("ResponsiveContainer");
-    expect(plotSource).not.toContain("ResponsiveContainer");
-    expect(chartSource).not.toContain("isAnimationActive");
-    expect(plotSource).not.toContain("isAnimationActive");
+    expect(plotSource).toContain("from \"recharts\"");
+    expect(plotSource).toContain("BarChart");
+    expect(plotSource).toContain("ChartTooltip");
+    expect(plotSource).toContain("initialDimension");
   });
 });

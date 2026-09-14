@@ -137,9 +137,8 @@ No commit made (parent owns commit).
 
 **Still deferred (non-blocking):**
 
-- `appeal_corrected` remains status-only (does not reopen scoring) — product semantics.
-- Session API 403 mapping depends on exact Russian permission string — polish only.
-- Queue summary counts may still include `OUT_OF_SAMPLE` (listing/take-next already exclude).
+- Appeal outcomes still do **not** auto-edit scorecards (calibration signals only).
+- Blind GraderQA and external LMS remain out of product scope.
 
 **Practical bar:** ship to production for workspaces with reviewed Connect/import ops and protected live certification. Uncertified Phase B / OTRS stay dry-run / `ready` until evidence lands.
 
@@ -147,9 +146,9 @@ No commit made (parent owns commit).
 
 ## 5. Remaining risks (priority order)
 
-1. **Queue summary counts** — `getReviewQueueSummary` still uses `scopedConversationWhere` (may include `OUT_OF_SAMPLE` in totals); listing/take-next already exclude them.
-2. **`appeal_corrected` scoring reopen** — status-only by design; managers must manually reopen if score change is needed.
-3. **Session API 403 string coupling** — exact Russian permission text; no cross-tenant leak observed.
+1. **Queue summary counts** — **Fixed.** `getReviewQueueSummary` uses `buildReviewQueueWhere(..., parseReviewQueueFilters({}))`, same `OUT_OF_SAMPLE` exclusion as the list/take-next.
+2. **`appeal_corrected` scoring reopen** — **Fixed.** Manager «Нужна корректировка» sets appeal `corrected` and, if the conversation is still `FINALIZED`, moves it to `REOPENED` (`qa.reopened`) so a new HUMAN draft cycle can start. Prior finalized review stays history.
+3. **Session API 403 string coupling** — **Fixed.** `isPermissionDeniedError` matches `PermissionDeniedError` (instance or `name`), not Russian copy.
 
 ---
 
@@ -167,9 +166,8 @@ No commit made (parent owns commit).
 
 ## 7. Suggested next hardening (not done here)
 
-1. Exclude `OUT_OF_SAMPLE` from `getReviewQueueSummary` counts for consistency with the list.
-2. Decide product semantics for `appeal_corrected` → reopen scoring (or document status-only forever).
-3. Decouple Session API 403 from exact Russian permission string if clients depend on it.
+1. Live walk of [hardening-screen-matrix.md](hardening-screen-matrix.md) (#116) remains a process gate, not a code gap.
+2. Appeal → auto scorecard rewrite stays out of scope (calibration signals only).
 
 ---
 

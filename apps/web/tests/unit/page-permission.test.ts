@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { permissionDeniedMessage } from "@/lib/api/user-facing-errors";
 import { PermissionDeniedError } from "@/lib/auth/permissions";
 
 const mocks = vi.hoisted(() => ({
@@ -68,12 +67,16 @@ describe("requirePagePermission", () => {
     expect(mocks.forbidden).toHaveBeenCalledOnce();
   });
 
-  it("maps the Russian permission-denied message to forbidden", async () => {
-    mocks.requireCurrentUserPermission.mockRejectedValue(new Error(permissionDeniedMessage));
+  it("does not map a generic error with permission copy to forbidden", async () => {
+    mocks.requireCurrentUserPermission.mockRejectedValue(
+      new Error("Недостаточно прав для выполнения операции.")
+    );
     const { requirePagePermission } = await import("@/lib/page-permission");
 
-    await expect(requirePagePermission("scorecards:manage")).rejects.toThrow("NEXT_HTTP_ERROR_FALLBACK;403");
-    expect(mocks.forbidden).toHaveBeenCalledOnce();
+    await expect(requirePagePermission("scorecards:manage")).rejects.toThrow(
+      "Недостаточно прав для выполнения операции."
+    );
+    expect(mocks.forbidden).not.toHaveBeenCalled();
   });
 
   it("does not treat unrelated failures as forbidden", async () => {
