@@ -6,7 +6,6 @@ import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from "recharts";
 import {
   EXEC_RISK_CHART_MIN_HEIGHT_CLASS
 } from "@/components/charts/chart-visual-preset";
-import { useChartSeriesAnimationEnabled } from "@/lib/charts/series-animation";
 import {
   CATEGORY_BAR_VIEWBOX,
   categoryBarDrillLabel,
@@ -44,7 +43,6 @@ export function StaticCategoryBarPlot({
   config?: ChartConfig;
 }) {
   const router = useRouter();
-  const animationActive = useChartSeriesAnimationEnabled();
   const data = bars.map((bar) => ({
     ...bar,
     fill: barFill[bar.tone]
@@ -55,7 +53,6 @@ export function StaticCategoryBarPlot({
       <ChartContainer
         id={id}
         config={config}
-        data-animation-active={animationActive ? "true" : "false"}
         className={cn(EXEC_RISK_CHART_MIN_HEIGHT_CLASS, "w-full")}
         initialDimension={{
           width: CATEGORY_BAR_VIEWBOX.width,
@@ -68,13 +65,7 @@ export function StaticCategoryBarPlot({
           accessibilityLayer={false}
         >
           <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.55} />
-          <XAxis
-            dataKey="label"
-            tickLine={false}
-            axisLine={false}
-            tickMargin={8}
-            tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
-          />
+          <XAxis dataKey="label" tick={false} tickLine={false} axisLine={false} height={8} />
           <YAxis
             width={28}
             tickLine={false}
@@ -86,12 +77,17 @@ export function StaticCategoryBarPlot({
             cursor={{ fill: "color-mix(in srgb, var(--muted) 55%, transparent)" }}
             content={<ChartTooltipContent />}
           />
+          {/*
+            Recharts 3 Bar entrance animation starts at height 0; Rectangle returns
+            null for height===0, so the plot stays empty until the first non-zero
+            frame. Prefer instant paint + chart-enter motion on the container.
+          */}
           <Bar
             dataKey="value"
             name="Проверки"
             radius={[6, 6, 0, 0]}
             maxBarSize={72}
-            isAnimationActive={animationActive}
+            isAnimationActive={false}
             onClick={(item) => {
               const href = (item as { href?: string; payload?: { href?: string } }).href
                 ?? (item as { payload?: { href?: string } }).payload?.href;

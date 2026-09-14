@@ -14,7 +14,6 @@ import {
   SCORE_OVER_TIME_MIN_HEIGHT_CLASS,
   SCORE_OVER_TIME_PLOT_HEIGHT
 } from "@/components/charts/chart-visual-preset";
-import { useChartSeriesAnimationEnabled } from "@/lib/charts/series-animation";
 import type { SparklineDatum } from "@/components/reports/report-charts";
 import {
   ChartContainer,
@@ -40,7 +39,6 @@ export function QualityWeekChart({
   target?: number;
 }) {
   const router = useRouter();
-  const animationActive = useChartSeriesAnimationEnabled();
   const data = points.map((point) => ({
     ...point,
     value: point.value
@@ -50,7 +48,6 @@ export function QualityWeekChart({
     <ChartContainer
       id="dashboard-quality-week"
       config={chartConfig}
-      data-animation-active={animationActive ? "true" : "false"}
       className={cn(SCORE_OVER_TIME_MIN_HEIGHT_CLASS, "aspect-auto w-full")}
       style={{ minHeight: SCORE_OVER_TIME_PLOT_HEIGHT }}
       initialDimension={{ width: 560, height: SCORE_OVER_TIME_PLOT_HEIGHT }}
@@ -66,6 +63,7 @@ export function QualityWeekChart({
           tickLine={false}
           axisLine={false}
           tickMargin={8}
+          interval={0}
           tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
         />
         <YAxis
@@ -88,6 +86,7 @@ export function QualityWeekChart({
           }}
         />
         <ChartTooltip
+          cursor={{ stroke: "var(--border)", strokeDasharray: "4 4" }}
           content={
             <ChartTooltipContent
               formatter={(value) =>
@@ -103,6 +102,7 @@ export function QualityWeekChart({
           stroke="var(--color-value)"
           strokeWidth={2}
           connectNulls={false}
+          isAnimationActive={false}
           dot={{ r: 4, strokeWidth: 2, cursor: "pointer" }}
           activeDot={{
             r: 5,
@@ -114,7 +114,6 @@ export function QualityWeekChart({
               }
             }
           }}
-          isAnimationActive={animationActive}
         />
       </LineChart>
     </ChartContainer>

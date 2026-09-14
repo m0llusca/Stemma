@@ -175,16 +175,22 @@ export function HorizontalBarChart({
     <div className="grid gap-3.5">
       {rows.map((row) => {
         const percent = clampPercent((row.value / computedMax) * 100);
+        const formatted = valueFormatter
+          ? valueFormatter(row.value)
+          : `${Math.round(row.value)}${valueSuffix}`;
 
         return (
           <div key={row.label} className="grid gap-1.5">
             <div className="flex min-w-0 items-baseline justify-between gap-3">
               <p className="min-w-0 truncate text-sm font-medium text-foreground">{row.label}</p>
               <p className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
-                {valueFormatter ? valueFormatter(row.value) : `${Math.round(row.value)}${valueSuffix}`}
+                {formatted}
               </p>
             </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-1.5 overflow-hidden rounded-full bg-muted"
+              title={row.detail ? `${row.label}: ${formatted} · ${row.detail}` : `${row.label}: ${formatted}`}
+            >
               <div className="h-full rounded-full bg-primary" style={{ width: `${percent}%`, ...kineticsStyle("width", "overshoot") }} />
             </div>
             {row.detail ? <p className="text-xs text-muted-foreground">{row.detail}</p> : null}

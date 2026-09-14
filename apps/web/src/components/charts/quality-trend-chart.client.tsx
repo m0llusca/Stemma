@@ -158,7 +158,7 @@ export function QualityTrendChart({
         data-accessibility-layer="app-owned"
         data-active-point-id={activePoint?.id}
         data-slot="quality-trend-plot"
-        className="relative rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="relative overflow-visible rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         onFocus={handleFocus}
         onKeyDown={handleKeyDown}
         onPointerMove={handlePointer}
@@ -266,7 +266,12 @@ export function QualityTrendChart({
                 value: reviewCountLabel(activePoint.sampleSize)
               }
             ]}
-            className="absolute left-3 top-3 max-w-64"
+            className="max-w-64"
+            anchor={
+              activePosition
+                ? { left: activePosition.left, top: activePosition.top }
+                : undefined
+            }
           />
         ) : null}
       </div>

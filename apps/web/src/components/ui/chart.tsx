@@ -43,7 +43,20 @@ function ChartContainer({
   )
 }
 
-const ChartTooltip = RechartsTooltip
+function ChartTooltip({
+  allowEscapeViewBox = { x: true, y: true },
+  animationDuration = 0,
+  ...props
+}: React.ComponentProps<typeof RechartsTooltip>) {
+  return (
+    <RechartsTooltip
+      allowEscapeViewBox={allowEscapeViewBox}
+      animationDuration={animationDuration}
+      {...props}
+    />
+  )
+}
+ChartTooltip.displayName = "ChartTooltip"
 
 function ChartTooltipContent({
   active,

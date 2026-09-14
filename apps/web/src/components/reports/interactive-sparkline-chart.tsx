@@ -286,7 +286,7 @@ export function InteractiveSparklineChart({
           />
         ) : null}
         <div
-          className="pointer-events-none absolute inset-x-2.5 bottom-2"
+          className="pointer-events-none absolute inset-x-2.5 bottom-2 z-20"
           style={{ height: chart.height }}
         >
           {chart.points.map((point, index) => {

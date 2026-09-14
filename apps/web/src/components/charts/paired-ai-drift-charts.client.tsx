@@ -124,7 +124,7 @@ export function PairedAiDriftCharts({
         data-accessibility-layer="app-owned"
         data-active-point-id={activePoint?.id}
         data-slot="paired-ai-drift-charts"
-        className="relative rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="relative overflow-visible rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         onFocus={() => {
           if (activeIndex == null && model.points.length > 0) {
             setActiveIndex(0);
@@ -200,7 +200,12 @@ export function PairedAiDriftCharts({
                 value: String(activePoint.sampleSize ?? 0)
               }
             ]}
-            className="absolute right-3 top-3 max-w-72"
+            className="max-w-72"
+            anchor={
+              confidencePosition
+                ? { left: confidencePosition.left, top: confidencePosition.top }
+                : undefined
+            }
           />
         ) : null}
       </div>
