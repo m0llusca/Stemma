@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { requireSessionApi, verifySameOrigin } from "@/lib/api/session";
+import { PermissionDeniedError } from "@/lib/auth/permissions";
 
 const mocks = vi.hoisted(() => ({
   AuthRequiredError: class AuthRequiredError extends Error {
@@ -118,7 +119,7 @@ describe("session api guard", () => {
   });
 
   it("maps permission denial errors to structured forbidden responses", async () => {
-    mocks.requireCurrentUserPermission.mockRejectedValue(new Error("Недостаточно прав для выполнения операции."));
+    mocks.requireCurrentUserPermission.mockRejectedValue(new PermissionDeniedError());
 
     const result = await requireSessionApi(request("POST", { origin: "https://qc.example.com" }), "api_tokens:manage", {
       requestId: "req-permission-denied"
