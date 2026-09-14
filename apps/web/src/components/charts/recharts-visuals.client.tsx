@@ -175,7 +175,7 @@ export function QualityTrendVisual({
         className="recharts-surface pointer-events-none block h-full w-full"
         tabIndex={-1}
         viewBox={`0 0 ${width} ${height}`}
-        preserveAspectRatio="none"
+        preserveAspectRatio="xMidYMid meet"
       >
         {[0, 25, 50, 75, 100].map((tick) => {
           const y = yForScore(tick);
@@ -380,7 +380,7 @@ export function RankedDriverVisual({
         className="recharts-surface pointer-events-none block h-full w-full"
         tabIndex={-1}
         viewBox={`0 0 ${width} ${height}`}
-        preserveAspectRatio="none"
+        preserveAspectRatio="xMidYMid meet"
       >
         <line
           data-slot="ranked-zero-line"
@@ -488,7 +488,7 @@ export function ScoreDistributionVisual({
         className="recharts-surface pointer-events-none block h-full w-full"
         tabIndex={-1}
         viewBox={`0 0 ${width} ${height}`}
-        preserveAspectRatio="none"
+        preserveAspectRatio="xMidYMid meet"
         data-animation-active="true"
       >
         {yTicks.map((tick) => {
@@ -561,10 +561,13 @@ export function PairedAiDriftVisual({
     panelHeight,
     confidenceTop,
     reserveTop,
+    domainIndexes,
     xFor
   } = geometry;
   const xTickIndexes = new Set(
-    planXAxisTickIndexes(model.points.length, plotWidth)
+    planXAxisTickIndexes(domainIndexes.length, plotWidth).map(
+      (domainLocal) => domainIndexes[domainLocal]!
+    )
   );
   const confidenceSegments = geometry.lineSegments("confidence");
   const reserveSegments = geometry.lineSegments("reserve");
@@ -581,22 +584,14 @@ export function PairedAiDriftVisual({
         className="recharts-surface pointer-events-none block h-full w-full"
         tabIndex={-1}
         viewBox={`0 0 ${width} ${height}`}
-        preserveAspectRatio="none"
+        preserveAspectRatio="xMidYMid meet"
         data-animation-active="true"
       >
         {[
-          ["Уверенность модели", confidenceTop],
-          ["Доля резервной оценки", reserveTop]
-        ].map(([label, top]) => (
-          <g key={String(label)}>
-            <text
-              x={margin.left}
-              y={Number(top) - 7}
-              fill="var(--muted-foreground)"
-              fontSize={11}
-            >
-              {label}
-            </text>
+          { top: confidenceTop, key: "confidence" as const },
+          { top: reserveTop, key: "reserve" as const }
+        ].map(({ top, key }) => (
+          <g key={key}>
             {[0, 50, 100].map((tick) => {
               const y = Number(top) + panelHeight * (1 - tick / 100);
               return (
@@ -635,6 +630,8 @@ export function PairedAiDriftVisual({
               fill="none"
               stroke="var(--color-confidence)"
               strokeWidth={2.5}
+              strokeLinejoin="round"
+              strokeLinecap="round"
               vectorEffect="non-scaling-stroke"
             />
           ))}
@@ -644,9 +641,9 @@ export function PairedAiDriftVisual({
               data-point-id={point.pointId}
               cx={point.x}
               cy={point.y}
-              r={3}
-              fill="var(--background)"
-              stroke="var(--color-confidence)"
+              r={3.5}
+              fill="var(--color-confidence)"
+              stroke="var(--background)"
               strokeWidth={2}
               vectorEffect="non-scaling-stroke"
             />
@@ -664,6 +661,8 @@ export function PairedAiDriftVisual({
               stroke="var(--color-reserve)"
               strokeWidth={2}
               strokeDasharray="6 4"
+              strokeLinejoin="round"
+              strokeLinecap="round"
               vectorEffect="non-scaling-stroke"
             />
           ))}
@@ -673,16 +672,20 @@ export function PairedAiDriftVisual({
               data-point-id={point.pointId}
               cx={point.x}
               cy={point.y}
-              r={3}
-              fill="var(--background)"
-              stroke="var(--color-reserve)"
+              r={3.5}
+              fill="var(--color-reserve)"
+              stroke="var(--background)"
               strokeWidth={2}
               vectorEffect="non-scaling-stroke"
             />
           ))}
         </g>
-        {model.points.map((point, index) =>
-          xTickIndexes.has(index) ? (
+        {domainIndexes.map((index) => {
+          const point = model.points[index];
+          if (!point || !xTickIndexes.has(index)) {
+            return null;
+          }
+          return (
             <text
               key={point.id}
               data-slot="x-axis-tick"
@@ -694,8 +697,8 @@ export function PairedAiDriftVisual({
             >
               {point.label}
             </text>
-          ) : null
-        )}
+          );
+        })}
       </svg>
     </StaticChartContainer>
   );
@@ -714,6 +717,18 @@ export function ReasonTrendVisual({
   );
   const currentSegments = geometry.lineSegments("current");
   const previousSegments = geometry.lineSegments("previous");
+  const currentMarks = currentSegments
+    .flat()
+    .filter((point) => {
+      const modelPoint = model.points.find((entry) => entry.id === point.pointId);
+      return (modelPoint?.values.current ?? 0) > 0;
+    });
+  const previousMarks = previousSegments
+    .flat()
+    .filter((point) => {
+      const modelPoint = model.points.find((entry) => entry.id === point.pointId);
+      return (modelPoint?.values.previous ?? 0) > 0;
+    });
 
   return (
     <StaticChartContainer
@@ -727,7 +742,7 @@ export function ReasonTrendVisual({
         className="recharts-surface pointer-events-none block h-full w-full"
         tabIndex={-1}
         viewBox={`0 0 ${width} ${height}`}
-        preserveAspectRatio="none"
+        preserveAspectRatio="xMidYMid meet"
         data-animation-active="true"
       >
         {[0, 0.5, 1].map((ratio) => {
@@ -768,6 +783,20 @@ export function ReasonTrendVisual({
               stroke="var(--color-previous)"
               strokeWidth={1.75}
               strokeDasharray="6 4"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
+          {previousMarks.map((point) => (
+            <circle
+              key={`previous-${point.pointId}`}
+              cx={point.x}
+              cy={point.y}
+              r={3}
+              fill="var(--color-previous)"
+              stroke="var(--background)"
+              strokeWidth={1.5}
               vectorEffect="non-scaling-stroke"
             />
           ))}
@@ -780,6 +809,21 @@ export function ReasonTrendVisual({
               fill="none"
               stroke="var(--color-current)"
               strokeWidth={2.5}
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
+          {currentMarks.map((point) => (
+            <circle
+              key={`current-${point.pointId}`}
+              data-point-id={point.pointId}
+              cx={point.x}
+              cy={point.y}
+              r={3.5}
+              fill="var(--color-current)"
+              stroke="var(--background)"
+              strokeWidth={2}
               vectorEffect="non-scaling-stroke"
             />
           ))}
@@ -819,8 +863,8 @@ export function RankedBreakdownVisual({
     <StaticChartContainer
       id={model.id}
       config={agreementConfig}
-      className="w-full"
-      style={{ height }}
+      className="w-full min-w-0"
+      style={{ aspectRatio: `${width} / ${height}` }}
       initialDimension={{ width, height }}
     >
       <svg
@@ -828,7 +872,7 @@ export function RankedBreakdownVisual({
         className="recharts-surface pointer-events-none block h-full w-full"
         tabIndex={-1}
         viewBox={`0 0 ${width} ${height}`}
-        preserveAspectRatio="none"
+        preserveAspectRatio="xMidYMid meet"
         data-animation-active="true"
       >
         <line
@@ -844,6 +888,10 @@ export function RankedBreakdownVisual({
         />
         <g data-series="agreement">
           {geometry.bars.map((bar, index) => {
+            const label = fitSvgLabel(
+              model.points[index]?.label ?? "",
+              geometry.labelMaxWidth
+            );
             // Labels that fit stay inside the bar in primary-foreground; the
             // fallback (null or narrow bar) would render white-on-card, so it
             // moves past the bar end in muted-foreground instead.
@@ -866,7 +914,8 @@ export function RankedBreakdownVisual({
                 fill="var(--muted-foreground)"
                 fontSize={11}
               >
-                {model.points[index].label}
+                {label.truncated ? <title>{model.points[index]?.label}</title> : null}
+                {label.text}
               </text>
               <text
                 x={

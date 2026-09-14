@@ -264,7 +264,7 @@ describe("lean Recharts visuals", () => {
     );
 
     expect(charts[0]).toHaveClass("aspect-[720/380]", "w-full");
-    expect(charts[1]).toHaveStyle({ height: "220px" });
+    expect(charts[1]).toHaveStyle({ aspectRatio: "560 / 220" });
   });
 
   it("renders every quality encoding with static public Recharts primitives", () => {

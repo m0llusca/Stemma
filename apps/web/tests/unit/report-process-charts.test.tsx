@@ -256,12 +256,12 @@ describe("report process chart contracts", () => {
     });
   });
 
-  it("buildReasonTimelineChart renders null gaps for days without finalized reviews", () => {
+  it("buildReasonTimelineChart renders zero for days without finalized reviews", () => {
     const bundle = buildReason();
 
     expect(bundle.model.points[2]).toMatchObject({
       sortKey: "2026-07-03",
-      values: { current: null, previous: null },
+      values: { current: 0, previous: 0 },
       sampleSize: 0
     });
   });
@@ -272,8 +272,8 @@ describe("report process chart contracts", () => {
     expect(bundle.model.points.map((point) => point.values.previous)).toEqual([
       1,
       0,
-      null,
-      null
+      0,
+      0
     ]);
   });
 

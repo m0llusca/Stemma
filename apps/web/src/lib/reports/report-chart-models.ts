@@ -615,21 +615,9 @@ export function buildAgreementBreakdownChart(
 export function buildReasonTimelineChart(
   input: ReasonTimelineChartInput
 ): ReportChartBundle<ReasonTimelineSeries> {
-  const currentSamples = new Map<string, number>();
-  const previousSamples = new Map<string, number>();
   const currentReasons = new Map<string, number>();
   const previousReasons = new Map<string, number>();
 
-  for (const review of input.currentReviews) {
-    if (review.finalizedAt) {
-      incrementCount(currentSamples, utcDateKey(review.finalizedAt));
-    }
-  }
-  for (const review of input.previousReviews) {
-    if (review.finalizedAt) {
-      incrementCount(previousSamples, utcDateKey(review.finalizedAt));
-    }
-  }
   for (const finding of input.currentFindings) {
     if (finding.category === input.category && finding.review.finalizedAt) {
       incrementCount(currentReasons, utcDateKey(finding.review.finalizedAt));
@@ -638,6 +626,13 @@ export function buildReasonTimelineChart(
   for (const finding of input.previousFindings) {
     if (finding.category === input.category && finding.review.finalizedAt) {
       incrementCount(previousReasons, utcDateKey(finding.review.finalizedAt));
+    }
+  }
+
+  const currentSamples = new Map<string, number>();
+  for (const review of input.currentReviews) {
+    if (review.finalizedAt) {
+      incrementCount(currentSamples, utcDateKey(review.finalizedAt));
     }
   }
 
@@ -658,17 +653,19 @@ export function buildReasonTimelineChart(
     const currentKey = utcDateKey(currentDay);
     const previousKey = utcDateKey(previousDay);
     const currentSample = currentSamples.get(currentKey) ?? 0;
-    const previousSample = previousSamples.get(previousKey) ?? 0;
+    const previousSeriesMissing = input.previousReviews.length === 0;
 
     points.push({
       id: `reason-${currentKey}`,
       label: compactDateLabel(currentDay),
       sortKey: currentKey,
       values: {
-        current:
-          currentSample > 0 ? currentReasons.get(currentKey) ?? 0 : null,
-        previous:
-          previousSample > 0 ? previousReasons.get(previousKey) ?? 0 : null
+        // Calendar continuity: zero remarks is a real daily value. Gaps only
+        // when the whole previous period has no finalized reviews.
+        current: currentReasons.get(currentKey) ?? 0,
+        previous: previousSeriesMissing
+          ? null
+          : previousReasons.get(previousKey) ?? 0
       },
       detail: `${input.category} · завершённых проверок: ${currentSample}`,
       sampleSize: currentSample,

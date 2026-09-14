@@ -109,8 +109,8 @@ export const SCORE_DISTRIBUTION_VIEWBOX = Object.freeze({
 export const PAIRED_AI_DRIFT_VIEWBOX = Object.freeze({
   width: 720,
   height: 380,
-  margin: Object.freeze({ top: 22, right: 18, bottom: 38, left: 42 }),
-  panelGap: 44
+  margin: Object.freeze({ top: 12, right: 18, bottom: 38, left: 42 }),
+  panelGap: 56
 });
 
 export const REASON_TREND_VIEWBOX = Object.freeze({
@@ -121,7 +121,7 @@ export const REASON_TREND_VIEWBOX = Object.freeze({
 
 export const RANKED_BREAKDOWN_VIEWBOX = Object.freeze({
   width: 560,
-  margin: Object.freeze({ top: 16, right: 20, bottom: 30, left: 168 })
+  margin: Object.freeze({ top: 16, right: 28, bottom: 16, left: 176 })
 });
 
 function nearestIndex(
@@ -596,6 +596,44 @@ export function buildScoreDistributionGeometry(
   };
 }
 
+function isEmptyAiDriftPoint(
+  point: ChartModel<AiDriftSeriesKey>["points"][number]
+) {
+  return point.values.confidence == null && point.values.reserve == null;
+}
+
+/**
+ * Drop leading/trailing empty weeks so sparse AI-drift series are not drawn
+ * as floating dots in the middle of a blank calendar strip.
+ */
+export function aiDriftDomainIndexes(
+  points: ChartModel<AiDriftSeriesKey>["points"]
+): number[] {
+  if (points.length === 0) {
+    return [];
+  }
+
+  let start = 0;
+  let end = points.length - 1;
+
+  while (start <= end && isEmptyAiDriftPoint(points[start]!)) {
+    start += 1;
+  }
+  while (end >= start && isEmptyAiDriftPoint(points[end]!)) {
+    end -= 1;
+  }
+
+  if (start > end) {
+    return points.map((_, index) => index);
+  }
+
+  const indexes: number[] = [];
+  for (let index = start; index <= end; index += 1) {
+    indexes.push(index);
+  }
+  return indexes;
+}
+
 export function buildPairedAiDriftGeometry(
   model: ChartModel<AiDriftSeriesKey>
 ) {
@@ -605,11 +643,29 @@ export function buildPairedAiDriftGeometry(
   const panelHeight = plotHeight / 2;
   const confidenceTop = margin.top;
   const reserveTop = margin.top + panelHeight + panelGap;
-  const xFor = (index: number) =>
+  const domainIndexes = aiDriftDomainIndexes(model.points);
+  const domainCount = domainIndexes.length;
+  const domainPosition = new Map(
+    domainIndexes.map((modelIndex, position) => [modelIndex, position])
+  );
+  const xForDomainPosition = (position: number) =>
     margin.left +
-    (model.points.length <= 1
+    (domainCount <= 1
       ? plotWidth / 2
-      : (index / (model.points.length - 1)) * plotWidth);
+      : (position / (domainCount - 1)) * plotWidth);
+  const xFor = (index: number) => {
+    const position = domainPosition.get(index);
+    if (position != null) {
+      return xForDomainPosition(position);
+    }
+    if (domainCount === 0) {
+      return margin.left + plotWidth / 2;
+    }
+    if (index < (domainIndexes[0] ?? 0)) {
+      return xForDomainPosition(0);
+    }
+    return xForDomainPosition(Math.max(0, domainCount - 1));
+  };
   const yInPanel = (value: number, top: number) =>
     top +
     panelHeight -
@@ -617,20 +673,40 @@ export function buildPairedAiDriftGeometry(
   const yForConfidence = (value: number) =>
     yInPanel(value, confidenceTop);
   const yForReserve = (value: number) => yInPanel(value, reserveTop);
-  const xPositions = model.points.map((_, index) => xFor(index));
+  const xPositions = domainIndexes.map((index) => xFor(index));
 
   function lineSegments(key: AiDriftSeriesKey) {
-    return buildLineSegments(
-      model,
-      key,
-      xFor,
-      key === "confidence" ? yForConfidence : yForReserve
-    );
+    const segments: Array<
+      Array<PlotCoordinate & Readonly<{ pointId: string }>>
+    > = [];
+    let current: Array<PlotCoordinate & Readonly<{ pointId: string }>> = [];
+
+    for (const index of domainIndexes) {
+      const point = model.points[index];
+      const value = point?.values[key];
+      if (value == null || !point) {
+        if (current.length > 0) {
+          segments.push(current);
+          current = [];
+        }
+        continue;
+      }
+      current.push({
+        x: xFor(index),
+        y: key === "confidence" ? yForConfidence(value) : yForReserve(value),
+        pointId: point.id
+      });
+    }
+
+    if (current.length > 0) {
+      segments.push(current);
+    }
+    return segments;
   }
 
   function selectedMarks(index: number) {
     const point = model.points[index];
-    if (!point) {
+    if (!point || !domainPosition.has(index)) {
       return null;
     }
 
@@ -664,16 +740,26 @@ export function buildPairedAiDriftGeometry(
     panelHeight,
     confidenceTop,
     reserveTop,
+    domainIndexes,
     xFor,
     yForConfidence,
     yForReserve,
     lineSegments,
     selectedMarks,
-    pointIndexFromClientX: pointIndexFromClientXFactory(
-      xPositions,
-      model.points.length,
-      width
-    )
+    pointIndexFromClientX(clientX: number, bounds: Pick<DOMRect, "left" | "width">) {
+      if (domainIndexes.length === 0) {
+        return model.points.length > 0 ? 0 : null;
+      }
+      if (bounds.width <= 0) {
+        return domainIndexes[0] ?? null;
+      }
+      const ratio = Math.max(
+        0,
+        Math.min(1, (clientX - bounds.left) / bounds.width)
+      );
+      const nearestDomain = nearestIndex(xPositions, ratio * width);
+      return nearestDomain == null ? null : domainIndexes[nearestDomain];
+    }
   };
 }
 
@@ -711,8 +797,7 @@ export function buildReasonTrendGeometry(
     if (!point) {
       return null;
     }
-    // Prefer the current series vertex; do not park a halo on the previous
-    // series when current is empty — that reads as a dot off the drawn line.
+    // Prefer the current series vertex. Zero is a real value on the line.
     const value = point.values.current;
     return value == null ? null : { x: xFor(index), y: yFor(value) };
   }
@@ -793,6 +878,8 @@ export function buildRankedBreakdownGeometry(
     barHeight,
     referenceValue,
     referenceX,
+    // Right-aligned category labels anchor at margin.left - 8.
+    labelMaxWidth: margin.left - 8 - 4,
     xForValue,
     yFor,
     bars,
