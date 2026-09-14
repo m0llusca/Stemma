@@ -122,7 +122,6 @@ export function StaticCategoryBarPlot({
                 data-slot="category-bar"
                 data-key={bar.key}
                 data-href={bar.href}
-                data-slot="category-bar"
                 x={bar.x}
                 y={bar.y}
                 width={bar.width}
