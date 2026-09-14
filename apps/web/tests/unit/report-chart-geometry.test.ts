@@ -329,6 +329,9 @@ describe("Task 6 shared plot geometry", () => {
     expect(quality.lineSegments("score")).toHaveLength(1);
     expect(quality.lineSegments("score")[0]).toHaveLength(2);
     expect(quality.domainIndexes).toEqual([1, 2, 3]);
+    // Gap day keeps axis/tooltip inspection, but no halo off the score line.
+    expect(quality.selectedMark(2)).toBeNull();
+    expect(quality.selectedMark(1)?.series).toBe("score");
     const maxVolumeHeight =
       quality.plotHeight * geometryModule.QUALITY_TREND_VOLUME_HEIGHT_FRACTION;
     expect(quality.plotHeight - (quality.yForVolume(5) - quality.margin.top)).toBeCloseTo(

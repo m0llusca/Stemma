@@ -306,7 +306,13 @@ export function buildQualityTrendGeometry(
       return null;
     }
 
-    if (visible.has("score") && point.values.score != null) {
+    // When the score series is visible, only mark real score vertices.
+    // Falling back to previous/target/volume draws a primary halo on empty
+    // days that sits off the score line while the tooltip says «Нет данных».
+    if (visible.has("score")) {
+      if (point.values.score == null) {
+        return null;
+      }
       return {
         x: xFor(index),
         y: yForScore(point.values.score),
@@ -705,7 +711,9 @@ export function buildReasonTrendGeometry(
     if (!point) {
       return null;
     }
-    const value = point.values.current ?? point.values.previous;
+    // Prefer the current series vertex; do not park a halo on the previous
+    // series when current is empty — that reads as a dot off the drawn line.
+    const value = point.values.current;
     return value == null ? null : { x: xFor(index), y: yFor(value) };
   }
 

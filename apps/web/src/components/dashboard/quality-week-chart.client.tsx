@@ -101,9 +101,9 @@ export function QualityWeekChart({
           name="Средний балл"
           stroke="var(--color-value)"
           strokeWidth={2}
-          connectNulls={false}
+          connectNulls
           isAnimationActive={false}
-          dot={{ r: 4, strokeWidth: 2, cursor: "pointer" }}
+          dot={{ r: 4, strokeWidth: 2, cursor: "pointer", fill: "var(--background)" }}
           activeDot={{
             r: 5,
             cursor: "pointer",
