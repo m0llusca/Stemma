@@ -63,7 +63,7 @@ describe("dashboard page copy", () => {
     expect(dashboardPage).toContain("LeadSlaChart");
     expect(dashboardPage).toContain("Срок SLA");
     expect(dashboardPage).not.toContain("exec-risk-chart.client");
-    expect(dashboardPage).toContain("isLeadDashboard ? null : (");
+    expect(dashboardPage).toContain("!isLeadDashboard ? (");
     expect(dashboardPage).toContain("EvidenceDrawer");
     expect(dashboardPage).toContain('"Высокий риск"');
     expect(dashboardPage).toContain('"Риск и апелляции"');

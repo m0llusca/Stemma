@@ -194,10 +194,10 @@ describe("ConversationTimeline", () => {
     expect(human).toHaveAttribute("data-align", "end");
     expect(
       customer?.querySelector('[data-slot="conversation-message-avatar"]')
-    ).toHaveClass("self-start");
+    ).toHaveClass("self-end");
     expect(
       human?.querySelector('[data-slot="conversation-message-avatar"]')
-    ).toHaveClass("self-start");
+    ).toHaveClass("self-end");
 
     expect(customer).toHaveAttribute("data-align", "start");
     expect(customer).toHaveAttribute("data-lane", "customer");
