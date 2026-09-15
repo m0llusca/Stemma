@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   apiError: vi.fn((code: string, message: string, status = 500) => ({ code, message, status })),
@@ -43,6 +43,10 @@ vi.mock("@/lib/db", () => ({
 describe("auth providers API", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Next.js route import loads apps/web/.env (QC_PUBLIC_ORIGIN=localhost).
+    // Empty string skips the configured-origin branch so request URL wins
+    // and x-forwarded-host stays untrusted — same isolation as Playwright.
+    vi.stubEnv("QC_PUBLIC_ORIGIN", "");
     mocks.requireSessionApi.mockResolvedValue({
       ok: true,
       user: {
@@ -51,6 +55,10 @@ describe("auth providers API", () => {
       }
     });
     mocks.prisma.$transaction.mockImplementation(async (callback) => callback(mocks.prisma));
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it("uses canonical public origin for SAML setup URLs in provider listings", async () => {

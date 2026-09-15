@@ -61,6 +61,10 @@ function activeSamlProvider() {
 describe("SAML auth routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Next.js route import loads apps/web/.env (QC_PUBLIC_ORIGIN=localhost).
+    // Empty string skips the configured-origin branch so request URL wins
+    // and x-forwarded-host stays untrusted — same isolation as Playwright.
+    vi.stubEnv("QC_PUBLIC_ORIGIN", "");
     mocks.prisma.identityProvider.findFirst.mockResolvedValue(activeSamlProvider());
     mocks.createEnterpriseAssertion.mockResolvedValue({
       token: "assertion-token",
