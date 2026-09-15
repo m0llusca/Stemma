@@ -16,8 +16,9 @@ const GENERIC_LANDING_PATHNAMES = new Set([
 /**
  * Analyst inbox default: assigned to me AND overdue SLA.
  * Matches existing queue filter model (`qaAssignee` + `due=overdue`).
- * This is «Сегодня» / role home. `/dashboard` stays in DASHBOARD_ROLES (URL
- * residual) but is not a competing ⌘K «Пульс дня» entry — see navigation.ts.
+ * This is «Сегодня» / role home. QA stays in DASHBOARD_ROLES so «Проверки»
+ * nav stays on. Bare `/dashboard` remaps via `canLandOnDashboard` — see
+ * navigation.ts and dashboard/page.tsx.
  */
 export function analystMineOverdueHref(qaAssigneeName: string) {
   return `/reviews?qaAssignee=${encodeURIComponent(qaAssigneeName)}&due=overdue`;
@@ -97,6 +98,28 @@ export const DASHBOARD_ROLES = ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "EXEC"] as c
 
 export function canAccessDashboard(role: RoleName) {
   return (DASHBOARD_ROLES as readonly RoleName[]).includes(role);
+}
+
+/**
+ * Roles whose product home is `/dashboard`. QA may open queue chrome
+ * (`canAccessDashboard`) but a typed `/dashboard` remaps to the inbox —
+ * one home, no dual-home residual.
+ */
+export function canLandOnDashboard(role: RoleName): boolean {
+  switch (role) {
+    case "ADMIN":
+    case "TEAM_LEAD":
+    case "EXEC":
+      return true;
+    case "QA_ANALYST":
+    case "SUPPORT_AGENT":
+    case "VIEWER":
+      return false;
+    default: {
+      const _exhaustive: never = role;
+      return _exhaustive;
+    }
+  }
 }
 
 export type DashboardSkeletonVariant = "dashboard" | "exec";

@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 import type { ReactNode } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import { QUEUE_GLOSSARY } from "@/components/guidance/queue-glossary";
-import { welcomeBackWouldShowFromStorage } from "@/lib/guidance/visit-memory";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -22,9 +21,10 @@ type QueueAdvancedFiltersProps = {
   activeCount: number;
   actions?: ReactNode;
   children: ReactNode;
-  defaultOpen: boolean;
   formId: string;
   parameterCount: number;
+  /** Current exact-filter values so a closed Sheet does not drop them on submit. */
+  preserveValues: ReadonlyArray<{ name: string; value: string }>;
 };
 
 function formatParameterCount(count: number) {
@@ -50,26 +50,22 @@ function formatParameterCount(count: number) {
  * Advanced queue filters live in a Sheet (not permanent chrome). Fields use the
  * `form` attribute so FormData still belongs to the outer AutoSubmitFilterForm
  * even though Sheet portals out of the DOM tree.
+ *
+ * The sheet never auto-opens. A modal drawer inerts the queue and intercepts
+ * clicks — Analyst «Сегодня» always has exact filters, so auto-open was a
+ * standing overlay on the inbox.
  */
 export function QueueAdvancedFilters({
   activeCount,
   actions,
   children,
-  defaultOpen,
   formId,
-  parameterCount
+  parameterCount,
+  preserveValues
 }: QueueAdvancedFiltersProps) {
   const [open, setOpen] = useState(false);
   const titleId = useId();
   const counterLabel = activeCount > 0 ? `${activeCount} применено` : formatParameterCount(parameterCount);
-
-  useEffect(() => {
-    // Welcome-back CTA lives in the page tree. An auto-open Sheet marks that
-    // tree inert — keep the drawer closed so «Сбросить к очереди дня» is one click.
-    if (defaultOpen && !welcomeBackWouldShowFromStorage()) {
-      setOpen(true);
-    }
-  }, [defaultOpen]);
 
   function relayFormEvent() {
     const form = document.getElementById(formId);
@@ -111,6 +107,8 @@ export function QueueAdvancedFilters({
                     {counterLabel}
                   </Chip>
                 </SheetTrigger>
+                {/* Unmount on close so the modal overlay/inert cannot linger over the queue. */}
+                {open ? (
                 <SheetContent
                   side="right"
                   className="gap-0 data-[side=right]:w-full data-[side=right]:max-w-none data-[side=right]:sm:max-w-md max-sm:data-[side=right]:inset-y-0"
@@ -151,6 +149,7 @@ export function QueueAdvancedFilters({
                     </div>
                   </div>
                 </SheetContent>
+                ) : null}
               </Sheet>
             </div>
             <HelpTooltip
@@ -166,6 +165,18 @@ export function QueueAdvancedFilters({
         </p>
       </div>
       {actions}
+      {!open
+        ? preserveValues.map((field) => (
+            <input
+              key={field.name}
+              type="hidden"
+              name={field.name}
+              value={field.value}
+              form={formId}
+              data-slot="exact-filter-mirror"
+            />
+          ))
+        : null}
     </>
   );
 }

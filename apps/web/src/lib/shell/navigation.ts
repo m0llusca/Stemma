@@ -563,7 +563,7 @@ export function buildShellNavigation({
       const destinations = mode.destinations.filter((destination) => canSeeDefinition(role, destination));
       // Analyst «Сегодня» is inbox only. Do not also list «Пульс дня» → /dashboard
       // in ⌘K — that was a competing third home next to Сегодня / Проверки.
-      // Residual: QA_ANALYST stays in DASHBOARD_ROLES, so /dashboard still opens.
+      // QA stays in DASHBOARD_ROLES for «Проверки» chrome; /dashboard remaps.
       const todayDestinations =
         mode.id === "today" && role === "QA_ANALYST"
           ? [analystInboxDestination(name)]

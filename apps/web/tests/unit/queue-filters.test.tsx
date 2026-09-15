@@ -37,14 +37,20 @@ describe("QueueFilters", () => {
       { value: "unreviewed", label: "Ещё не проверена" },
       { value: "reviewed", label: "Проверка завершена" }
     ]);
-    expect(screen.getByRole("button", { name: /^точные фильтры/i, hidden: true })).toHaveTextContent(
+    expect(screen.getByRole("button", { name: /^точные фильтры/i })).toHaveTextContent(
       "1 применено"
     );
-    expect(screen.getByLabelText("Статус проверки")).toHaveValue("QUEUED");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    const form = document.getElementById("review-queue-filters");
+    expect(form).toBeInstanceOf(HTMLFormElement);
+    expect(new FormData(form as HTMLFormElement).get("qaStatus")).toBe("QUEUED");
     expect(screen.getByText("Статус проверки: В очереди")).toBeInTheDocument();
     expect(screen.getByText("Сбросить фильтры").closest("a")).toHaveAttribute("href", "/reviews");
     expect(screen.getByText(/Применено фильтров: 1\. Найдено обращений: 12\./)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /^точные фильтры/i }));
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByLabelText("Статус проверки")).toHaveValue("QUEUED");
     expect(screen.getByText("Срок (SLA)")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /что такое sla/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /что такое otrs/i })).toBeInTheDocument();

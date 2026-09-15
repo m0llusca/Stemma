@@ -151,17 +151,26 @@ describe("ConversationTimeline", () => {
     const longMessageBody = screen.getByText(/очень-длинная-ссылка-без-разрывов/);
     expect(longMessageBody).toBeInTheDocument();
     expect(within(human as HTMLElement).getByText("Доказательство")).toBeInTheDocument();
-    expect(within(human as HTMLElement).getByText("Приватно")).toBeInTheDocument();
+    expect(within(human as HTMLElement).getByText("Внутренняя заметка")).toBeInTheDocument();
+    expect(within(human as HTMLElement).queryByText("Приватно")).not.toBeInTheDocument();
     expect(within(ai as HTMLElement).getAllByText("ИИ").length).toBeGreaterThan(0);
     expect(within(system as HTMLElement).getAllByText("Система")).toHaveLength(2);
     expect(screen.getByText("Уточнить ожидаемый срок ответа.")).toBeInTheDocument();
+    expect(screen.getByText("Коучинг")).toBeInTheDocument();
 
     const times = container.querySelectorAll("time[datetime]");
     expect(times).toHaveLength(5);
     expect(times[0]).toHaveAttribute("datetime", sentAt.toISOString());
     expect(times[0]).not.toBeEmptyDOMElement();
+    expect(times[0]).toHaveTextContent(/^\d{2}\.\d{2}, \d{2}:\d{2}$/);
 
-    expect(screen.getAllByRole("button", { name: "В доказательство" })).toHaveLength(4);
+    expect(screen.getAllByRole("button", { name: "В доказательство" })).toHaveLength(2);
+    expect(
+      within(human as HTMLElement).queryByRole("button", { name: "В доказательство" })
+    ).not.toBeInTheDocument();
+    expect(
+      within(system as HTMLElement).queryByRole("button", { name: "В доказательство" })
+    ).not.toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "+ Заметка к сообщению" })).toHaveLength(4);
     expect(screen.getByRole("button", { name: "Отметить решённой" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Удалить" })).toBeInTheDocument();
@@ -189,20 +198,30 @@ describe("ConversationTimeline", () => {
     ).toHaveClass("flex", "flex-wrap");
     expect(
       human?.querySelector('[data-slot="conversation-message-header"]')
+    ).toHaveClass("justify-center");
+    expect(
+      ai?.querySelector('[data-slot="conversation-message-header"]')
     ).toHaveClass("justify-end");
     expect(customer).toHaveAttribute("data-align", "start");
-    expect(human).toHaveAttribute("data-align", "end");
+    expect(human).toHaveAttribute("data-align", "center");
     expect(
       customer?.querySelector('[data-slot="conversation-message-avatar"]')
     ).toHaveClass("self-end");
     expect(
-      human?.querySelector('[data-slot="conversation-message-avatar"]')
-    ).toHaveClass("self-end");
+      customer?.querySelector('[data-slot="conversation-message-row"]')
+    ).toContainElement(
+      customer?.querySelector('[data-slot="conversation-message-avatar"]') as HTMLElement
+    );
+    expect(
+      customer?.querySelector('[data-slot="conversation-message-row"]')
+    ).toContainElement(
+      customer?.querySelector('[data-slot="conversation-message-surface"]') as HTMLElement
+    );
 
     expect(customer).toHaveAttribute("data-align", "start");
     expect(customer).toHaveAttribute("data-lane", "customer");
-    expect(human).toHaveAttribute("data-align", "end");
-    expect(human).toHaveAttribute("data-lane", "agent");
+    expect(human).toHaveAttribute("data-align", "center");
+    expect(human).toHaveAttribute("data-lane", "private");
     expect(ai).toHaveAttribute("data-align", "end");
     expect(ai).toHaveAttribute("data-lane", "agent");
     expect(system).toHaveAttribute("data-align", "center");
@@ -212,6 +231,10 @@ describe("ConversationTimeline", () => {
       '[data-slot="conversation-message-surface"][data-variant="bubble"]'
     );
     const agentSurface = human?.querySelector(
+      '[data-slot="conversation-message-surface"][data-variant="plain"]'
+    );
+    const publicAgent = container.querySelector<HTMLElement>('[data-party="AI_AGENT"]');
+    const publicAgentSurface = publicAgent?.querySelector(
       '[data-slot="conversation-message-surface"][data-variant="bubble"]'
     );
     const systemSurface = system?.querySelector(
@@ -220,7 +243,9 @@ describe("ConversationTimeline", () => {
     const longMessageBody = screen.getByText(/очень-длинная-ссылка-без-разрывов/);
 
     expect(customerSurface).toHaveClass("max-w-prose");
-    expect(agentSurface).toHaveClass("max-w-prose");
+    expect(publicAgentSurface).toHaveClass("max-w-prose");
+    expect(agentSurface).toBeInTheDocument();
+    expect(agentSurface).toHaveAttribute("data-variant", "plain");
     expect(systemSurface).toBeInTheDocument();
     expect(systemSurface).toHaveAttribute("data-variant", "plain");
     expect(systemSurface).not.toHaveAttribute("data-variant", "bubble");
@@ -248,7 +273,16 @@ describe("ConversationTimeline", () => {
           </select>
         </label>
         <EvidenceJumpLink messageId="message-human" timeLabel="12:34" />
-        <ConversationTimeline messages={[messages[1]]} />
+        <ConversationTimeline
+          messages={[
+            message({
+              id: "message-human",
+              participantType: "HUMAN_AGENT",
+              authorName: "Анна Смирнова",
+              body: "Проверю заказ и вернусь с ответом."
+            })
+          ]}
+        />
       </>
     );
     const target = container.querySelector<HTMLElement>("#msg-message-human");
@@ -297,7 +331,14 @@ describe("ConversationTimeline", () => {
   it("opens the message composer and submits its conversation and message IDs", async () => {
     const { container } = render(
       <ConversationTimeline
-        messages={[messages[1]]}
+        messages={[
+          message({
+            id: "message-human",
+            participantType: "HUMAN_AGENT",
+            authorName: "Анна Смирнова",
+            body: "Проверю заказ и вернусь с ответом."
+          })
+        ]}
         conversationId="conversation-1"
         canCoach
       />
@@ -347,7 +388,14 @@ describe("ConversationTimeline", () => {
   it("submits the preserved coaching-pin mutation IDs to both server actions", async () => {
     render(
       <ConversationTimeline
-        messages={[messages[1]]}
+        messages={[
+          message({
+            id: "message-human",
+            participantType: "HUMAN_AGENT",
+            authorName: "Анна Смирнова",
+            body: "Проверю заказ и вернусь с ответом."
+          })
+        ]}
         coachingPins={coachingPins}
         canManagePins
       />
@@ -367,5 +415,86 @@ describe("ConversationTimeline", () => {
     });
     const deleteData = actionMocks.deleteCoachingPin.mock.calls[0][0] as FormData;
     expect(deleteData.get("pinId")).toBe("pin-1");
+  });
+
+  it("renders private notes as a centered internal strip, not a chat bubble", () => {
+    const { container } = render(
+      <ConversationTimeline
+        messages={[
+          message({
+            id: "message-note",
+            participantType: "HUMAN_AGENT",
+            authorName: "Ирина QA",
+            body: "Клиент просил не звонить после 21:00.",
+            isPrivate: true
+          })
+        ]}
+      />
+    );
+    const note = container.querySelector<HTMLElement>('[data-lane="private"]');
+
+    expect(note).toHaveAttribute("data-align", "center");
+    expect(within(note as HTMLElement).getByText("Внутренняя заметка")).toBeInTheDocument();
+    expect(within(note as HTMLElement).getByText("Ирина QA")).toBeInTheDocument();
+    expect(
+      within(note as HTMLElement).queryByRole("button", { name: "В доказательство" })
+    ).not.toBeInTheDocument();
+    expect(
+      note?.querySelector('[data-slot="conversation-message-surface"]')
+    ).toHaveAttribute("data-variant", "plain");
+    expect(note?.querySelector('[data-slot="conversation-message-row"]')).not.toBeInTheDocument();
+  });
+
+  it("does not offer evidence on SYSTEM markers", () => {
+    const { container } = render(
+      <ConversationTimeline
+        messages={[
+          message({
+            id: "message-system-only",
+            participantType: "SYSTEM",
+            authorName: "Система",
+            body: "Диалог передан в контроль качества."
+          })
+        ]}
+      />
+    );
+    const system = container.querySelector<HTMLElement>('[data-lane="system"]');
+
+    expect(system).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "В доказательство" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the operator avatar on the outer right of the bubble, not under the time footer", () => {
+    const { container } = render(
+      <ConversationTimeline
+        messages={[
+          message({
+            id: "message-operator",
+            participantType: "HUMAN_AGENT",
+            authorName: "Иван Петров",
+            body: "Проверяю заказ."
+          })
+        ]}
+      />
+    );
+    const operator = container.querySelector<HTMLElement>('[data-party="HUMAN_AGENT"]');
+    const row = operator?.querySelector<HTMLElement>('[data-slot="conversation-message-row"]');
+    const avatar = operator?.querySelector<HTMLElement>(
+      '[data-slot="conversation-message-avatar"]'
+    );
+    const bubble = operator?.querySelector<HTMLElement>(
+      '[data-slot="conversation-message-surface"]'
+    );
+    const meta = operator?.querySelector<HTMLElement>(
+      '[data-slot="conversation-message-meta"]'
+    );
+
+    expect(operator).toHaveAttribute("data-align", "end");
+    expect(row).toHaveClass("flex-row-reverse");
+    expect(row).toContainElement(avatar as HTMLElement);
+    expect(row).toContainElement(bubble as HTMLElement);
+    expect(row).not.toContainElement(meta as HTMLElement);
+    expect(avatar).not.toHaveClass("-translate-y-8");
+    expect(operator?.querySelector('[data-slot="message-footer"]')).not.toBeInTheDocument();
   });
 });

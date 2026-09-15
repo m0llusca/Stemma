@@ -30,7 +30,7 @@ Navigation is role-filtered from the shell definitions. Add a nav item by declar
 | SUPPORT_AGENT | `/self-review` | Hidden. Brand → self-review, not ops pulse. Nav: Моя обратная связь, Обучение. No «Проверки». |
 | VIEWER | `/auth/pending-access` | Hidden. `AppNav` returns null — no empty areas / empty ⌘K. Page shows identity + logout. When `QC_DEMO_AUTH=enabled`, one account menu (name/role) lists seeded DEMO identities under «Сменить роль». Demo seed: `viewer@example.com`. |
 
-`todayHrefForRole` / `visibleTopNavAreas` rewrite Analyst «Сегодня». Login generic paths (`/`, `/reviews`, `/dashboard`, `/auth/login`) remap to role home. Deep links with a query string stay as-is. `/dashboard` itself also remaps roles without `canAccessDashboard` (SUPPORT_AGENT → `/self-review`). VIEWER still hits `forbidden()` because they lack `reviews:read`. EXEC has `reviews:read` + `reports:read` and stays on `/dashboard` with the risk narrative (KPI → queue). Do not reuse VIEWER for this persona.
+`todayHrefForRole` / `visibleTopNavAreas` rewrite Analyst «Сегодня». Login generic paths (`/`, `/reviews`, `/dashboard`, `/auth/login`) remap to role home. Deep links with a query string stay as-is. `/dashboard` itself remaps anyone who cannot land there (`canLandOnDashboard`: Admin / Lead / Exec only). QA_ANALYST → inbox home. SUPPORT_AGENT → `/self-review`. VIEWER still hits `forbidden()` because they lack `reviews:read`. EXEC has `reviews:read` + `reports:read` and stays on `/dashboard` with the risk narrative (KPI → queue). Do not reuse VIEWER for this persona. QA stays in `DASHBOARD_ROLES` so «Проверки» chrome stays on.
 
 When `QC_DEMO_AUTH=enabled`, the account/profile menu lists the same seeded DEMO identities as `/auth/login` under **«Сменить роль»**. One control — no extra header button. Switching re-issues the session and lands on `roleHomePath`. Hidden when demo auth is off — not production impersonation.
 
@@ -40,17 +40,17 @@ Top-nav **«Проверки»** is writer/dashboard roles (`DASHBOARD_ROLES` / 
 
 Top-nav **«Настройки»** → `/admin` when `canAccessAdminHub` (any of `adminHubPermissions`). QA unlocks the hub via `reports:manage`; rail and hub cards show **report schedules** only. Overview for that role is accent («Доступные разделы»), not a cert-green «Настройки в рабочем состоянии». [semantic-status-colors.md](semantic-status-colors.md).
 
-### Empty triage + Analyst dual-home residual
+### Empty triage + Analyst home
 
 Empty ops / exec triage is an observation, not a certificate. Copy is **«Нет сигналов за период»** (`accent`). Do not render success or **«Критичных отклонений нет»**. Primary action is never the impostor `/reviews?status=unreviewed`: Lead/Admin use real take-next; Analyst uses role home (`Открыть сегодня`); Exec uses `ExecRiskHome` queue hrefs.
 
 Ops KPI drills (`opsQueueKpiHref`) never use that impostor: overdue → `/reviews?due=overdue`; unstarted → `/reviews?qaStatus=QUEUED`; zero → role home or unfiltered `/reviews`.
 
-Analyst **«Сегодня»** (nav + ⌘K mode) is the mine+overdue inbox. **«Проверки»** stays the unfiltered `/reviews` list. ⌘K no longer lists **«Пульс дня»** → `/dashboard` for this role (it competed with Сегодня). Residual: `QA_ANALYST` remains in `DASHBOARD_ROLES`, so `/dashboard` still opens by URL.
+Analyst **«Сегодня»** (nav + ⌘K mode) is the mine+overdue inbox. **«Проверки»** stays the unfiltered `/reviews` list. ⌘K does not list **«Пульс дня»** → `/dashboard` for this role. A typed `/dashboard` remaps to the same inbox (`canLandOnDashboard` is false for QA).
 
 ### Welcome-back + filter reset
 
-After a long absence, `WelcomeBackBanner` offers an explicit reset via `welcomeBackResetHref`: queue surface uses `queueFilterResetHref` (Analyst mine+overdue; other queue roles `/reviews`); dashboard uses `roleHomePath` (Lead/Admin/Exec → `/dashboard`). The exact-filter Sheet stays closed while welcome-back is eligible so «Сбросить к очереди дня» is one click (no inert overlay). Day-1 is a single SLA/OTRS glossary hint (`QueueDay1Tour`), not a multi-step tour. Queue href is the request URL only — never restore a last-used or saved view on first paint. Any current href that is not the role-home reset is named (workspace/private) or described as ad-hoc filters.
+After a long absence, `WelcomeBackBanner` offers an explicit reset via `welcomeBackResetHref`: queue surface uses `queueFilterResetHref` (Analyst mine+overdue; other queue roles `/reviews`); dashboard uses `roleHomePath` (Lead/Admin/Exec → `/dashboard`). The exact-filter Sheet never auto-opens — «Сбросить к очереди дня» is one click (no inert overlay). Day-1 is a single SLA/OTRS glossary hint (`QueueDay1Tour`), not a multi-step tour. Queue href is the request URL only — never restore a last-used or saved view on first paint. Any current href that is not the role-home reset is named (workspace/private) or described as ad-hoc filters.
 
 ## Async Signals
 

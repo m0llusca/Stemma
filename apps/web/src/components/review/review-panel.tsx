@@ -12,8 +12,13 @@ import { kineticsStyle } from "@stemma/kinetics";
 import type { ReactNode } from "react";
 import { DisclosureMorphChevron } from "@/components/ui/disclosure-morph-chevron";
 import { criterionPredictionChipLabel } from "@/components/review/ai-prediction-chip";
+import {
+  EnsureEvidenceDraft,
+  EvidenceFieldHint,
+  EvidenceMessageSelect
+} from "@/components/review/evidence-draft";
+import { LiveEvidenceGroupChip, LiveEvidenceHighlights } from "@/components/review/evidence-live-count";
 import { EvidencePickerListener } from "@/components/review/evidence-picker-listener";
-import { EvidenceJumpLink } from "@/components/review/evidence-jump-link";
 import { ReviewKeyboard } from "@/components/review/review-keyboard";
 import { ReviewFormShell } from "@/components/review/review-form-shell";
 import { SummaryTemplatePicker, type SummaryTemplate } from "@/components/review/summary-template-picker";
@@ -356,8 +361,16 @@ export function ReviewPanel({
   }
 
   return (
+    <EnsureEvidenceDraft
+      criterionIds={scorecard.criteria.map((criterion) => criterion.id)}
+      initialByCriterion={Object.fromEntries(
+        scorecard.criteria.map((criterion) => [criterion.id, draftScores.get(criterion.id)?.evidenceMessageId ?? ""])
+      )}
+      allowedMessageIds={messages.map((message) => message.id)}
+    >
     <ReviewFormShell className="review-panel-form panel overflow-clip bg-card">
       <EvidencePickerListener />
+      <LiveEvidenceHighlights />
       <input type="hidden" name="conversationId" value={conversationId} />
       <input type="hidden" name="scorecardId" value={scorecard.id} />
       <input type="hidden" name="reviewSource" value={reviewSource} />
@@ -498,11 +511,10 @@ export function ReviewPanel({
                       <Chip tone={issueCount > 0 ? "warning" : "success"}>
                         {issueCount > 0 ? `${issueCount} замеч.` : "без замечаний"}
                       </Chip>
-                      {evidenceCount > 0 ? (
-                        <Chip tone="info">
-                          {evidenceCount} доказ.
-                        </Chip>
-                      ) : null}
+                      <LiveEvidenceGroupChip
+                        criterionIds={group.criteria.map((criterion) => criterion.id)}
+                        initialCount={evidenceCount}
+                      />
                       {commentCount > 0 ? (
                         <Chip tone="accent">
                           {commentCount} комм.
@@ -712,32 +724,8 @@ export function ReviewPanel({
                                 <FieldLabel htmlFor={`review-criterion-${criterion.id}-evidence-message`}>
                                   Сообщение-доказательство
                                 </FieldLabel>
-                                <NativeSelect
-                                  id={`review-criterion-${criterion.id}-evidence-message`}
-                                  name={`criterion.${criterion.id}.evidenceMessageId`}
-                                  defaultValue={draftScore?.evidenceMessageId ?? ""}
-                                  className="w-full"
-                                >
-                                  <NativeSelectOption value="">Без привязки к сообщению</NativeSelectOption>
-                                  {messages.map((message) => (
-                                    <NativeSelectOption key={message.id} value={message.id}>
-                                      {message.authorName}: {message.body.slice(0, 70)}
-                                    </NativeSelectOption>
-                                  ))}
-                                </NativeSelect>
-                                <FieldDescription>
-                                  Реплика, на которую опирается оценка
-                                  {evidenceMessage ? (
-                                    <>
-                                      {" · "}
-                                      <EvidenceJumpLink
-                                        messageId={evidenceMessage.id}
-                                        timeLabel={formatEvidenceTime(evidenceMessage.sentAt)}
-                                        className="font-semibold tabular-nums text-primary"
-                                      />
-                                    </>
-                                  ) : null}
-                                </FieldDescription>
+                                <EvidenceMessageSelect criterionId={criterion.id} messages={messages} />
+                                <EvidenceFieldHint criterionId={criterion.id} messages={messages} />
                               </Field>
 
                               <Field className="rounded-md border border-border bg-card/80 p-2.5">
@@ -1010,5 +998,6 @@ export function ReviewPanel({
         </a>
       </div>
     </ReviewFormShell>
+    </EnsureEvidenceDraft>
   );
 }
