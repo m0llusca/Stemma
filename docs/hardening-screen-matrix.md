@@ -260,4 +260,5 @@ Close [#116](https://github.com/m0llusca/Stemma/issues/116) only when epic gates
 - [research-kinetics-recharts.md](research-kinetics-recharts.md) — Exec = Recharts `BarChart`; drill SoT; no vanity
 - [research-morphicons.md](research-morphicons.md) — #117: CopyButton gate `/admin/tokens`; chevron on review/accordion; top-nav Menu/Search. Walk PASS on `4f2ba3a`; package on master `dc5de92`
 - [ux-agent-feedback-contract.md](ux-agent-feedback-contract.md) — self-review pack
+- [ux-dialogue-timeline-contract.md](ux-dialogue-timeline-contract.md) — #154/#155 timeline + LIVE evidence на master **`dd49657`**. Exact-filters overlay steal и QA `/dashboard` remap закрыты в том пакете. Tip этой матрицы остаётся `dc5de92`
 - [semantic-status-colors.md](semantic-status-colors.md) — probe-before-save, cert ≠ step
