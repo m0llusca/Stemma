@@ -59,6 +59,11 @@ test("current and previous 22-21 reports render populated charts", async ({ page
     // not a role="img" — see quality-trend-chart.client.tsx.
     await expect(page.getByRole("group", { name: "Динамика качества" })).toBeVisible();
 
+    // Wave C split: score distribution lives on Исполнение, not the overview.
+    await page.goto(`/reports?period=${period.id}&view=performance`);
+    await expect(page.getByRole("heading", { name: "Аналитика качества" })).toBeVisible();
+    await expect(page.getByLabel("Период", { exact: true })).toHaveValue(period.id);
+
     const distribution = page.getByRole("group", { name: "Распределение оценок" });
     await expect(distribution).toBeVisible();
     // The bar labels/counts render inside the deferred (code-split) visual, which by
