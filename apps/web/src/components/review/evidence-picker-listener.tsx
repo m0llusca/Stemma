@@ -44,7 +44,7 @@ function resolveEvidenceSelect(preferred?: HTMLSelectElement | null) {
     return preferred;
   }
 
-  return selects.find((select) => !select.value) ?? selects[0] ?? null;
+  return selects.find((select) => !select.value) ?? null;
 }
 
 export function applyEvidenceMessageSelection(messageId: string, target?: HTMLSelectElement | null) {
