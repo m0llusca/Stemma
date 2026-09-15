@@ -6,7 +6,7 @@ describe("dashboard page agent scope", () => {
   const source = readFileSync(join(process.cwd(), "src/app/dashboard/page.tsx"), "utf8");
 
   it("redirects roles without dashboard access to their role home", () => {
-    expect(source).toContain("canAccessDashboard(user.role)");
+    expect(source).toContain("canLandOnDashboard(user.role)");
     expect(source).toContain("redirect(roleHomePath(user.role, { name: user.name }))");
     expect(source).toContain('await requirePagePermission("reviews:read")');
   });

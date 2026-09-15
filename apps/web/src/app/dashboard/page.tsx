@@ -24,7 +24,7 @@ import { LeadSlaChart } from "@/components/dashboard/lead-sla-chart";
 import { buildOpsEmptyTriage } from "@/lib/dashboard/ops-empty-triage";
 import { buildExecRiskChartModel } from "@/lib/dashboard/exec-risk-home";
 import { canViewPeerQuality, hasPermission } from "@/lib/auth/permissions";
-import { canAccessDashboard, dashboardSkeletonVariantForRole, queueFilterResetHref, roleHomePath, welcomeBackResetHref } from "@/lib/auth/role-home";
+import { canLandOnDashboard, dashboardSkeletonVariantForRole, queueFilterResetHref, roleHomePath, welcomeBackResetHref } from "@/lib/auth/role-home";
 import { emptyTriagePrimary } from "@/lib/dashboard/empty-triage";
 import { opsQueueKpiHref, OVERDUE_SLA_HREF, QUEUED_STATUS_HREF } from "@/lib/dashboard/queue-kpi-href";
 import { prisma } from "@/lib/db";
@@ -104,7 +104,7 @@ export default async function DashboardPage() {
   // Gate before Suspense so unauthorized/forbidden can set status. A gate
   // inside the fallback stream stays HTTP 200 (see docs/app-shell.md).
   const user = await requirePagePermission("reviews:read");
-  if (!canAccessDashboard(user.role)) {
+  if (!canLandOnDashboard(user.role)) {
     redirect(roleHomePath(user.role, { name: user.name }));
   }
   const skeletonVariant = dashboardSkeletonVariantForRole(user.role);
@@ -121,7 +121,7 @@ async function DashboardPageContent() {
   // Agents have reviews:read, so a permission gate would still render the ops
   // pulse. Send roles without dashboard access to their role home instead of
   // hiding a VIEWER deny — VIEWER already fails requirePagePermission above.
-  if (!canAccessDashboard(user.role)) {
+  if (!canLandOnDashboard(user.role)) {
     redirect(roleHomePath(user.role, { name: user.name }));
   }
   const now = new Date();

@@ -18,7 +18,7 @@ LIVE SoT = controlled `<details>` / `<summary>` with React `open` + `aria-expand
 
 #117 Copy↔Check LIVE gate: Admin `/admin/tokens` (also `/admin/access` SCIM and `/admin/integrations` CodeBlock). **Not** the review workbench. Chevron / score-module morph stays on review accordion.
 
-Friction: exact-filters sheet sometimes intercepts click — not a FAIL.
+Exact-filters Sheet stays closed until the user opens it (no auto-open overlay on the inbox).
 
 Login / tokens Next Issues **0** LIVE PASS (Джамал + André probe). Soft `/reports` «1 Issue» NACK (ДеШон / Джамал) — not a blocker. Walk PASS on `/auth/login` is DEMO picker / land / logout.
 
@@ -110,7 +110,7 @@ Home `/dashboard`. Nav: Сегодня / Проверки / Калибровка
 | Route | Surface / controls | #118 | #119 | #117 | Notes |
 | --- | --- | --- | --- | --- | --- |
 | `/dashboard` | welcome-back **«Сбросить к очереди дня»**; triage **Разобрать** / empty **Взять следующий**; KPI **Просрочено SLA** / **Высокий риск** / **Проверок за неделю** / **Активных обучений** → honest hrefs (never `status=unreviewed`); sparkline **Качество команды · 7 дней** (цель 90, point → period queue); **Нагрузка проверяющих** name/counts → queue; **Ещё в фокусе** | PASS | PASS | n/a | #119 Lead/Admin sparkline |
-| `/reviews` | filters (Итог, Статус проверки, Проверяющий, Срок, Риск, Sheet редких срезов); **Сбросить фильтры** → `/reviews`; SavedViews apply + create/rename/delete; **Взять следующий**; next-case preview collapse/expand + CTA; welcome-back reset; empty **Очередь пуста** / **В текущем представлении нет кейсов** | PASS | n/a | PASS | Exact-filters sheet sometimes intercepts click — not a FAIL |
+| `/reviews` | filters (Итог, Статус проверки, Проверяющий, Срок, Риск, Sheet редких срезов); **Сбросить фильтры** → `/reviews`; SavedViews apply + create/rename/delete; **Взять следующий**; next-case preview collapse/expand + CTA; welcome-back reset; empty **Очередь пуста** / **В текущем представлении нет кейсов** | PASS | n/a | PASS | Exact-filters Sheet opens on click only |
 | `/reviews/[conversationId]` | **Roman P0**: **модули оценки** = controlled `<details>` / `<summary>` (master `13eadb0`). Click + Enter: visual open/close+hold. Steps **Оценка по критериям** / **Итог проверки** / **Дополнительно**; **Группа процесса** blocks; per-criterion summary (Enter/Esc); score 1/2/3; **Сохранить черновик**; **Завершить проверку**; **Завершить и взять следующий** (⌘↩); `?` legend; AI draft Принять/Отклонить/Изменить if present; appeal/feedback under Дополнительно | PASS | n/a | PASS | #118 open/close+Enter hold `4f2ba3a`. #117 = chevron, not CopyButton. aria lag → #125, not visual FAIL |
 | `/reports` | period: **Текущий период 22-21** / прошлый 22-21 / календарный месяц / квартал / произвольный; **Обзор** = trend + drivers (decision-first after Wave B); distribution → **Исполнение**; sentiment / CSAT → **Разрезы**; Recharts (`ChartContainer` / `.recharts-surface`); bar/point → evidence sheet or filtered queue; export CSV/XLSX/PDF if menu present | PASS | PASS | n/a | |
 | `/calibration` | **Новая сессия** / **Скрыть форму**; **Создать сессию**; session tabs; **Завершить**; matrix / agreement rows clickable → session or queue | PASS | n/a | PASS | accordion/chevron → #117 |
@@ -151,7 +151,7 @@ Admin rail **only**: Формы оценки, Правила выборки, Ж�
 | `/auth/login` | DEMO → `/dashboard` | PASS | n/a | PASS | |
 | (shell) | **«Сменить роль»**, 6 nav areas, ⌘K + Take next, pulse Очередь/Риск | PASS | n/a | PASS | |
 | `/dashboard` | same Lead/Admin ops pulse as Admin (4 KPI, triage, Take next, sparkline, нагрузка) | PASS | PASS | n/a | |
-| `/reviews` | filters, SavedViews mutate, Take next, welcome-back, empty | PASS | n/a | PASS | Exact-filters sheet sometimes intercepts click — not a FAIL |
+| `/reviews` | filters, SavedViews mutate, Take next, welcome-back, empty | PASS | n/a | PASS | Exact-filters Sheet opens on click only |
 | `/reviews/[conversationId]` | **модули оценки**: controlled `<details>` / `<summary>` (`13eadb0`). Visual open/close+hold on click+Enter; finalize; hotkeys; AI draft; appeal | PASS | n/a | PASS | #118 open/close+Enter hold `4f2ba3a`. #117 = chevron, not CopyButton. aria → #125 |
 | `/reports` | period; **Обзор** = trend + drivers; drill; export | PASS | PASS | n/a | |
 | `/calibration` | create / complete session | PASS | n/a | PASS | |
@@ -170,16 +170,16 @@ Admin rail **only**: Формы оценки, Правила выборки, Ж�
 
 Home `/reviews?qaAssignee=<имя>&due=overdue` (maria.qa@ — свой inbox). Nav: Сегодня (= inbox) / Проверки / Калибровка / Обучение / Аналитика / Настройки. Pulse + Take next on.
 
-`/dashboard` still opens by URL (residual `DASHBOARD_ROLES`) — not a ⌘K «Пульс дня».
+`/dashboard` remaps to the inbox (`canLandOnDashboard` is false). Not a ⌘K «Пульс дня». QA stays in `DASHBOARD_ROLES` for «Проверки».
 
 | Route | Surface / controls | #118 | #119 | #117 | Notes |
 | --- | --- | --- | --- | --- | --- |
 | `/auth/login` | DEMO → mine+overdue inbox | PASS | n/a | PASS | |
 | (shell) | **«Сменить роль»**; Сегодня highlights only on exact inbox query; Проверки = bare `/reviews`; ⌘K Сегодня = **Мои + просрочено** (no Пульс дня); Take next; pulse Очередь/Риск | PASS | n/a | PASS | |
-| `/reviews` (Сегодня) | inbox filters pre-set; **Сбросить фильтры** → same inbox (not bare `/reviews`); SavedViews; Take next; welcome-back; empty | PASS | n/a | PASS | Exact-filters sheet sometimes intercepts click — not a FAIL |
-| `/reviews` (Проверки) | unfiltered list; filters; Take next; empty | PASS | n/a | PASS | Exact-filters sheet sometimes intercepts click — not a FAIL |
+| `/reviews` (Сегодня) | inbox filters pre-set; **Сбросить фильтры** → same inbox (not bare `/reviews`); SavedViews; Take next; welcome-back; empty | PASS | n/a | PASS | Exact-filters Sheet opens on click only |
+| `/reviews` (Проверки) | unfiltered list; filters; Take next; empty | PASS | n/a | PASS | Exact-filters Sheet opens on click only |
 | `/reviews/[conversationId]` | **#118 first repro (visual closed `13eadb0`)**: **модули оценки** = controlled `<details>` / `<summary>`. Click + Enter: open, close, **hold**. **Группа процесса** + per-criterion summaries; score; finalize + finalize_next; hotkeys; AI draft if present; appeal | PASS | n/a | PASS | #118 open/close+Enter hold `4f2ba3a`. #117 = chevron, not CopyButton. visual PASS ≠ aria. aria-expanded lag → #125 |
-| `/dashboard` | residual URL: KPI (no Lead sparkline / нагрузка — no `peer_quality:read`); empty triage **Открыть сегодня** (href home, not Take next) | PASS | n/a | n/a | no hero chart |
+| `/dashboard` | remap → inbox (`qaAssignee`+`due=overdue`) | PASS | n/a | n/a | one home |
 | `/reports` | period; **Обзор** = trend + drivers; drill; export — mini charts OK | PASS | PASS | n/a | |
 | `/calibration` | create / complete | PASS | n/a | PASS | |
 | `/coaching` | manage | PASS | PASS | PASS | |
@@ -198,7 +198,7 @@ Home `/dashboard` = ExecRiskHome. Nav: Сегодня / Проверки / Ан�
 | `/auth/login` | DEMO → `/dashboard` | PASS | n/a | PASS | |
 | (shell) | **«Сменить роль»**; 3 nav areas; ⌘K Сегодня + **Открыть просроченные SLA** + **Открыть аналитику за квартал**; no Take next; no pulse | PASS | n/a | PASS | leaked Take next = FAIL. Role-switch Admin→Exec walked |
 | `/dashboard` | 3 KPI: **Просрочено SLA** / **Высокий риск** / **Очередь без старта** (LIVE seed often 8 / 13 / 4); triage action → queue; **Сигналы риска**: Recharts `BarChart` (3 bars, `.recharts-wrapper` / `svg.recharts-surface`); bar click = same KPI href; summary table beside chart; **EmptyState** «Нет сигналов за период» (`queueFilterResetHref` → `/reviews`) — force empty / unit path; **no** Take next | PASS | PASS | n/a | #119 LIVE paint + overdue drill `4f2ba3a`. Docs SoT = Recharts (#148 merged) |
-| `/reviews` | read filters + apply SavedViews; **no** create/rename/delete; **no** Take next; **no** preview submit | PASS | n/a | PASS | Exact-filters sheet sometimes intercepts click — not a FAIL |
+| `/reviews` | read filters + apply SavedViews; **no** create/rename/delete; **no** Take next; **no** preview submit | PASS | n/a | PASS | Exact-filters Sheet opens on click only |
 | `/reviews/[conversationId]` | read workbench; no finalize / draft save; modules = controlled `<details>` / `<summary>` if present — visual open/close+hold (click+Enter) | PASS | n/a | PASS | #118 open/close+Enter hold. #117 = chevron, not CopyButton. aria → #125 |
 | `/reports` | period; **Обзор** = trend + drivers; drill; export | PASS | PASS | n/a | |
 | `/calibration` | **Недостаточно прав** | PASS | n/a | n/a | |

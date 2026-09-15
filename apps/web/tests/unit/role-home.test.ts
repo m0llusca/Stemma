@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   analystMineOverdueHref,
   canAccessDashboard,
+  canLandOnDashboard,
   canSeeOpsQueuePulse,
   canSeeReviewsQueueNav,
   dashboardSkeletonVariantForRole,
@@ -62,7 +63,7 @@ describe("role-home", () => {
     );
   });
 
-  it("allows reviewer, lead and exec roles onto the dashboard", () => {
+  it("allows reviewer, lead and exec roles onto the dashboard chrome", () => {
     expect(DASHBOARD_ROLES).toEqual(["ADMIN", "TEAM_LEAD", "QA_ANALYST", "EXEC"]);
     expect(canAccessDashboard("ADMIN")).toBe(true);
     expect(canAccessDashboard("TEAM_LEAD")).toBe(true);
@@ -73,6 +74,15 @@ describe("role-home", () => {
     expect(dashboardSkeletonVariantForRole("EXEC")).toBe("exec");
     expect(dashboardSkeletonVariantForRole("TEAM_LEAD")).toBe("dashboard");
     expect(dashboardSkeletonVariantForRole("ADMIN")).toBe("dashboard");
+  });
+
+  it("remaps QA off /dashboard so the inbox is the only home", () => {
+    expect(canLandOnDashboard("ADMIN")).toBe(true);
+    expect(canLandOnDashboard("TEAM_LEAD")).toBe(true);
+    expect(canLandOnDashboard("EXEC")).toBe(true);
+    expect(canLandOnDashboard("QA_ANALYST")).toBe(false);
+    expect(canLandOnDashboard("SUPPORT_AGENT")).toBe(false);
+    expect(canLandOnDashboard("VIEWER")).toBe(false);
   });
 
   it("restricts Проверки nav to writer/dashboard roles, not reviews:read", () => {
