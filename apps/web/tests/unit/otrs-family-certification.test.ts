@@ -19,7 +19,8 @@ describe("OTRS-family certification bridge", () => {
         routeDetected: true,
         authOk: true,
         ticketSearchOk: true,
-        webhookOk: false
+        webhookOk: false,
+        pollingFallbackAcknowledged: false
       },
       sampleImport: {
         imported: 18,
@@ -52,7 +53,8 @@ describe("OTRS-family certification bridge", () => {
         routeDetected: true,
         authOk: false,
         ticketSearchOk: false,
-        webhookOk: false
+        webhookOk: false,
+        pollingFallbackAcknowledged: false
       },
       sampleImport: { imported: 0, skipped: 0 }
     });
@@ -75,7 +77,8 @@ describe("OTRS-family certification bridge", () => {
         routeDetected: true,
         authOk: true,
         ticketSearchOk: true,
-        webhookOk: false
+        webhookOk: false,
+        pollingFallbackAcknowledged: false
       },
       sampleImport: { imported: 1, skipped: 0 }
     });
@@ -89,5 +92,47 @@ describe("OTRS-family certification bridge", () => {
         })
       })
     );
+  });
+
+  it("says webhook is confirmed only when a webhook exists", async () => {
+    const { buildOtrsCertificationSteps } = await import("@/lib/integrations/otrs-family/certification");
+    const steps = buildOtrsCertificationSteps({
+      source: "otrs",
+      diagnostics: {
+        routeDetected: true,
+        authOk: true,
+        ticketSearchOk: true,
+        webhookOk: true,
+        pollingFallbackAcknowledged: true
+      },
+      sampleImport: { imported: 1, skipped: 0 }
+    });
+
+    expect(steps.find((step) => step.stepKey === "webhook_or_polling_check")).toMatchObject({
+      status: "passed",
+      detail: "Webhook подтвержден."
+    });
+  });
+
+  it("does not claim a webhook on polling-only", async () => {
+    const { buildOtrsCertificationSteps } = await import("@/lib/integrations/otrs-family/certification");
+    const steps = buildOtrsCertificationSteps({
+      source: "otobo",
+      diagnostics: {
+        routeDetected: true,
+        authOk: true,
+        ticketSearchOk: true,
+        webhookOk: false,
+        pollingFallbackAcknowledged: true
+      },
+      sampleImport: { imported: 1, skipped: 0 }
+    });
+
+    const webhookStep = steps.find((step) => step.stepKey === "webhook_or_polling_check");
+    expect(webhookStep).toMatchObject({
+      status: "passed",
+      detail: "Polling fallback подтвержден."
+    });
+    expect(webhookStep?.detail).not.toContain("Webhook подтвержден");
   });
 });

@@ -180,6 +180,7 @@ export function summarizeOtrsCertificationInput(input: {
   authOk: boolean;
   ticketSearchOk: boolean;
   webhookOk: boolean;
+  pollingFallbackAcknowledged?: boolean;
   imported: number;
   skipped: number;
 }) {
@@ -189,7 +190,8 @@ export function summarizeOtrsCertificationInput(input: {
       routeDetected: input.routeDetected,
       authOk: input.authOk,
       ticketSearchOk: input.ticketSearchOk,
-      webhookOk: input.webhookOk
+      webhookOk: input.webhookOk,
+      pollingFallbackAcknowledged: Boolean(input.pollingFallbackAcknowledged)
     },
     sampleImport: {
       imported: input.imported,
@@ -211,7 +213,8 @@ function asOtrsFamilySource(source: string): "otrs" | "znuny" | "otobo" {
 
 /**
  * Persist a live-cert run from diagnostic steps + optional preview import counts.
- * Fail-closed: webhookOk only when polling fallback is acknowledged or a webhook exists.
+ * Fail-closed: webhookOk only when this integration has an active webhook.
+ * Polling-only never sets webhookOk — that would print «Webhook подтвержден».
  */
 export async function recordOtrsCertificationFromEvidence(input: {
   workspaceId: string;
@@ -231,7 +234,11 @@ export async function recordOtrsCertificationFromEvidence(input: {
       select: { key: true, status: true }
     }),
     prisma.webhookEndpoint.count({
-      where: { workspaceId: input.workspaceId, status: "active" }
+      where: {
+        workspaceId: input.workspaceId,
+        integrationId: input.integrationId,
+        status: "active"
+      }
     })
   ]);
 
@@ -245,7 +252,8 @@ export async function recordOtrsCertificationFromEvidence(input: {
     routeDetected: stepSucceeded(steps, "config") || stepSucceeded(steps, "webservice"),
     authOk: stepSucceeded(steps, "auth"),
     ticketSearchOk: stepSucceeded(steps, "ticket_search") || stepSucceeded(steps, "ticket_get"),
-    webhookOk: Boolean(config.advanced.pollingFallbackAcknowledged) || webhookCount > 0,
+    webhookOk: webhookCount > 0,
+    pollingFallbackAcknowledged: Boolean(config.advanced.pollingFallbackAcknowledged),
     imported: input.imported ?? 0,
     skipped: input.skipped ?? 0
   });

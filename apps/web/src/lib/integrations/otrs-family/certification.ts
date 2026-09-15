@@ -12,6 +12,7 @@ export type OtrsCertificationDiagnostics = {
   authOk: boolean;
   ticketSearchOk: boolean;
   webhookOk: boolean;
+  pollingFallbackAcknowledged: boolean;
 };
 
 export type OtrsCertificationSampleImport = {
@@ -39,6 +40,31 @@ export type OtrsCertificationRunInput = OtrsCertificationInput & {
   integrationId: string;
   actorId: string;
 };
+
+function otrsWebhookOrPollingStep(
+  diagnostics: OtrsCertificationDiagnostics,
+  sourceLabel: string
+): Pick<CertificationStepDraft, "status" | "detail" | "hint"> {
+  if (diagnostics.webhookOk) {
+    return {
+      status: "passed",
+      detail: "Webhook подтвержден."
+    };
+  }
+
+  if (diagnostics.pollingFallbackAcknowledged) {
+    return {
+      status: "passed",
+      detail: "Polling fallback подтвержден."
+    };
+  }
+
+  return {
+    status: "blocked",
+    detail: "Webhook или polling fallback не подтвержден.",
+    hint: `Настройте webhook или подтвердите polling fallback для ${sourceLabel}.`
+  };
+}
 
 export function buildOtrsCertificationSteps(input: OtrsCertificationInput): CertificationStepDraft[] {
   const sourceLabel = input.source === "otrs" ? "OTRS" : input.source === "znuny" ? "Znuny" : "OTOBO";
@@ -75,9 +101,7 @@ export function buildOtrsCertificationSteps(input: OtrsCertificationInput): Cert
     {
       stepKey: "webhook_or_polling_check",
       position: 5,
-      status: input.diagnostics.webhookOk ? "passed" : "blocked",
-      detail: input.diagnostics.webhookOk ? "Webhook подтвержден." : "Webhook или polling fallback не подтвержден.",
-      hint: input.diagnostics.webhookOk ? undefined : `Настройте webhook или подтвердите polling fallback для ${sourceLabel}.`
+      ...otrsWebhookOrPollingStep(input.diagnostics, sourceLabel)
     },
     {
       stepKey: "evidence_lock",
