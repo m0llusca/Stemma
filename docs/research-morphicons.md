@@ -1,10 +1,16 @@
-# Morphicons: adopted spike (#117)
+# Morphicons: on master (`4f2ba3a`)
 
-**Verdict: implement.** Isolated PR. Supersedes the #108 reject note.
+Wired on tip `4f2ba3a`. Remaining work is the LIVE walk (#117 / #116), not implement.
 
 Roman (2026-09-09): implement, not defer. Parent epic: #116.
 Marques UX-ACCEPT (#117 spike): CopyButton + accordion/score-module chevron.
 Top-nav follow-on: account-menu chevron, sections Menu↔X, command Search↔X.
+
+## LIVE walk
+
+Copy↔Check gate: `/admin/tokens` (create / revoke / demo key). Also `/admin/access` SCIM and `/admin/integrations` CodeBlock if a token or snippet is on screen. **Not** the review workbench.
+
+Chevron: review / accordion score modules. First paint reads the open SoT (`open` / `DisclosureOpenProvider` / `details.open` / `aria-expanded`). `MorphIcon` mounts only after that seed — no flash to the wrong glyph, no mount morph. `prefers-reduced-motion` / `reducedMotion="user"` unchanged.
 
 ## Provenance
 
@@ -24,8 +30,8 @@ Call sites import from `lucide-react` (already on the stand). `asMorphIcon` unwr
 
 | Surface | Morph | Notes |
 | --- | --- | --- |
-| CopyButton | Copy ↔ Check | #117 ACCEPT |
-| Accordion / score-module chevron | ChevronDown ↔ ChevronUp | #117 ACCEPT: `Accordion` + review/scorecard modules |
+| CopyButton | Copy ↔ Check | #117 ACCEPT. LIVE: `/admin/tokens` (+ SCIM / integrations) |
+| Accordion / score-module chevron | ChevronDown ↔ ChevronUp | #117 ACCEPT: `Accordion` + review/scorecard modules. First paint from open SoT |
 | Top-nav account menu | ChevronDown ↔ ChevronUp | `AccountMenuDisclosure` / `DemoAccountMenu` (controlled via `DisclosureOpenProvider`) |
 | Top-nav sections trigger | Menu ↔ X | Mobile/compact area menu open state |
 | Top-nav command trigger | Search ↔ X | Command palette open state |
@@ -48,12 +54,13 @@ Product wrapper always passes `reducedMotion="user"`. Morphicons instant-swaps w
 ## Helper
 
 - `apps/web/src/components/ui/morph-icon.tsx` — `MorphIcon`
-- `apps/web/src/components/ui/disclosure-morph-chevron.tsx` — disclosure pair
+- `apps/web/src/components/ui/disclosure-morph-chevron.tsx` — disclosure pair; seed-before-mount
 - `apps/web/src/lib/ui/lucide-morph.ts` — lucide-react unwrap
 
 ## Related
 
-- Issues #117, #116 (reopen of #108)
+- Issues #117, #116
 - Marques UX-ACCEPT: https://github.com/m0llusca/Stemma/issues/117#issuecomment-5597686664
 - `docs/research-kinetics-recharts.md` — Icon Morph Swap was Conditional; this is the product need
+- `docs/hardening-screen-matrix.md` — walk cells stay `—` until Джамал marks them
 - `apps/web/components.json` — static icons remain `iconLibrary: lucide`

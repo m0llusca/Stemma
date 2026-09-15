@@ -9,7 +9,7 @@
 
 ## Status — complete
 
-Waves A–C shipped, including residual items 16–18 follow-ups:
+Tip `4f2ba3a`. Waves A–C shipped, including residual items 16–18 follow-ups:
 
 | Item | Done |
 |------|------|

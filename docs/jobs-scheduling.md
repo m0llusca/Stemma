@@ -62,6 +62,17 @@ curl -fsS -X POST https://<host>/api/v1/jobs/run \
 For multi-workspace unattended drains, the **CLI worker** still covers all workspaces
 in one process. The HTTP endpoint always scopes to the session/token workspace.
 
+## Queue age SLO
+
+`/admin/system` shows **Возраст очереди** — age of the oldest `QUEUED` job.
+Alert when ≥ 15 min (`QUEUE_OLDEST_AGE_ALERT_MS` in `queue-health.ts`). Soft SLO:
+check the worker and the `jobs:write` cron.
+
+## Webhook ingress
+
+Rate limit persists in Prisma `IngressRateLimit` (workspace + `routeKey` + window).
+Shared across workers — not a process-local Map.
+
 ## Cron examples
 
 System crontab (every 2 minutes, CLI `--once`) — preferred for multi-workspace:
