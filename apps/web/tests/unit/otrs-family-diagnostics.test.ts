@@ -206,7 +206,8 @@ describe("OTRS-family diagnostics", () => {
         routeDetected: true,
         authOk: true,
         ticketSearchOk: false,
-        webhookOk: false
+        webhookOk: false,
+        pollingFallbackAcknowledged: false
       },
       sampleImport: {
         imported: 0,

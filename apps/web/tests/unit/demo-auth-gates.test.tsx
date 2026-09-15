@@ -74,6 +74,10 @@ vi.mock("@/lib/current-user", () => ({
   requireCurrentUserPermission: mocks.requireCurrentUserPermission
 }));
 
+vi.mock("@/lib/page-permission", () => ({
+  requirePagePermission: mocks.requireCurrentUserPermission
+}));
+
 // AdminFrame is an async server component (resolves the role to gate the admin
 // sub-nav); React Testing Library can't render nested async server components,
 // so stub it to a passthrough — this test only asserts on the page content it
@@ -127,6 +131,38 @@ describe("demo auth gated surfaces", () => {
     expect(screen.getByRole("button", { name: "Войти" })).not.toBeNull();
   });
 
+  it("hydrates credentials and SSO without Base UI attribute stamps", async () => {
+    mocks.prisma.identityProvider.findMany.mockResolvedValue([
+      {
+        id: "idp-1",
+        workspaceId: "workspace-1",
+        name: "Entra",
+        slug: "entra",
+        status: "active",
+        type: "MICROSOFT_ENTRA_ID",
+        workspace: { name: "Демо workspace" }
+      }
+    ]);
+    const { default: LoginPage } = await import("@/app/auth/login/page");
+
+    render(await LoginPage({ searchParams: Promise.resolve({}) }));
+
+    const submit = screen.getByRole("button", { name: "Войти" });
+    expect(submit.tagName).toBe("BUTTON");
+    expect(submit.getAttribute("data-slot")).toBeNull();
+    expect(submit.getAttribute("role")).toBeNull();
+
+    const sso = screen.getByRole("link", { name: "Войти через SSO" });
+    expect(sso.tagName).toBe("A");
+    expect(sso.getAttribute("data-slot")).toBeNull();
+    expect(sso.getAttribute("role")).toBeNull();
+    expect(sso.getAttribute("href")).toContain("/auth/sso?");
+
+    expect(screen.getByText("Активен").getAttribute("data-slot")).toBeNull();
+    expect(document.querySelector("[data-slot=separator]")).toBeNull();
+    expect(document.querySelector("[data-slot=field]")).toBeNull();
+  });
+
   it("opens demo login with native details when demo auth is enabled", async () => {
     mocks.isDemoAuthEnabled.mockReturnValue(true);
     const { default: LoginPage } = await import("@/app/auth/login/page");
@@ -158,7 +194,62 @@ describe("demo auth gated surfaces", () => {
     expect(screen.getByText(/Плейсхолдер <API_TOKEN>/)).not.toBeNull();
   });
 
-  it("does not create a seeded demo API token for disabled or malformed QC_DEMO_AUTH values", async () => {
+  it("shows fail-closed Copy on the seeded Ключи row when demo auth is on", async () => {
+    mocks.isDemoAuthEnabled.mockReturnValue(true);
+    const { demoApiToken, seededDemoApiTokenName, seededDemoApiTokenPrefix } = await import(
+      "@/lib/custom-api-docs"
+    );
+    mocks.prisma.apiToken.findMany.mockResolvedValue([
+      {
+        id: "token-1",
+        name: seededDemoApiTokenName,
+        tokenPrefix: seededDemoApiTokenPrefix,
+        scopes: "all",
+        expiresAt: null,
+        lastUsedAt: null,
+        lastSuccessAt: null,
+        lastErrorAt: null,
+        lastError: null
+      }
+    ]);
+    const { AdminTokensPageContent } = await import("@/app/admin/tokens/page");
+
+    render(await AdminTokensPageContent({ searchParams: Promise.resolve({}) }));
+
+    expect(screen.getByText(seededDemoApiTokenName)).not.toBeNull();
+    expect(screen.getByText(demoApiToken)).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Скопировать ключ" }).getAttribute("data-copy-value")).toBe(
+      demoApiToken
+    );
+  });
+
+  it("does not advertise the seeded plaintext on Ключи when demo auth is off", async () => {
+    const { demoApiToken, seededDemoApiTokenName, seededDemoApiTokenPrefix } = await import(
+      "@/lib/custom-api-docs"
+    );
+    mocks.prisma.apiToken.findMany.mockResolvedValue([
+      {
+        id: "token-1",
+        name: seededDemoApiTokenName,
+        tokenPrefix: seededDemoApiTokenPrefix,
+        scopes: "all",
+        expiresAt: null,
+        lastUsedAt: null,
+        lastSuccessAt: null,
+        lastErrorAt: null,
+        lastError: null
+      }
+    ]);
+    const { AdminTokensPageContent } = await import("@/app/admin/tokens/page");
+
+    render(await AdminTokensPageContent({ searchParams: Promise.resolve({}) }));
+
+    expect(screen.getByText(seededDemoApiTokenName)).not.toBeNull();
+    expect(screen.queryByText(demoApiToken)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Скопировать ключ" })).toBeNull();
+  });
+
+  it("plants the seeded demo API token even when QC_DEMO_AUTH is off so Ключи is not empty", async () => {
     const seedMutation = (await import(
       "../../prisma/demo-seed-mutation"
     )) as Record<string, unknown>;
@@ -168,23 +259,23 @@ describe("demo auth gated surfaces", () => {
     expect(createSeededDemoApiToken).toEqual(expect.any(Function));
     if (typeof createSeededDemoApiToken !== "function") return;
 
-    const create = vi.fn();
-    const apiToken = { create };
+    const createdToken = { id: "seeded-token-off" };
+    const create = vi.fn().mockResolvedValue(createdToken);
 
     for (const value of [undefined, "", "disabled", "true", "ENABLED"]) {
+      create.mockClear();
       await expect(
         createSeededDemoApiToken(
           { QC_DEMO_AUTH: value },
-          apiToken,
+          { create },
           "workspace-1"
         )
-      ).resolves.toBeNull();
+      ).resolves.toBe(createdToken);
+      expect(create).toHaveBeenCalledOnce();
     }
-
-    expect(create).not.toHaveBeenCalled();
   });
 
-  it("creates the seeded demo API token only for the exact enabled QC_DEMO_AUTH value", async () => {
+  it("creates the seeded demo API token with the known local prefix", async () => {
     const seedMutation = (await import(
       "../../prisma/demo-seed-mutation"
     )) as Record<string, unknown>;

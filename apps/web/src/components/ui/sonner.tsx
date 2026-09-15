@@ -1,15 +1,21 @@
 "use client"
 
-import { useTheme } from "next-themes"
+import type { CSSProperties } from "react"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
 
-const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme()
+/**
+ * Sonner host. Theme must be a resolved `light` | `dark` from the appearance
+ * cookie — never `next-themes` / `system`. `theme="system"` reads
+ * `window.matchMedia` during the first client render (`data-sonner-theme`
+ * light on SSR, dark on hydrate).
+ */
+const Toaster = ({ theme = "light", ...props }: ToasterProps) => {
+  const resolvedTheme = theme === "dark" ? "dark" : "light"
 
   return (
     <Sonner
-      theme={theme as ToasterProps["theme"]}
+      theme={resolvedTheme}
       className="toaster group"
       icons={{
         success: (
@@ -34,7 +40,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
           "--normal-text": "var(--popover-foreground)",
           "--normal-border": "var(--border)",
           "--border-radius": "var(--radius)",
-        } as React.CSSProperties
+        } as CSSProperties
       }
       toastOptions={{
         classNames: {

@@ -4,7 +4,6 @@ import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SlidersHorizontal, XIcon } from "lucide-react";
 import { ReportSavedViews } from "@/components/reports/report-saved-views";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -394,7 +393,12 @@ export function ReportParameterLens({
       </form>
 
       <div className="flex w-0 max-w-full min-w-0 flex-1 items-center gap-2 overflow-x-auto min-[641px]:w-auto min-[641px]:flex-none">
-        {mobile ? (
+        {!hydrated ? (
+          <Button type="button" variant="outline" size="sm">
+            <SlidersHorizontal data-icon="inline-start" aria-hidden="true" />
+            Фильтры ({chips.length})
+          </Button>
+        ) : mobile ? (
           <Sheet>
             <SheetTrigger render={<Button variant="outline" size="sm" />}>
               <SlidersHorizontal data-icon="inline-start" aria-hidden="true" />
@@ -451,16 +455,18 @@ export function ReportParameterLens({
       {chips.length > 0 ? (
         <div className="flex w-0 max-w-full min-w-0 flex-1 items-center gap-1 overflow-x-auto min-[641px]:order-last min-[641px]:max-w-sm">
           {chips.slice(0, 3).map((chip) => (
-            <Badge
+            <span
               key={chip.key}
-              variant="secondary"
               data-testid="active-report-filter-chip"
+              className="inline-flex h-5 w-fit shrink-0 items-center rounded-4xl bg-secondary px-2 text-xs font-medium text-secondary-foreground"
             >
               {chip.label}
-            </Badge>
+            </span>
           ))}
           {chips.length > 3 ? (
-            <Badge variant="outline">Ещё {chips.length - 3}</Badge>
+            <span className="inline-flex h-5 w-fit shrink-0 items-center rounded-4xl border border-border px-2 text-xs font-medium">
+              Ещё {chips.length - 3}
+            </span>
           ) : null}
         </div>
       ) : null}

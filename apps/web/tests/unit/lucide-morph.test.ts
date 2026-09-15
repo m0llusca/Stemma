@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Check, ChevronDown, Copy, Menu, X } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Copy, Menu, X } from "lucide-react";
 import { asMorphIcon } from "@/lib/ui/lucide-morph";
 
 describe("asMorphIcon", () => {
@@ -19,7 +19,7 @@ describe("asMorphIcon", () => {
   });
 
   it("keeps the Copy/Check and Menu/X pairs morphable", () => {
-    for (const icon of [Copy, Check, Menu, X, ChevronDown]) {
+    for (const icon of [Copy, Check, Menu, X, ChevronDown, ChevronUp]) {
       const node = asMorphIcon(icon);
       expect(Array.isArray(node)).toBe(true);
     }

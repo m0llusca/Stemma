@@ -10,7 +10,10 @@ type TestElementProps = {
 type TestElement = ReactElement<TestElementProps>;
 
 const mocks = vi.hoisted(() => ({
-  getCurrentUser: vi.fn()
+  getCurrentUser: vi.fn(),
+  isAuthEntryRequest: vi.fn(async () => false),
+  ToastProvider: vi.fn(({ children }: { children: React.ReactNode }) => children),
+  TooltipProvider: vi.fn(({ children }: { children: React.ReactNode }) => children)
 }));
 
 vi.mock("next/font/google", () => ({
@@ -23,11 +26,15 @@ vi.mock("@/components/app-nav", () => ({
 }));
 
 vi.mock("@/components/ui/toast", () => ({
-  ToastProvider: ({ children }: { children: React.ReactNode }) => children
+  ToastProvider: mocks.ToastProvider
 }));
 
 vi.mock("@/components/ui/tooltip", () => ({
-  TooltipProvider: ({ children }: { children: React.ReactNode }) => children
+  TooltipProvider: mocks.TooltipProvider
+}));
+
+vi.mock("@/lib/auth/request-path", () => ({
+  isAuthEntryRequest: mocks.isAuthEntryRequest
 }));
 
 vi.mock("@/lib/current-user", () => {
@@ -54,6 +61,10 @@ describe("RootLayout appearance ownership", () => {
   beforeEach(() => {
     vi.resetModules();
     mocks.getCurrentUser.mockReset();
+    mocks.isAuthEntryRequest.mockReset();
+    mocks.isAuthEntryRequest.mockResolvedValue(false);
+    mocks.ToastProvider.mockClear();
+    mocks.TooltipProvider.mockClear();
   });
 
   it("places the full dark appearance and inline overrides on html only", async () => {
@@ -117,5 +128,17 @@ describe("RootLayout appearance ownership", () => {
     expect(root.props["data-contrast"]).toBe("standard");
     expect(root.props.className?.split(/\s+/)).not.toContain("dark");
     expect(root.props.style?.colorScheme).toBe("light");
+    expect(root.props.dir).toBe("ltr");
+  });
+
+  it("skips toast and tooltip chrome on auth entry so /auth/login hydrates clean", async () => {
+    mocks.getCurrentUser.mockResolvedValue({ workspace: {} });
+    mocks.isAuthEntryRequest.mockResolvedValue(true);
+    const { default: RootLayout } = await import("@/app/layout");
+
+    await RootLayout({ children: <main>login</main> });
+
+    expect(mocks.ToastProvider).not.toHaveBeenCalled();
+    expect(mocks.TooltipProvider).not.toHaveBeenCalled();
   });
 });

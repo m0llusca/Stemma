@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,16 +18,37 @@ import {
 
 /**
  * Export menu — sits in the PageShell `actions` slot. Dropdown with CSV / XLSX / PDF.
- * All export href behavior preserved.
+ * Menu chrome mounts after the client effect: Base UI Trigger stamps aria-* /
+ * popup ids that do not match the SSR HTML on `/reports`.
  */
 export function ReportExportMenu({ period }: { period: ReportPeriod }) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const trigger = (
+    <>
+      <Download data-icon="inline-start" aria-hidden="true" />
+      Экспорт
+    </>
+  );
+
+  if (!mounted) {
+    return (
+      <Button type="button" variant="outline" size="sm">
+        {trigger}
+      </Button>
+    );
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         render={<Button variant="outline" size="sm" />}
       >
-        <Download data-icon="inline-start" aria-hidden="true" />
-        Экспорт
+        {trigger}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-36">
         <DropdownMenuItem render={<Link href={reportExportHref(period)} />} nativeButton={false}>

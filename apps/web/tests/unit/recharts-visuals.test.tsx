@@ -620,6 +620,11 @@ describe("lean Recharts visuals", () => {
       container.querySelector('[data-point-id="bucket-0"]')
     ).toHaveAttribute("height", "0");
     expect(container).toHaveTextContent("0-50");
+    const scoreCounts = [...container.querySelectorAll('[data-slot="score-count"]')].map(
+      (node) => node.textContent
+    );
+    expect(scoreCounts).toHaveLength(4);
+    expect(scoreCounts).toContain("0");
     expect(container.querySelectorAll('[data-slot="y-axis-tick"]')).toHaveLength(3);
   });
 

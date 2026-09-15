@@ -102,6 +102,10 @@ describe("OIDC callback route public origin", () => {
 
   it("uses the allowlisted public host for token exchange redirect_uri", async () => {
     vi.stubEnv("NODE_ENV", "production");
+    // Next.js route import loads apps/web/.env (QC_PUBLIC_ORIGIN=localhost).
+    // Empty string lets the production allowlist path run instead of the
+    // configured-origin branch (HTTP localhost would throw under NODE_ENV=production).
+    vi.stubEnv("QC_PUBLIC_ORIGIN", "");
     vi.stubEnv("QC_PUBLIC_ORIGIN_ALLOWLIST", "app.example.com");
 
     const { GET } = await import("@/app/auth/callback/route");

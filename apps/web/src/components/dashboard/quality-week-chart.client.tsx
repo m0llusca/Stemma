@@ -48,6 +48,8 @@ export function QualityWeekChart({
     <ChartContainer
       id="dashboard-quality-week"
       config={chartConfig}
+      role="img"
+      aria-label="Тренд средней оценки"
       className={cn(SCORE_OVER_TIME_MIN_HEIGHT_CLASS, "aspect-auto w-full")}
       style={{ minHeight: SCORE_OVER_TIME_PLOT_HEIGHT }}
       initialDimension={{ width: 560, height: SCORE_OVER_TIME_PLOT_HEIGHT }}

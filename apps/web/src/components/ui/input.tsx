@@ -1,11 +1,15 @@
-import * as React from "react"
-import { Input as InputPrimitive } from "@base-ui/react/input"
+import type { ComponentProps } from "react"
 
 import { cn } from "@/lib/utils"
 
-function Input({ className, type, ...props }: React.ComponentProps<"input">) {
+/**
+ * Native input. Base UI `Field.Control` stamps validity `data-*` /
+ * `aria-labelledby` that diverge from the SSR HTML when there is no
+ * `Field.Root` (login and every shadcn Field wrapper).
+ */
+function Input({ className, type, ...props }: ComponentProps<"input">) {
   return (
-    <InputPrimitive
+    <input
       type={type}
       data-slot="input"
       className={cn(

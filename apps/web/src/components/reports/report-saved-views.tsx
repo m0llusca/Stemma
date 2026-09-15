@@ -62,6 +62,7 @@ export function ReportSavedViews({
   currentHref: string;
   savedViews?: SavedReportViewSummary[];
 }) {
+  const [mounted, setMounted] = React.useState(false);
   const [saveOpen, setSaveOpen] = React.useState(false);
   const [menuOpen, setMenuOpen] = React.useState(false);
   const pendingSaveRef = React.useRef(false);
@@ -73,12 +74,33 @@ export function ReportSavedViews({
     "Текущий вид";
 
   React.useEffect(() => {
+    setMounted(true);
     return () => {
       if (pendingDialogTimerRef.current !== null) {
         window.clearTimeout(pendingDialogTimerRef.current);
       }
     };
   }, []);
+
+  const trigger = (
+    <>
+      <Bookmark data-icon="inline-start" aria-hidden="true" />
+      <span className="max-w-40 truncate">{current}</span>
+    </>
+  );
+
+  if (!mounted) {
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        aria-label={`Сохранённый вид: ${current}`}
+      >
+        {trigger}
+      </Button>
+    );
+  }
 
   return (
     <>
@@ -108,8 +130,7 @@ export function ReportSavedViews({
             />
           }
         >
-          <Bookmark data-icon="inline-start" aria-hidden="true" />
-          <span className="max-w-40 truncate">{current}</span>
+          {trigger}
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-72">
           <DropdownMenuGroup>

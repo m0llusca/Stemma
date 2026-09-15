@@ -25,12 +25,15 @@
 - empty / zero — без fake-green
 - empty SoT для Exec = `queueFilterResetHref`, не `qaStatus=QUEUED`
 
-Реализация:
+Реализация (SoT = Recharts, как LIVE DOM):
 
-- Exec risk chart — client island (`exec-risk-chart-island.client.tsx`) statically imports `exec-risk-chart.client`. Do not use `dynamic({ ssr: false })` — Next CSR-bails and the turbopack async chunk never loads. `ExecRiskHome` stays RSC: do not put `dynamic({ ssr: false })` in the RSC either (`/dashboard` 500).
+- Exec / Lead bars — `StaticCategoryBarPlot` (`static-category-bars.tsx`): shadcn `ChartContainer` + Recharts `<BarChart>` / `<Bar>` / `<Cell>`. LIVE: `.recharts-wrapper` / `svg.recharts-surface`. `#113`-era «не брать BarChart / только hand-rolled rects» — устарело.
+- `Bar` `isAnimationActive={false}`: Recharts 3 `Rectangle` при height 0 рисует пусто; instant paint + `data-qc-motion="chart-enter"` на контейнере.
+- Exec island (`exec-risk-chart-island.client.tsx`) статически импортирует `exec-risk-chart.client`. Не `dynamic({ ssr: false })` в RSC и не в island (`/dashboard` 500).
 - error boundary + «Повторить»; KPI остаются
-- Exec plot — `StaticChartContainer` + first-render hand-rolled `<svg className="recharts-surface">` bars (same paint path as `/reports`). Do not use Recharts 3 `<BarChart>`: `RootSurface` stays null until a size effect/Redux write, so LIVE freezes on an empty `.recharts-wrapper`.
-- Exec a11y = summary / table beside chart (sr-only + visible table). No Recharts `accessibilityLayer` on this path.
+- Exec a11y = summary / table рядом. `accessibilityLayer={false}` на `BarChart`.
+- Lead week sparkline — `ChartContainer` + Recharts `<Line>` (`quality-week-chart.client.tsx`).
+- `/reports` — `recharts-visuals.client.tsx` на `StaticChartContainer` (обёртка контекста/CSS) + Recharts `Curve` / `.recharts-surface`. Не документировать как «hand-rolled static SVG вместо Recharts».
 
 **Spike** = первый осмысленный drill-chart на существующих `Chart*`. Новую библиотеку не добавляем.
 
@@ -83,21 +86,31 @@ Spring-значения живут в `@stemma/kinetics/tokens.css` (импор�
 
 ## Фазы
 
-1. Drill-chart spike на Exec (потом Lead) — **сделано** (PR #101 / #99, master ~`3fff63f`; island P0 #104, master ~`74b875a`; paint #113, master `fcbcbbf`): Exec drill-chart done; paint = static SVG via `StaticChartContainer` (not Recharts BarChart); click = `opsQueueKpiMetricHref` / same KPI drills; empty SoT `queueFilterResetHref(EXEC)` → `/reviews`; Agent/VIEWER chartless; summary table beside chart. Island — static import, не RSC `ssr:false`.
+1. Drill-chart spike на Exec (потом Lead) — **сделано**: Recharts `BarChart` via `ChartContainer`; click = `opsQueueKpiMetricHref` / same KPI drills; empty SoT `queueFilterResetHref(EXEC)` → `/reviews`; Agent/VIEWER chartless; summary table beside chart. Island — static import, не RSC `ssr:false`.
 2. Kinetics: 4–6 токенов / паттернов — **сделано** (токены + wiring выше)
 3. Эта заметка — fit; таблица adopted tokens обновляется вместе с CSS
 
 ## Residual
 
+Product SoT = Recharts (Matthew / Marques / LIVE DOM + this #148). #152 docs≠code closed by this fold. Не закрывать #116 здесь.
+
+#109 / #119 after `5ebcd01` / `27ebbff` / `28af033` + reports split `84370da` (tip `4f2ba3a`) — на Recharts-пути:
+
+- Exec tooltip: shadcn `ChartTooltip` / `ChartTooltipContent` next to the bar. Reports: `ChartTooltipStatus` + `anchor` next to the mark, not the corner.
+- Sparse week series: line connects across gaps; markers only on real vertices; no empty-day hover halo off the line.
+- Report plot: CSS aspect = viewBox, `preserveAspectRatio="xMidYMid meet"` — ticks readable.
+- AI-drift: trim empty leading/trailing weeks.
+- Reason timelines: keep calendar zeros (zero is a vertex).
+- Overview after Wave B: decision-first — trend + drivers. Distribution → **Исполнение**; sentiment / CSAT → **Разрезы**. See `report-page-views.tsx`.
+- No `dynamic({ ssr:false })` in RSC.
+
 Empty «Сигналы риска»: RSC `EmptyState` + `queueFilterResetHref(EXEC)` — never Suspense / «Загрузка графика».
 
-Non-empty Exec: static client import → `StaticChartContainer` + first-paint SVG rects. No Recharts `<BarChart>`, no `.recharts-wrapper`, no `accessibilityLayer`, no eternal pending.
+Non-empty Exec: static client import → `ChartContainer` + Recharts `<BarChart>`. LIVE `.recharts-wrapper`.
 
-`/reports` rich visuals: same static-import + hand-rolled SVG (not IO-gated `import()`).
+~~LIVE blank wrapper / eternal pending~~ — fixed (#113); current fix = Recharts bars, animation off.
 
-~~LIVE blank wrapper / eternal pending~~ — fixed (#113).
-
-#109 / #119 visual contract: «Цель» HTML badge outside the plot (`ChartGoalBadge`, chip + tabular-nums, no SVG rotate); score-over-time sparkline uses padded 1:1 geometry + `preserveAspectRatio="xMidYMid meet"` so markers stay circular; footer Мин/Цель/Макс is `ChartScaleFooter` (`text-sm tabular-nums`); Exec / Lead SLA bars share `StaticCategoryBarPlot` (static SVG rects, HTML axis labels); report rich plots lock CSS aspect to the viewBox so `preserveAspectRatio="none"` does not squash ticks/markers; `data-qc-motion="chart-enter"` on `StaticChartContainer` / score sparkline; series entrance on (`data-animation-active="true"` + `AnimatedRectangle` / CSS).
+#109 / #119 visual chrome: «Цель» HTML badge outside the plot (`ChartGoalBadge`); score-over-time sparkline padded + `preserveAspectRatio="xMidYMid meet"`; footer Мин/Цель/Макс = `ChartScaleFooter`; Exec / Lead SLA bars = `StaticCategoryBarPlot` (Recharts `BarChart`, HTML axis labels); `data-qc-motion="chart-enter"` on the chart container.
 
 ## Тесты
 
