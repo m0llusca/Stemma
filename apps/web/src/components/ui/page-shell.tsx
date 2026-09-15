@@ -3,12 +3,12 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { scheduleNavigationCommitFallback } from "@/lib/action-result-bridge";
-import { Badge } from "@/components/ui/badge";
+import { badgeVariants } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
 /**
- * Cross-screen page header composed from shadcn primitives (Badge, Separator).
+ * Cross-screen page header composed from shadcn primitives (badgeVariants, Separator).
  * Layout uses semantic tokens + flex/gap only — no legacy page-shell CSS dependency.
  */
 export type PageShellTab = {
@@ -83,9 +83,14 @@ export function PageShell({
             >
               <span>{tab.label}</span>
               {tab.count != null ? (
-                <Badge variant="secondary" className="h-5 min-w-5 justify-center px-1.5 text-xs">
+                <span
+                  className={cn(
+                    badgeVariants({ variant: "secondary" }),
+                    "h-5 min-w-5 justify-center px-1.5 text-xs"
+                  )}
+                >
                   {tab.count}
-                </Badge>
+                </span>
               ) : null}
             </Link>
           ))}

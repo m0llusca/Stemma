@@ -13,7 +13,8 @@ import {
   ScoreDistributionPanel,
   StackedBar
 } from "@/components/reports/report-charts";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Card,
   CardAction,
@@ -186,14 +187,14 @@ export function ReportPageViews(props: ReportPageModel) {
       title={reportAction.title}
       description={reportAction.description}
       action={
-        <Button
-          render={<Link href={reportAction.href} prefetch={false} />}
-          nativeButton={false}
-          size="sm"
+        <Link
+          href={reportAction.href}
+          prefetch={false}
+          className={cn(buttonVariants({ size: "sm" }))}
         >
           <span>{reportAction.label}</span>
           <ArrowRight data-icon="inline-end" aria-hidden="true" />
-        </Button>
+        </Link>
       }
     />
 
@@ -262,42 +263,24 @@ export function ReportPageViews(props: ReportPageModel) {
             Обзор отвечает «что происходит». Детали — в соседних видах.
           </p>
         </div>
-        <Button
-          render={
-            <Link
-              href={buildReportAnalysisHref(currentReportHref, { view: "performance" }, filterCatalog)}
-            />
-          }
-          variant="outline"
-          size="sm"
-          nativeButton={false}
+        <Link
+          href={buildReportAnalysisHref(currentReportHref, { view: "performance" }, filterCatalog)}
+          className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
         >
           Исполнение · кого коучить
-        </Button>
-        <Button
-          render={
-            <Link
-              href={buildReportAnalysisHref(currentReportHref, { view: "process" }, filterCatalog)}
-            />
-          }
-          variant="outline"
-          size="sm"
-          nativeButton={false}
+        </Link>
+        <Link
+          href={buildReportAnalysisHref(currentReportHref, { view: "process" }, filterCatalog)}
+          className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
         >
           Процесс · риски и причины
-        </Button>
-        <Button
-          render={
-            <Link
-              href={buildReportAnalysisHref(currentReportHref, { view: "details" }, filterCatalog)}
-            />
-          }
-          variant="outline"
-          size="sm"
-          nativeButton={false}
+        </Link>
+        <Link
+          href={buildReportAnalysisHref(currentReportHref, { view: "details" }, filterCatalog)}
+          className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
         >
           Разрезы · таблицы и CSAT
-        </Button>
+        </Link>
       </section>
     ) : null}
 
@@ -336,14 +319,12 @@ export function ReportPageViews(props: ReportPageModel) {
             </p>
           </div>
           <CardAction>
-            <Button
-              render={<Link href={reportHref(period, { view: "details" })} />}
-              nativeButton={false}
-              variant="outline"
-              size="sm"
+            <Link
+              href={reportHref(period, { view: "details" })}
+              className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
             >
               Таблицы
-            </Button>
+            </Link>
           </CardAction>
         </CardHeader>
         <CardContent className="pt-(--card-spacing)">

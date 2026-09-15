@@ -254,6 +254,7 @@ export function ReportEvidenceSheet({
   const focusOriginIdRef = React.useRef<string | null>(null);
   const triggerHostRef = React.useRef<HTMLSpanElement>(null);
   const enterActivationRef = React.useRef<HTMLElement | null>(null);
+  const [mounted, setMounted] = React.useState(false);
   const [dismissedEvidenceIdentity, setDismissedEvidenceIdentity] =
     React.useState<string | null>(null);
   const [fetchedEvidence, setFetchedEvidence] = React.useState<{
@@ -288,6 +289,10 @@ export function ReportEvidenceSheet({
   const sheetOpen =
     payloadMatchesUrl &&
     dismissedEvidenceIdentity !== currentEvidenceIdentity;
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   React.useEffect(() => {
     if (currentEvidenceIdentity === null) {
@@ -508,6 +513,7 @@ export function ReportEvidenceSheet({
   return (
     <>
       {trigger}
+      {mounted ? (
       <Sheet
         open={sheetOpen}
         onOpenChange={(nextOpen) => {
@@ -620,6 +626,7 @@ export function ReportEvidenceSheet({
           </div>
         </SheetContent>
       </Sheet>
+      ) : null}
     </>
   );
 }

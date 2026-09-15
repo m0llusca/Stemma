@@ -4,6 +4,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { ReportExportMenu } from "@/components/reports/report-command-bar";
 import {
   ReportParameterLens,
   reportLocationNavigation
@@ -209,6 +210,9 @@ describe("ReportParameterLens", () => {
       name: "Параметры отчёта"
     });
     expect(serverLens).toHaveAttribute("data-hydrated", "false");
+    expect(serverContainer.querySelector("[data-slot=popover-trigger]")).toBeNull();
+    expect(serverContainer.querySelector("[data-slot=sheet-trigger]")).toBeNull();
+    expect(serverContainer.querySelector("[data-slot=dropdown-menu-trigger]")).toBeNull();
     expect(within(serverLens).getByLabelText("Период")).toHaveValue("vk-current");
     expect(within(serverLens).getByLabelText("Сравнение")).toHaveValue(
       "previous"
@@ -817,5 +821,24 @@ describe("ReportParameterLens", () => {
       "data-[side=right]:sm:max-w-none"
     );
     expect(within(sheet).getByRole("button", { name: "Закрыть" })).toBeInTheDocument();
+  });
+});
+
+describe("ReportExportMenu", () => {
+  it("does not SSR dropdown trigger attributes", () => {
+    const html = renderToStaticMarkup(
+      <ReportExportMenu
+        period={{
+          preset: "vk-current",
+          start: new Date("2026-08-22T00:00:00.000Z"),
+          end: new Date("2026-09-21T23:59:59.999Z"),
+          label: "Текущий 22–21"
+        }}
+      />
+    );
+
+    expect(html).toContain("Экспорт");
+    expect(html).not.toContain("data-slot=\"dropdown-menu-trigger\"");
+    expect(html).not.toContain("aria-haspopup");
   });
 });
