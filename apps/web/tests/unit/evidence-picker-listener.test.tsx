@@ -11,7 +11,10 @@ import {
 } from "@/components/review/evidence-draft";
 import { EvidenceMessageButton } from "@/components/review/evidence-message-button";
 import { LiveEvidenceGroupChip, LiveEvidenceTotal } from "@/components/review/evidence-live-count";
-import { applyEvidenceMessageSelection } from "@/components/review/evidence-picker-listener";
+import {
+  applyEvidenceMessageSelection,
+  EvidencePickerListener
+} from "@/components/review/evidence-picker-listener";
 import { ToastProvider } from "@/components/ui/toast";
 
 const messages = [
@@ -345,5 +348,76 @@ describe("applyEvidenceMessageSelection", () => {
     expect(applyEvidenceMessageSelection("message-client")).toBe(false);
     expect(screen.getByRole("combobox", { name: "Тон" })).toHaveValue("message-operator");
     expect(screen.getByRole("combobox", { name: "Эмпатия" })).toHaveValue("message-client");
+  });
+});
+
+function DomFallbackHarness() {
+  return (
+    <>
+      <EvidencePickerListener />
+      <label>
+        Тон
+        <select name="criterion.tone.evidenceMessageId" aria-label="Тон" defaultValue="message-operator">
+          <option value="">Не выбрано</option>
+          <option value="message-operator">Оператор</option>
+          <option value="message-client">Клиент</option>
+        </select>
+      </label>
+      <label>
+        Эмпатия
+        <select name="criterion.empathy.evidenceMessageId" aria-label="Эмпатия" defaultValue="message-client">
+          <option value="">Не выбрано</option>
+          <option value="message-operator">Оператор</option>
+          <option value="message-client">Клиент</option>
+        </select>
+      </label>
+      <EvidenceMessageButton messageId="message-operator" />
+    </>
+  );
+}
+
+function focusEvidenceSelect(select: HTMLElement) {
+  fireEvent.focus(select);
+  fireEvent.focusIn(select);
+}
+
+function blurEvidenceSelect(select: HTMLElement) {
+  fireEvent.blur(select);
+  fireEvent.focusOut(select);
+}
+
+describe("EvidencePickerListener DOM fallback", () => {
+  it("clears sticky activeSelectRef after blur so a later full-slots click does not rewrite", async () => {
+    render(<DomFallbackHarness />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "В доказательство" })).not.toBeDisabled();
+    });
+
+    const empathy = screen.getByRole("combobox", { name: "Эмпатия" });
+    focusEvidenceSelect(empathy);
+    blurEvidenceSelect(empathy);
+    await flushEvidenceSelectBlur();
+
+    fireEvent.click(screen.getByRole("button", { name: "В доказательство" }));
+
+    expect(screen.getByRole("combobox", { name: "Тон" })).toHaveValue("message-operator");
+    expect(empathy).toHaveValue("message-client");
+  });
+
+  it("still replaces the focused select when blur is part of the same click", async () => {
+    render(<DomFallbackHarness />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "В доказательство" })).not.toBeDisabled();
+    });
+
+    const empathy = screen.getByRole("combobox", { name: "Эмпатия" });
+    focusEvidenceSelect(empathy);
+    blurEvidenceSelect(empathy);
+    fireEvent.click(screen.getByRole("button", { name: "В доказательство" }));
+
+    expect(screen.getByRole("combobox", { name: "Тон" })).toHaveValue("message-operator");
+    expect(empathy).toHaveValue("message-operator");
   });
 });

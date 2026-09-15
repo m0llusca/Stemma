@@ -7,6 +7,23 @@ type EvidenceSelectedEvent = CustomEvent<{ messageId?: string }>;
 export const EVIDENCE_SELECT_SELECTOR = 'select[name^="criterion."][name$=".evidenceMessageId"]';
 export const EVIDENCE_APPLIED_EVENT = "review:evidence-applied";
 
+export function isEvidenceSelect(node: EventTarget | Node | null): node is HTMLSelectElement {
+  return node instanceof HTMLSelectElement && node.matches(EVIDENCE_SELECT_SELECTOR);
+}
+
+/**
+ * After an evidence select blurs, run `onLeft` unless another evidence select is active.
+ * Deferred so a «В доказательство» click that caused the blur can still attach.
+ */
+export function scheduleIfEvidenceSelectLeft(onLeft: () => void) {
+  window.setTimeout(() => {
+    if (isEvidenceSelect(document.activeElement)) {
+      return;
+    }
+    onLeft();
+  }, 0);
+}
+
 export function listEvidenceSelects() {
   return Array.from(document.querySelectorAll<HTMLSelectElement>(EVIDENCE_SELECT_SELECTOR));
 }
@@ -78,14 +95,22 @@ export function EvidencePickerListener() {
 
   useEffect(() => {
     function rememberSelect(event: FocusEvent) {
-      const target = event.target;
-
-      if (
-        target instanceof HTMLSelectElement &&
-        target.matches(EVIDENCE_SELECT_SELECTOR)
-      ) {
-        activeSelectRef.current = target;
+      if (isEvidenceSelect(event.target)) {
+        activeSelectRef.current = event.target;
       }
+    }
+
+    function forgetSelect(event: FocusEvent) {
+      if (!isEvidenceSelect(event.target)) {
+        return;
+      }
+
+      const leaving = event.target;
+      scheduleIfEvidenceSelectLeft(() => {
+        if (activeSelectRef.current === leaving) {
+          activeSelectRef.current = null;
+        }
+      });
     }
 
     function selectEvidence(event: Event) {
@@ -99,10 +124,12 @@ export function EvidencePickerListener() {
     }
 
     document.addEventListener("focusin", rememberSelect);
+    document.addEventListener("focusout", forgetSelect);
     window.addEventListener("review:evidence-message-selected", selectEvidence);
 
     return () => {
       document.removeEventListener("focusin", rememberSelect);
+      document.removeEventListener("focusout", forgetSelect);
       window.removeEventListener("review:evidence-message-selected", selectEvidence);
     };
   }, []);
