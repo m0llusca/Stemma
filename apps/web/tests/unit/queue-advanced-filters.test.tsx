@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { QueueAdvancedFilters } from "@/components/review/queue-advanced-filters";
@@ -15,54 +15,71 @@ describe("QueueAdvancedFilters", () => {
       <QueueAdvancedFilters
         activeCount={0}
         parameterCount={12}
-        defaultOpen={false}
         formId="review-queue-filters"
+        preserveValues={[]}
       >
         <div>Фильтры</div>
       </QueueAdvancedFilters>
     );
 
     expect(screen.getByRole("button", { name: /^точные фильтры/i })).toHaveTextContent("12 параметров");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("opens exact filters in a sheet with an accessible title", async () => {
+  it("opens exact filters only after an explicit click", async () => {
     render(
       <QueueAdvancedFilters
         activeCount={3}
         parameterCount={12}
-        defaultOpen
         formId="review-queue-filters"
+        preserveValues={[{ name: "qaStatus", value: "QUEUED" }]}
       >
         <div>Фильтры</div>
       </QueueAdvancedFilters>
     );
 
-    expect(screen.getByRole("button", { name: /^точные фильтры/i, hidden: true })).toHaveTextContent(
+    expect(screen.getByRole("button", { name: /^точные фильтры/i })).toHaveTextContent(
       "3 применено"
     );
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /^точные фильтры/i }));
+
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Точные фильтры" })).toBeInTheDocument();
   });
 
-  it("does not auto-open the sheet when welcome-back is eligible", async () => {
+  it("keeps active exact params in the closed form so the queue stays clickable", () => {
     const stale = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString();
     window.localStorage.setItem(LAST_VISIT_STORAGE_KEY, stale);
 
-    render(
-      <QueueAdvancedFilters
-        activeCount={3}
-        parameterCount={12}
-        defaultOpen
-        formId="review-queue-filters"
-      >
-        <div>Фильтры</div>
-      </QueueAdvancedFilters>
+    const { container } = render(
+      <form id="review-queue-filters">
+        <QueueAdvancedFilters
+          activeCount={3}
+          parameterCount={12}
+          formId="review-queue-filters"
+          preserveValues={[{ name: "qaStatus", value: "QUEUED" }]}
+        >
+          <label>
+            Статус проверки
+            <select name="qaStatus" form="review-queue-filters" defaultValue="QUEUED">
+              <option value="QUEUED">В очереди</option>
+            </select>
+          </label>
+        </QueueAdvancedFilters>
+      </form>
     );
 
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: /^точные фильтры/i })).toBeVisible();
-    });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(container.querySelector('[data-slot="sheet-overlay"]')).not.toBeInTheDocument();
+    expect(new FormData(container.querySelector("form") as HTMLFormElement).get("qaStatus")).toBe(
+      "QUEUED"
+    );
+    expect(container.querySelector('[data-slot="exact-filter-mirror"]')).toHaveAttribute(
+      "name",
+      "qaStatus"
+    );
   });
 
   it("reinforces progressive disclosure help near exact filters", () => {
@@ -70,8 +87,8 @@ describe("QueueAdvancedFilters", () => {
       <QueueAdvancedFilters
         activeCount={0}
         parameterCount={12}
-        defaultOpen={false}
         formId="review-queue-filters"
+        preserveValues={[]}
       >
         <div>Фильтры</div>
       </QueueAdvancedFilters>
@@ -79,5 +96,34 @@ describe("QueueAdvancedFilters", () => {
 
     expect(screen.getByText(/Редкие срезы \(источник, SLA, риск\)/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /зачем точные фильтры/i })).toBeInTheDocument();
+  });
+
+  it("drops mirrors while the sheet is open so names do not double-submit", async () => {
+    const { container } = render(
+      <form id="review-queue-filters">
+        <QueueAdvancedFilters
+          activeCount={1}
+          parameterCount={12}
+          formId="review-queue-filters"
+          preserveValues={[{ name: "due", value: "overdue" }]}
+        >
+          <label>
+            Срок
+            <select name="due" form="review-queue-filters" defaultValue="overdue">
+              <option value="overdue">Просрочено</option>
+            </select>
+          </label>
+        </QueueAdvancedFilters>
+      </form>
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /^точные фильтры/i }));
+    await waitFor(() => {
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+    });
+    expect(container.querySelector('[data-slot="exact-filter-mirror"]')).not.toBeInTheDocument();
+    expect(new FormData(container.querySelector("form") as HTMLFormElement).get("due")).toBe(
+      "overdue"
+    );
   });
 });

@@ -53,6 +53,53 @@ const exactQueueFilterParameters = [
   "riskLevel"
 ] satisfies readonly (keyof ReviewQueueFilters)[];
 
+function isoDateOnly(value: Date) {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function exactFilterPreserveValues(filters: ReviewQueueFilters) {
+  const entries: Array<{ name: string; value: string }> = [];
+  const scalar: Array<[string, string | undefined]> = [
+    ["channel", filters.channel],
+    ["qaStatus", filters.qaStatus],
+    ["source", filters.source],
+    ["assignee", filters.assignee],
+    ["qaAssignee", filters.qaAssignee],
+    ["samplingType", filters.samplingType],
+    ["csatBucket", filters.csatBucket],
+    ["qaScoreBand", filters.qaScoreBand],
+    ["supportLine", filters.supportLine],
+    ["teamName", filters.teamName],
+    ["process", filters.process],
+    ["due", filters.due],
+    ["riskLevel", filters.riskLevel],
+    ["coachingStatus", filters.coachingStatus],
+    ["findingCategory", filters.findingCategory],
+    ["criticalCategory", filters.criticalCategory],
+    ["feedbackStatus", filters.feedbackStatus],
+    ["appealStatus", filters.appealStatus],
+    ["reanswerStatus", filters.reanswerStatus]
+  ];
+
+  for (const [name, value] of scalar) {
+    if (value) {
+      entries.push({ name, value });
+    }
+  }
+
+  if (filters.finalizedFrom) {
+    entries.push({ name: "finalizedFrom", value: isoDateOnly(filters.finalizedFrom) });
+  }
+  if (filters.finalizedTo) {
+    entries.push({ name: "finalizedTo", value: isoDateOnly(filters.finalizedTo) });
+  }
+
+  return entries;
+}
+
 export function QueueFilters({
   filters,
   sources,
@@ -86,7 +133,6 @@ export function QueueFilters({
     filters.finalizedTo
   ];
   const activeAdvancedFilterCount = advancedFilterValues.filter(Boolean).length;
-  const hasAdvancedFilters = activeAdvancedFilterCount > 0;
   const processLabels = {
     critical: "Критические ошибки",
     reanswer: "Переответы",
@@ -181,7 +227,7 @@ export function QueueFilters({
         <QueueAdvancedFilters
           activeCount={activeAdvancedFilterCount}
           parameterCount={exactQueueFilterParameters.length}
-          defaultOpen={hasAdvancedFilters}
+          preserveValues={exactFilterPreserveValues(filters)}
           formId={queueFiltersFormId}
           actions={
             <Field className="min-w-0 sm:col-span-2 sm:justify-self-end xl:col-span-1">
