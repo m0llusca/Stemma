@@ -79,8 +79,10 @@ test("current and previous 22-21 reports render populated charts", async ({ page
     }
     // The counts render as SVG <text> nodes (aria-hidden rich visual); SVG
     // elements have no innerText (undefined → NaN), so read textContent.
+    // Counts live on `[data-slot=score-count]`. A `/^\d+$/` sweep also matches
+    // y-axis ticks (0 / mid / max) and under-counts the four ranges.
     const scoreCounts = (
-      await distribution.getByText(/^\d+$/, { exact: true }).allTextContents()
+      await distribution.locator('[data-slot="score-count"]').allTextContents()
     ).map((text) => Number(text.trim()));
     expect(scoreCounts, "every score range should expose its visible count").toHaveLength(scoreRanges.length);
     expect(

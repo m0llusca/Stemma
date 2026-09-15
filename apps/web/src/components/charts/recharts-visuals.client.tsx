@@ -531,6 +531,16 @@ export function ScoreDistributionVisual({
                 fill="var(--color-count)"
               />
               <text
+                data-slot="score-count"
+                x={bar.x + bar.width / 2}
+                y={bar.y - 6}
+                textAnchor="middle"
+                fill="var(--foreground)"
+                fontSize={11}
+              >
+                {bar.value}
+              </text>
+              <text
                 x={bar.x + bar.width / 2}
                 y={height - 14}
                 textAnchor="middle"
