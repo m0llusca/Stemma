@@ -2,7 +2,7 @@
 
 Walk checklist for epic [#116](https://github.com/m0llusca/Stemma/issues/116). ACCEPT for #116 = this matrix all green + Marques UX-ACCEPT + ДеШон PASS.
 
-LIVE walk **PASS** on tip **`4f2ba3a`** (Джамал, 0 FAIL): QA / Exec / Admin / Lead / Agent / Viewer + role-switch Admin→Exec. Matthew ACK: cells PASS with tip SHA. [#116](https://github.com/m0llusca/Stemma/issues/116) stays open until [#148](https://github.com/m0llusca/Stemma/issues/148) (chart SoT / OTRS webhook / Playwright demo-data-current) + Marques UX-ACCEPT + ДеШон LIVE adversarial.
+LIVE walk **PASS** on tip **`4f2ba3a`** (Джамал, 0 FAIL): QA / Exec / Admin / Lead / Agent / Viewer + role-switch Admin→Exec. Matthew ACK: cells PASS with tip SHA. [#116](https://github.com/m0llusca/Stemma/issues/116) stays open until [#148](https://github.com/m0llusca/Stemma/issues/148) / [#152](https://github.com/m0llusca/Stemma/issues/152) (chart SoT reconcile, OTRS webhook, Playwright demo-data-current) + Marques UX-ACCEPT + ДеШон LIVE adversarial. Docs SoT = Recharts.
 
 Child streams (code on tip **`4f2ba3a`**):
 
