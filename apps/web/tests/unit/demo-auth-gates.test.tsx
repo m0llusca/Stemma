@@ -131,6 +131,38 @@ describe("demo auth gated surfaces", () => {
     expect(screen.getByRole("button", { name: "Войти" })).not.toBeNull();
   });
 
+  it("hydrates credentials and SSO without Base UI attribute stamps", async () => {
+    mocks.prisma.identityProvider.findMany.mockResolvedValue([
+      {
+        id: "idp-1",
+        workspaceId: "workspace-1",
+        name: "Entra",
+        slug: "entra",
+        status: "active",
+        type: "MICROSOFT_ENTRA_ID",
+        workspace: { name: "Демо workspace" }
+      }
+    ]);
+    const { default: LoginPage } = await import("@/app/auth/login/page");
+
+    render(await LoginPage({ searchParams: Promise.resolve({}) }));
+
+    const submit = screen.getByRole("button", { name: "Войти" });
+    expect(submit.tagName).toBe("BUTTON");
+    expect(submit.getAttribute("data-slot")).toBeNull();
+    expect(submit.getAttribute("role")).toBeNull();
+
+    const sso = screen.getByRole("link", { name: "Войти через SSO" });
+    expect(sso.tagName).toBe("A");
+    expect(sso.getAttribute("data-slot")).toBeNull();
+    expect(sso.getAttribute("role")).toBeNull();
+    expect(sso.getAttribute("href")).toContain("/auth/sso?");
+
+    expect(screen.getByText("Активен").getAttribute("data-slot")).toBeNull();
+    expect(document.querySelector("[data-slot=separator]")).toBeNull();
+    expect(document.querySelector("[data-slot=field]")).toBeNull();
+  });
+
   it("opens demo login with native details when demo auth is enabled", async () => {
     mocks.isDemoAuthEnabled.mockReturnValue(true);
     const { default: LoginPage } = await import("@/app/auth/login/page");

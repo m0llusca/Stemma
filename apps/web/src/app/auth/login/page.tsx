@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { CheckCircle2, ShieldCheck } from "lucide-react";
 import { DemoLoginDisclosure } from "@/components/auth/demo-login-disclosure";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -13,11 +13,9 @@ import {
   CardHeader,
   CardTitle
 } from "@/components/ui/card";
-import { Chip } from "@/components/ui/chip";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
-import { Separator } from "@/components/ui/separator";
 import { demoLoginUsersFindManyArgs, demoUserOptionLabel } from "@/lib/auth/demo-users";
 import { loginFlashCookieName, resolveLoginFlashMessage } from "@/lib/auth/login-flash";
 import { resolvePostLoginPath, sanitizeReturnTo } from "@/lib/auth/role-home";
@@ -173,18 +171,22 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             </h2>
             <form action={signInWithLocalCredentials}>
               <input type="hidden" name="returnTo" value={returnTo} />
-              <FieldGroup className="gap-3.5">
-                <Field>
-                  <FieldLabel htmlFor="login">Логин</FieldLabel>
+              <div className="flex w-full flex-col gap-3.5">
+                <div className="grid gap-2">
+                  <label htmlFor="login" className="text-sm font-medium">
+                    Логин
+                  </label>
                   <Input
                     id="login"
                     name="login"
                     autoComplete="username"
                     required
                   />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="password">Пароль</FieldLabel>
+                </div>
+                <div className="grid gap-2">
+                  <label htmlFor="password" className="text-sm font-medium">
+                    Пароль
+                  </label>
                   <Input
                     id="password"
                     name="password"
@@ -192,17 +194,17 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                     autoComplete="current-password"
                     required
                   />
-                </Field>
-                <Button type="submit" className="mt-1 w-full">
+                </div>
+                <button type="submit" className={cn(buttonVariants(), "mt-1 w-full")}>
                   Войти
-                </Button>
-              </FieldGroup>
+                </button>
+              </div>
             </form>
           </div>
 
           {selectedProvider ? (
             <>
-              <Separator />
+              <div role="separator" className="h-px w-full shrink-0 bg-border" />
               <div className="flex flex-col gap-3">
                 <h2 className="flex items-center gap-1.5 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                   <ShieldCheck className="size-3.5" aria-hidden="true" />
@@ -213,36 +215,40 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 font-medium text-foreground">
                         <span className="text-sm break-words">{selectedProvider.name}</span>
-                        <Chip tone={selectedProviderIsActive ? "success" : "neutral"}>
+                        <span
+                          className={cn(
+                            "chip inline-flex h-6 items-center rounded-md border px-2 text-xs font-normal",
+                            selectedProviderIsActive
+                              ? "chip--success border-transparent bg-emerald-500/15 text-emerald-800 dark:text-emerald-300"
+                              : "chip--neutral border-border bg-secondary text-secondary-foreground"
+                          )}
+                        >
                           {providerStatusLabels[selectedProvider.status] ?? selectedProvider.status}
-                        </Chip>
+                        </span>
                       </div>
                       <p className="mt-0.5 text-xs text-muted-foreground break-words">
                         {selectedProvider.workspace.name} · {providerTypeLabels[selectedProvider.type] ?? selectedProvider.type}
                       </p>
                     </div>
                     {selectedProviderIsActive ? (
-                      <Button
-                        render={
-                          <Link
-                            href={ssoHref({
-                              provider: selectedProvider.slug,
-                              workspaceId: selectedProvider.workspaceId,
-                              returnTo
-                            })}
-                          />
-                        }
-                        nativeButton={false}
-                        variant="outline"
-                        size="sm"
-                        className="shrink-0"
+                      <Link
+                        href={ssoHref({
+                          provider: selectedProvider.slug,
+                          workspaceId: selectedProvider.workspaceId,
+                          returnTo
+                        })}
+                        className={cn(buttonVariants({ variant: "outline", size: "sm" }), "shrink-0")}
                       >
                         Войти через SSO
-                      </Button>
+                      </Link>
                     ) : (
-                      <Button type="button" variant="outline" size="sm" className="shrink-0" disabled>
+                      <button
+                        type="button"
+                        disabled
+                        className={cn(buttonVariants({ variant: "outline", size: "sm" }), "shrink-0")}
+                      >
                         SSO недоступен
-                      </Button>
+                      </button>
                     )}
                   </div>
 
