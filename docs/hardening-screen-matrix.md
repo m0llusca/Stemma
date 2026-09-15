@@ -7,7 +7,7 @@ LIVE walk **PASS** on tip **`4f2ba3a`** (Джамал, 0 FAIL): QA / Exec / Admi
 Child streams (code on tip **`4f2ba3a`**):
 
 - [#118](https://github.com/m0llusca/Stemma/issues/118) dead clicks / expand-collapse / silent no-op — **visual** closed on master [`13eadb0`](https://github.com/m0llusca/Stemma/commit/13eadb008fc863b286a8fa7954e6051042d49408) (PR #123). LIVE: score modules open/close+Enter hold **PASS**. [#125](https://github.com/m0llusca/Stemma/issues/125) `aria-expanded` sync is **implemented** (`review-disclosure.tsx` React SoT); aria lag is not a visual FAIL
-- [#119](https://github.com/m0llusca/Stemma/issues/119) charts — LIVE paint **PASS** (Exec 3 bars + overdue drill). CODE SoT Recharts vs static SVG still [#148](https://github.com/m0llusca/Stemma/issues/148) — not resolved here
+- [#119](https://github.com/m0llusca/Stemma/issues/119) charts — LIVE paint **PASS** (Exec Recharts 3 bars + overdue drill). Docs SoT = Recharts (matches LIVE). Residual reconcile [#148](https://github.com/m0llusca/Stemma/issues/148) / [#152](https://github.com/m0llusca/Stemma/issues/152) — not merged here
 - [#117](https://github.com/m0llusca/Stemma/issues/117) Morphicons — LIVE **PASS** (Copy↔Check on `/admin/tokens`)
 
 ### #118 / #117 / #125 status
@@ -110,7 +110,7 @@ Home `/dashboard`. Nav: Сегодня / Проверки / Калибровка
 | `/dashboard` | welcome-back **«Сбросить к очереди дня»**; triage **Разобрать** / empty **Взять следующий**; KPI **Просрочено SLA** / **Высокий риск** / **Проверок за неделю** / **Активных обучений** → honest hrefs (never `status=unreviewed`); sparkline **Качество команды · 7 дней** (цель 90, point → period queue); **Нагрузка проверяющих** name/counts → queue; **Ещё в фокусе** | PASS | PASS | n/a | #119 Lead/Admin sparkline |
 | `/reviews` | filters (Итог, Статус проверки, Проверяющий, Срок, Риск, Sheet редких срезов); **Сбросить фильтры** → `/reviews`; SavedViews apply + create/rename/delete; **Взять следующий**; next-case preview collapse/expand + CTA; welcome-back reset; empty **Очередь пуста** / **В текущем представлении нет кейсов** | PASS | n/a | PASS | Exact-filters sheet sometimes intercepts click — not a FAIL |
 | `/reviews/[conversationId]` | **Roman P0**: **модули оценки** = controlled `<details>` / `<summary>` (master `13eadb0`). Click + Enter: visual open/close+hold. Steps **Оценка по критериям** / **Итог проверки** / **Дополнительно**; **Группа процесса** blocks; per-criterion summary (Enter/Esc); score 1/2/3; **Сохранить черновик**; **Завершить проверку**; **Завершить и взять следующий** (⌘↩); `?` legend; AI draft Принять/Отклонить/Изменить if present; appeal/feedback under Дополнительно | PASS | n/a | PASS | #118 open/close+Enter hold `4f2ba3a`. #117 = chevron, not CopyButton. aria lag → #125, not visual FAIL |
-| `/reports` | period: **Текущий период 22-21** / прошлый 22-21 / календарный месяц / квартал / произвольный; **Обзор** = trend + drivers (decision-first after Wave B); distribution → **Исполнение**; sentiment / CSAT → **Разрезы**; static SVG / `StaticChartContainer`, not blank `.recharts-wrapper`; bar/point → evidence sheet or filtered queue; export CSV/XLSX/PDF if menu present | PASS | PASS | n/a | |
+| `/reports` | period: **Текущий период 22-21** / прошлый 22-21 / календарный месяц / квартал / произвольный; **Обзор** = trend + drivers (decision-first after Wave B); distribution → **Исполнение**; sentiment / CSAT → **Разрезы**; Recharts (`ChartContainer` / `.recharts-surface`); bar/point → evidence sheet or filtered queue; export CSV/XLSX/PDF if menu present | PASS | PASS | n/a | |
 | `/calibration` | **Новая сессия** / **Скрыть форму**; **Создать сессию**; session tabs; **Завершить**; matrix / agreement rows clickable → session or queue | PASS | n/a | PASS | accordion/chevron → #117 |
 | `/coaching` | views active/overdue/week/mine/unlinked/done/all; KPI drills; **Создать план** / **Создать задачу**; assignment **Готово** / **Вернуть**; theme/filter submit | PASS | PASS | PASS | sparkline on coaching if shown |
 
@@ -195,7 +195,7 @@ Home `/dashboard` = ExecRiskHome. Nav: Сегодня / Проверки / Ан�
 | --- | --- | --- | --- | --- | --- |
 | `/auth/login` | DEMO → `/dashboard` | PASS | n/a | PASS | |
 | (shell) | **«Сменить роль»**; 3 nav areas; ⌘K Сегодня + **Открыть просроченные SLA** + **Открыть аналитику за квартал**; no Take next; no pulse | PASS | n/a | PASS | leaked Take next = FAIL. Role-switch Admin→Exec walked |
-| `/dashboard` | 3 KPI: **Просрочено SLA** / **Высокий риск** / **Очередь без старта** (LIVE seed often 8 / 13 / 4); triage action → queue; **Сигналы риска**: **3 SVG bars** (`<svg class="recharts-surface">`), **not** `.recharts-wrapper` / Recharts `BarChart`; bar click = same KPI href; summary table beside chart; **EmptyState** «Нет сигналов за период» (`queueFilterResetHref` → `/reviews`) — force empty / unit path; **no** Take next | PASS | PASS | n/a | #119 LIVE paint + overdue drill `4f2ba3a`. CODE SoT Recharts vs static SVG → [#148](https://github.com/m0llusca/Stemma/issues/148) |
+| `/dashboard` | 3 KPI: **Просрочено SLA** / **Высокий риск** / **Очередь без старта** (LIVE seed often 8 / 13 / 4); triage action → queue; **Сигналы риска**: Recharts `BarChart` (3 bars, `.recharts-wrapper` / `svg.recharts-surface`); bar click = same KPI href; summary table beside chart; **EmptyState** «Нет сигналов за период» (`queueFilterResetHref` → `/reviews`) — force empty / unit path; **no** Take next | PASS | PASS | n/a | #119 LIVE paint + overdue drill `4f2ba3a`. Docs SoT = Recharts. Residual [#148](https://github.com/m0llusca/Stemma/issues/148) / [#152](https://github.com/m0llusca/Stemma/issues/152) |
 | `/reviews` | read filters + apply SavedViews; **no** create/rename/delete; **no** Take next; **no** preview submit | PASS | n/a | PASS | Exact-filters sheet sometimes intercepts click — not a FAIL |
 | `/reviews/[conversationId]` | read workbench; no finalize / draft save; modules = controlled `<details>` / `<summary>` if present — visual open/close+hold (click+Enter) | PASS | n/a | PASS | #118 open/close+Enter hold. #117 = chevron, not CopyButton. aria → #125 |
 | `/reports` | period; **Обзор** = trend + drivers; drill; export | PASS | PASS | n/a | |
@@ -241,7 +241,7 @@ Home `/auth/pending-access`. `AppNav` null — no empty areas, no ⌘K.
 
 ## How to use
 
-Джамал: LIVE walk **PASS** on tip `4f2ba3a` (0 FAIL). Cells above reflect that walk. Visual dead click on other surfaces → [#118](https://github.com/m0llusca/Stemma/issues/118). `aria-expanded` mismatch on `[data-slot=review-disclosure-trigger]` → [#125](https://github.com/m0llusca/Stemma/issues/125), not a visual FAIL. Charts LIVE paint → [#119](https://github.com/m0llusca/Stemma/issues/119); CODE SoT still [#148](https://github.com/m0llusca/Stemma/issues/148). Morph → [#117](https://github.com/m0llusca/Stemma/issues/117): Copy↔Check on `/admin/tokens`; chevron on review/accordion.
+Джамал: LIVE walk **PASS** on tip `4f2ba3a` (0 FAIL). Cells above reflect that walk. Visual dead click on other surfaces → [#118](https://github.com/m0llusca/Stemma/issues/118). `aria-expanded` mismatch on `[data-slot=review-disclosure-trigger]` → [#125](https://github.com/m0llusca/Stemma/issues/125), not a visual FAIL. Charts LIVE paint → [#119](https://github.com/m0llusca/Stemma/issues/119); docs SoT = Recharts. Residual [#148](https://github.com/m0llusca/Stemma/issues/148) / [#152](https://github.com/m0llusca/Stemma/issues/152). Morph → [#117](https://github.com/m0llusca/Stemma/issues/117): Copy↔Check on `/admin/tokens`; chevron on review/accordion.
 
 ДеШон: adversarial still open — try the no-op, the impostor filter, leaked Take next on Exec/Agent, VIEWER deep-link.
 
@@ -254,8 +254,8 @@ Close [#116](https://github.com/m0llusca/Stemma/issues/116) only when: this matr
 - [app-shell.md](app-shell.md) — role homes, pulse/Take-next gates, forbidden UX
 - [ux-queue-hotkeys-contract.md](ux-queue-hotkeys-contract.md) — j/k, Enter toggles module, finalize_next, Take next = one path
 - [#125](https://github.com/m0llusca/Stemma/issues/125) — P1 `aria-expanded` sync on review disclosure (split from #118)
-- [#148](https://github.com/m0llusca/Stemma/issues/148) — residual: chart CODE SoT, OTRS webhook, Playwright demo-data-current
-- [research-kinetics-recharts.md](research-kinetics-recharts.md) — Exec = static SVG bars; drill SoT; no vanity
+- [#148](https://github.com/m0llusca/Stemma/issues/148) / [#152](https://github.com/m0llusca/Stemma/issues/152) — residual: chart SoT reconcile, OTRS webhook, Playwright demo-data-current. Docs SoT = Recharts
+- [research-kinetics-recharts.md](research-kinetics-recharts.md) — Exec = Recharts `BarChart`; drill SoT; no vanity
 - [research-morphicons.md](research-morphicons.md) — #117 on tip `4f2ba3a`: CopyButton gate `/admin/tokens`; chevron on review/accordion; top-nav Menu/Search
 - [ux-agent-feedback-contract.md](ux-agent-feedback-contract.md) — self-review pack
 - [semantic-status-colors.md](semantic-status-colors.md) — probe-before-save, cert ≠ step
