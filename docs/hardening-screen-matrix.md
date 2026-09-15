@@ -20,7 +20,7 @@ LIVE SoT = controlled `<details>` / `<summary>` with React `open` + `aria-expand
 
 Friction: exact-filters sheet sometimes intercepts click — not a FAIL.
 
-Login Next «1 Issue» hydration = **CONDITIONAL** — still being fixed in this same #148 tip. Walk PASS on `/auth/login` is DEMO picker / land / logout, not the badge.
+Login Next «1 Issue» hydration = **CONDITIONAL** on this #148 tip (`bab88ff` hydrate). Walk PASS on `/auth/login` is DEMO picker / land / logout. Do not tick PASS on the badge until walkers ACK.
 
 LIVE: https://two-estimate-jury-experiences.trycloudflare.com (ephemeral; tip `4f2ba3a`). The old `offering-vendor-late-homes` URL is dead.
 
