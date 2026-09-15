@@ -105,8 +105,21 @@ export function canAccessDashboard(role: RoleName) {
  * (`canAccessDashboard`) but a typed `/dashboard` remaps to the inbox —
  * one home, no dual-home residual.
  */
-export function canLandOnDashboard(role: RoleName) {
-  return role === "ADMIN" || role === "TEAM_LEAD" || role === "EXEC";
+export function canLandOnDashboard(role: RoleName): boolean {
+  switch (role) {
+    case "ADMIN":
+    case "TEAM_LEAD":
+    case "EXEC":
+      return true;
+    case "QA_ANALYST":
+    case "SUPPORT_AGENT":
+    case "VIEWER":
+      return false;
+    default: {
+      const _exhaustive: never = role;
+      return _exhaustive;
+    }
+  }
 }
 
 export type DashboardSkeletonVariant = "dashboard" | "exec";
