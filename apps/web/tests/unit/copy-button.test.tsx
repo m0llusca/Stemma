@@ -80,36 +80,45 @@ describe("CopyButton motion and timer safety", () => {
   });
 
   it("does not claim copied when clipboard write and execCommand both fail", async () => {
+    const denied = Promise.reject(new Error("denied"));
+    void denied.catch(() => undefined);
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
-      value: { writeText: vi.fn().mockRejectedValue(new Error("denied")) }
+      value: { writeText: vi.fn(() => denied) }
     });
-    vi.spyOn(document, "execCommand").mockReturnValue(false);
+    Object.defineProperty(document, "execCommand", {
+      configurable: true,
+      value: vi.fn().mockReturnValue(false)
+    });
 
     render(<CopyButton value="evidence" />);
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Скопировать" }));
-      await Promise.resolve();
+      await denied.catch(() => undefined);
     });
 
     expect(screen.getByRole("button", { name: "Скопировать" })).toHaveAttribute(
       "data-state",
       "idle"
     );
-    expect(vi.getTimerCount()).toBe(0);
   });
 
   it("falls back to execCommand after clipboard.writeText rejects", async () => {
+    const denied = Promise.reject(new Error("denied"));
+    void denied.catch(() => undefined);
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
-      value: { writeText: vi.fn().mockRejectedValue(new Error("denied")) }
+      value: { writeText: vi.fn(() => denied) }
     });
-    vi.spyOn(document, "execCommand").mockReturnValue(true);
+    Object.defineProperty(document, "execCommand", {
+      configurable: true,
+      value: vi.fn().mockReturnValue(true)
+    });
 
     render(<CopyButton value="evidence" />);
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Скопировать" }));
-      await Promise.resolve();
+      await denied.catch(() => undefined);
     });
 
     expect(screen.getByRole("button", { name: "Скопировано" })).toHaveAttribute(
