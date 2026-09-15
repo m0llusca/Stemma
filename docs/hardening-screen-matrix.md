@@ -256,7 +256,7 @@ Close [#116](https://github.com/m0llusca/Stemma/issues/116) only when: this matr
 - [app-shell.md](app-shell.md) — role homes, pulse/Take-next gates, forbidden UX
 - [ux-queue-hotkeys-contract.md](ux-queue-hotkeys-contract.md) — j/k, Enter toggles module, finalize_next, Take next = one path
 - [#125](https://github.com/m0llusca/Stemma/issues/125) — P1 `aria-expanded` sync on review disclosure (split from #118)
-- [#148](https://github.com/m0llusca/Stemma/issues/148) — residual: OTRS webhook, Playwright demo-data-current, login Next «1 Issue» hydration CONDITIONAL. Chart SoT = Recharts (this PR). #152 folded here
+- [#148](https://github.com/m0llusca/Stemma/issues/148) — residual: OTRS webhook, Playwright demo-data-current, login/tokens/reports Next «1 Issue» hydration CONDITIONAL. Chart SoT = Recharts (this PR). #152 folded here
 - [research-kinetics-recharts.md](research-kinetics-recharts.md) — Exec = Recharts `BarChart`; drill SoT; no vanity
 - [research-morphicons.md](research-morphicons.md) — #117 on tip `4f2ba3a`: CopyButton gate `/admin/tokens`; chevron on review/accordion; top-nav Menu/Search
 - [ux-agent-feedback-contract.md](ux-agent-feedback-contract.md) — self-review pack
