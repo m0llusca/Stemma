@@ -12,7 +12,7 @@
 | [semantic-status-colors.md](semantic-status-colors.md) | Status color semantics; connection / hub / pipeline green = `live_certified` or full coverage; appearance «Применено»; cert ≠ step; probe-before-save |
 | [ux-queue-hotkeys-contract.md](ux-queue-hotkeys-contract.md) | Review hotkeys + Take next / SavedViews write-gate + status chip (locked) |
 | [ux-agent-feedback-contract.md](ux-agent-feedback-contract.md) | Agent feedback trust pack: quote → impact → how-to-fix → appeal (locked) |
-| [ux-dialogue-timeline-contract.md](ux-dialogue-timeline-contract.md) | Review timeline: chat L/R, internal notes, LIVE evidence gate (locked, #154/#155 tip `dd49657`; full-slots #156 tip `429a2d0`) |
+| [ux-dialogue-timeline-contract.md](ux-dialogue-timeline-contract.md) | Review timeline: chat L/R, internal notes, LIVE evidence gate (locked, #154/#155 tip `dd49657`; full-slots #156 tip `429a2d0`; evidence focus #159 tip `c8cea9e`) |
 | [competitive-qa-interconnections.md](competitive-qa-interconnections.md) | Competitor QA interconnection matrix + Stemma P0–P2 status map |
 | [cross-feature-interconnections.md](cross-feature-interconnections.md) | This-wave wiring summary (coaching/AI/reports/self-review loops) |
 | [business-logic-adversarial-audit.md](business-logic-adversarial-audit.md) | Adversarial business-logic audit + P0/P1 fix status |

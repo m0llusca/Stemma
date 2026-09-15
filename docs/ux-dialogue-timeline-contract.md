@@ -1,6 +1,6 @@
 # UX-контракт: таймлайн диалога
 
-Locked. Tip **`dd49657`** (squash [#155](https://github.com/m0llusca/Stemma/pull/155) / [#154](https://github.com/m0llusca/Stemma/issues/154)). Evidence slots: tip **`429a2d0`** ([#156](https://github.com/m0llusca/Stemma/pull/156)).
+Locked. Tip **`dd49657`** (squash [#155](https://github.com/m0llusca/Stemma/pull/155) / [#154](https://github.com/m0llusca/Stemma/issues/154)). Evidence slots: tip **`429a2d0`** ([#156](https://github.com/m0llusca/Stemma/pull/156)). Evidence focus: tip **`c8cea9e`** ([#159](https://github.com/m0llusca/Stemma/pull/159)).
 
 Спека Marques: [comment](https://github.com/m0llusca/Stemma/issues/154#issuecomment-5680463591) + уточнение SYSTEM / живой evidence. Макет Романа — в [#154](https://github.com/m0llusca/Stemma/issues/154).
 
@@ -74,7 +74,9 @@ Hint: «У всех критериев уже есть доказательст�
 
 Приёмка no-focus: слоты заполнять только кнопками «В доказательство». Не табать и не кликать select вручную.
 
-Мягкий остаток (не гейт #156): `focusedCriterionId` — последний сфокусированный select, не «сейчас в DOM focus». После blur фокус липнет. Опциональный follow-up.
+Blur селекта доказательства **сбрасывает** `focusedCriterionId` (`c8cea9e` / [#159](https://github.com/m0llusca/Stemma/pull/159)). Полные слоты без фокуса → info-toast, тихой подмены нет. «Есть» в таблице — живой фокус; тот же клик «В доказательство», что снял select, ещё пишет в этот слот (`setTimeout(0)`).
+
+Мягкий остаток (не гейт #159): DOM-fallback `activeSelectRef` — не merge-gate.
 
 ## Хвосты #155 (тот же пакет)
 
