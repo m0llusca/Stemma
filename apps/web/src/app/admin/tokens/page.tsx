@@ -36,7 +36,12 @@ import { allowedApiScopes } from "@/lib/api-token-service";
 import { revokeApiTokenById } from "@/lib/api-token-actions";
 import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
 import { isDemoAuthEnabled } from "@/lib/current-user";
-import { apiTokenPlaceholder, demoApiToken } from "@/lib/custom-api-docs";
+import {
+  apiTokenPlaceholder,
+  demoApiToken,
+  seededDemoApiTokenName,
+  seededDemoApiTokenPrefix
+} from "@/lib/custom-api-docs";
 import { prisma } from "@/lib/db";
 import { cn } from "@/lib/utils";
 import { requirePagePermission } from "@/lib/page-permission";
@@ -88,6 +93,10 @@ function formatScopes(scopes: string) {
     .map((scope) => scope.trim())
     .filter(Boolean)
     .join(", ");
+}
+
+function isSeededDemoApiTokenRow(token: { name: string; tokenPrefix: string }) {
+  return token.name === seededDemoApiTokenName && token.tokenPrefix === seededDemoApiTokenPrefix;
 }
 
 function tokenHealth(token: {
@@ -256,6 +265,7 @@ export async function AdminTokensPageContent({ searchParams }: AdminTokensPagePr
                       {apiTokens.map((apiToken) => {
                         const health = tokenHealth(apiToken);
                         const isExpired = Boolean(apiToken.expiresAt && apiToken.expiresAt <= now);
+                        const showSeededDemoCopy = demoAuthEnabled && isSeededDemoApiTokenRow(apiToken);
 
                         return (
                           <TableRow key={apiToken.id}>
@@ -265,6 +275,14 @@ export async function AdminTokensPageContent({ searchParams }: AdminTokensPagePr
                                 <span className="font-mono text-xs text-muted-foreground">
                                   {apiToken.tokenPrefix}
                                 </span>
+                                {showSeededDemoCopy ? (
+                                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                                    <code className="break-all font-mono text-xs text-foreground">
+                                      {demoApiToken}
+                                    </code>
+                                    <CopyButton value={demoApiToken} label="Скопировать ключ" />
+                                  </div>
+                                ) : null}
                               </div>
                             </TableCell>
                             <TableCell>

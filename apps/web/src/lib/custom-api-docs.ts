@@ -2,6 +2,8 @@ import { isDemoAuthEnabled } from "@/lib/auth/demo";
 
 /** Hardcoded docs/demo token — never a live credential when demo auth is off. */
 export const demoApiToken = "qa_demo_dev_token";
+export const seededDemoApiTokenName = "Локальный dev API";
+export const seededDemoApiTokenPrefix = `${demoApiToken.slice(0, 7)}...`;
 export const apiTokenPlaceholder = "<API_TOKEN>";
 
 /**

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { type ConversationChannel, type FindingOwnerType, type Prisma, type ReviewSource, type RiskLevel } from "@prisma/client";
-import { demoApiToken } from "../src/lib/custom-api-docs";
+import { demoApiToken, seededDemoApiTokenName, seededDemoApiTokenPrefix } from "../src/lib/custom-api-docs";
 import { translationKeySeeds } from "../src/lib/i18n/keys";
 import { type PreparedDemoSeed } from "./demo-seed-bootstrap";
 import {
@@ -21,17 +21,17 @@ type DemoApiTokenSeedDelegate = Pick<
 >;
 
 export async function createSeededDemoApiToken(
-  env: Record<string, string | undefined>,
+  _env: Record<string, string | undefined>,
   apiToken: DemoApiTokenSeedDelegate,
   workspaceId: string
 ) {
-  if (env.QC_DEMO_AUTH !== "enabled") return null;
-
+  // Demo seed always plants the known local token so /admin/tokens is not
+  // «Ключи 0». requireApiToken still rejects the plaintext when demo auth is off.
   return apiToken.create({
     data: {
       workspaceId,
-      name: "Локальный dev API",
-      tokenPrefix: `${demoApiToken.slice(0, 7)}...`,
+      name: seededDemoApiTokenName,
+      tokenPrefix: seededDemoApiTokenPrefix,
       tokenHash: hashApiToken(demoApiToken),
       scopes: "all"
     }
