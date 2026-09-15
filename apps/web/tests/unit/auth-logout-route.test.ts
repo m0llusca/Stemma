@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GET, POST } from "@/app/auth/logout/route";
+import { LOGOUT_LOGIN_PATH } from "@/lib/auth/logout-location";
 
 const mocks = vi.hoisted(() => ({
   authJsSessionCookieNames: [
@@ -42,6 +43,10 @@ function makeLogoutRequest(method: "GET" | "POST", cookie = "qc_session=session-
 describe("auth logout route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllEnvs();
+    vi.stubEnv("AUTH_URL", "");
+    vi.stubEnv("NEXTAUTH_URL", "");
+    vi.stubEnv("QC_PUBLIC_ORIGIN", "");
   });
 
   it("redirects post logout submissions to the login page", async () => {
@@ -49,7 +54,8 @@ describe("auth logout route", () => {
 
     expect(mocks.revokeAuthSession).toHaveBeenCalledWith("session-token");
     expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe("/auth/login?loggedOut=1");
+    expect(response.headers.get("location")).toBe("http://localhost/auth/login?loggedOut=1");
+    expect(response.headers.get("location")).not.toContain("0.0.0.0");
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.cookies.get("qc_session")?.value).toBe("");
     expect(response.cookies.get("qc_current_user")?.value).toBe("");
@@ -74,7 +80,8 @@ describe("auth logout route", () => {
 
     expect(mocks.revokeAuthSession).toHaveBeenCalledWith("session-token");
     expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe("/auth/login?loggedOut=1");
+    expect(response.headers.get("location")).toBe("http://localhost/auth/login?loggedOut=1");
+    expect(response.headers.get("location")).not.toContain("0.0.0.0");
     expect(response.headers.get("cache-control")).toBe("no-store");
   });
 
@@ -96,7 +103,7 @@ describe("auth logout route", () => {
     expect(response.cookies.get("qc_session")).toBeUndefined();
   });
 
-  it("keeps Location relative when the request origin is localhost behind a public host", async () => {
+  it("uses the public forwarded host instead of localhost or the bind address", async () => {
     const request = new NextRequest("http://localhost:3000/auth/logout", {
       method: "POST",
       headers: {
@@ -110,7 +117,62 @@ describe("auth logout route", () => {
     const response = await POST(request);
 
     expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe("/auth/login?loggedOut=1");
+    expect(response.headers.get("location")).toBe(
+      "https://two-estimate-jury-experiences.trycloudflare.com/auth/login?loggedOut=1"
+    );
     expect(response.headers.get("location")).not.toContain("localhost");
+    expect(response.headers.get("location")).not.toContain("0.0.0.0");
+  });
+
+  it("never emits 0.0.0.0 when Next bound that host behind a Cloudflare tunnel", async () => {
+    const request = new NextRequest("https://0.0.0.0:3000/auth/logout", {
+      method: "POST",
+      headers: {
+        cookie: "qc_session=session-token",
+        host: "0.0.0.0:3000",
+        "x-forwarded-host": "demo.trycloudflare.com",
+        "x-forwarded-proto": "https"
+      }
+    });
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("https://demo.trycloudflare.com/auth/login?loggedOut=1");
+    expect(response.headers.get("location")).not.toContain("0.0.0.0");
+  });
+
+  it("falls back to AUTH_URL when the only request host is the bind address", async () => {
+    vi.stubEnv("AUTH_URL", "https://stemma.example");
+
+    const request = new NextRequest("https://0.0.0.0:3000/auth/logout", {
+      method: "POST",
+      headers: {
+        cookie: "qc_session=session-token",
+        host: "0.0.0.0:3000",
+        "x-forwarded-proto": "https"
+      }
+    });
+
+    const response = await POST(request);
+
+    expect(response.headers.get("location")).toBe("https://stemma.example/auth/login?loggedOut=1");
+    expect(response.headers.get("location")).not.toContain("0.0.0.0");
+  });
+
+  it("keeps a relative Location when no public host or auth origin exists", async () => {
+    const request = new NextRequest("https://0.0.0.0:3000/auth/logout", {
+      method: "POST",
+      headers: {
+        cookie: "qc_session=session-token",
+        host: "0.0.0.0:3000",
+        "x-forwarded-proto": "https"
+      }
+    });
+
+    const response = await POST(request);
+
+    expect(response.headers.get("location")).toBe(LOGOUT_LOGIN_PATH);
+    expect(response.headers.get("location")).not.toContain("0.0.0.0");
   });
 });

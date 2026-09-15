@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { expiredCookieOptions } from "@/lib/auth/cookies";
 import { loginFlashCookieName } from "@/lib/auth/login-flash";
+import { resolveLogoutLocation } from "@/lib/auth/logout-location";
 import { authJsSessionCookieNames, revokeAuthSession, sessionCookieName } from "@/lib/auth/session";
 import { currentUserCookieName } from "@/lib/current-user";
 
 export const dynamic = "force-dynamic";
 
-const LOGOUT_LOCATION = "/auth/login?loggedOut=1";
 const authJsSessionTokenCookieNames = authJsSessionCookieNames.filter((cookieName) => cookieName.endsWith("session-token"));
 
 function sessionTokensFromRequest(request: NextRequest) {
@@ -38,15 +38,14 @@ function clearAuthCookies(response: NextResponse) {
 }
 
 /**
- * Relative Location so a Cloudflare / reverse-proxy public origin does not
- * 303 to `request.nextUrl.origin` (`http://localhost:3000`) and land on
- * `chrome-error://`. The browser resolves against the document origin.
+ * Never redirect to the Next bind host (`https://0.0.0.0:3000/...`).
+ * Public Host / x-forwarded-host / AUTH_URL first; relative path last.
  */
-function loggedOutRedirect() {
+function loggedOutRedirect(request: NextRequest) {
   const response = new NextResponse(null, {
     status: 303,
     headers: {
-      Location: LOGOUT_LOCATION,
+      Location: resolveLogoutLocation(request.headers, request.nextUrl),
       "Cache-Control": "no-store"
     }
   });
@@ -56,7 +55,7 @@ function loggedOutRedirect() {
 
 async function logout(request: NextRequest) {
   await Promise.all(sessionTokensFromRequest(request).map((token) => revokeAuthSession(token)));
-  return loggedOutRedirect();
+  return loggedOutRedirect(request);
 }
 
 export async function GET(request: NextRequest) {
