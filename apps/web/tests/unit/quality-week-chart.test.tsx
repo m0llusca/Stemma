@@ -2,45 +2,50 @@ import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { QualityWeekChart } from "@/components/dashboard/quality-week-chart.client";
 
-vi.mock("next/link", () => ({
-  default: ({
-    scroll,
-    prefetch,
-    replace: _replace,
-    ...props
-  }: ComponentProps<"a"> & {
-    scroll?: boolean;
-    prefetch?: boolean;
-    replace?: boolean;
-  }) => (
-    <a
-      {...props}
-      data-next-scroll={scroll === undefined ? undefined : String(scroll)}
-      data-next-prefetch={prefetch === undefined ? undefined : String(prefetch)}
-    />
-  )
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() })
 }));
 
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+vi.stubGlobal("ResizeObserver", ResizeObserverStub);
+
+vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+  width: 560,
+  height: 180,
+  top: 0,
+  left: 0,
+  bottom: 180,
+  right: 560,
+  x: 0,
+  y: 0,
+  toJSON() {
+    return {};
+  }
+} as DOMRect);
+
 describe("QualityWeekChart", () => {
-  it("does not import Recharts or ResponsiveContainer", () => {
+  it("uses Recharts LineChart through ChartContainer", () => {
     const source = readFileSync(
       path.join(process.cwd(), "src/components/dashboard/quality-week-chart.client.tsx"),
       "utf8"
     );
 
-    expect(source).toContain("InteractiveSparklineChart");
-    expect(source).not.toContain("from \"recharts\"");
-    expect(source).not.toContain("from \"@/components/ui/chart\"");
-    expect(source).not.toContain("LineChart");
-    expect(source).not.toContain("ResponsiveContainer");
-    expect(source).not.toContain("<ChartContainer");
+    expect(source).toContain("from \"recharts\"");
+    expect(source).toContain("LineChart");
+    expect(source).toContain("ChartContainer");
+    expect(source).toContain("aria-label=\"Тренд средней оценки\"");
+    expect(source).not.toContain("InteractiveSparklineChart");
   });
 
-  it("paints the reports static SVG trend, not a Recharts wrapper", () => {
+  it("paints a named Recharts week trend", () => {
     const { container } = render(
       <QualityWeekChart
         points={[
@@ -52,9 +57,7 @@ describe("QualityWeekChart", () => {
     );
 
     expect(screen.getByRole("img", { name: "Тренд средней оценки" })).toBeInTheDocument();
-    expect(container.querySelector('[data-slot="interactive-sparkline-chart"]')).toBeInTheDocument();
-    expect(container.querySelector('[data-slot="sparkline-line"]')).toBeInTheDocument();
-    expect(container.querySelector(".recharts-wrapper")).not.toBeInTheDocument();
-    expect(container.querySelector(".recharts-responsive-container")).not.toBeInTheDocument();
+    expect(container.querySelector(".recharts-responsive-container")).toBeInTheDocument();
+    expect(container.querySelector("svg.recharts-surface")).toBeInTheDocument();
   });
 });

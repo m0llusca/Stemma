@@ -2,11 +2,37 @@ import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { LeadSlaChart } from "@/components/dashboard/lead-sla-chart";
 import { categoryBarDrillLabel } from "@/lib/charts/category-bar-geometry";
 import type { ExecRiskChartBar } from "@/lib/dashboard/exec-risk-home";
 import { OVERDUE_SLA_HREF, QUEUED_STATUS_HREF } from "@/lib/dashboard/queue-kpi-href";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() })
+}));
+
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+vi.stubGlobal("ResizeObserver", ResizeObserverStub);
+
+vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+  width: 520,
+  height: 180,
+  top: 0,
+  left: 0,
+  bottom: 180,
+  right: 520,
+  x: 0,
+  y: 0,
+  toJSON() {
+    return {};
+  }
+} as DOMRect);
 
 const bars: readonly ExecRiskChartBar[] = [
   {
@@ -33,7 +59,7 @@ const bars: readonly ExecRiskChartBar[] = [
 ];
 
 describe("LeadSlaChart", () => {
-  it("paints the shared static SVG plot and keeps Exec chrome off the Lead module", () => {
+  it("paints the shared Recharts plot and keeps Exec chrome off the Lead module", () => {
     const { container } = render(<LeadSlaChart bars={bars} />);
     const source = readFileSync(
       path.join(process.cwd(), "src/components/dashboard/lead-sla-chart.tsx"),
@@ -45,10 +71,7 @@ describe("LeadSlaChart", () => {
     );
 
     expect(container.querySelector('[data-slot="lead-sla-chart"]')).toBeInTheDocument();
-    expect(container.querySelector("svg.recharts-surface")).toBeInTheDocument();
-    expect(container.querySelector("rect[data-slot='category-bar']")).toBeInTheDocument();
-    expect(container.querySelector(".recharts-wrapper")).not.toBeInTheDocument();
-    expect(container.querySelector(".recharts-responsive-container")).not.toBeInTheDocument();
+    expect(container.querySelector(".recharts-responsive-container")).toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
     expect(source).toContain("StaticCategoryBarPlot");
     expect(source).not.toContain("exec-risk-chart.client");
