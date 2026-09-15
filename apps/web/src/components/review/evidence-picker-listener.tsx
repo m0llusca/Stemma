@@ -26,13 +26,13 @@ export function countAttachedEvidence(criterionIds?: readonly string[]) {
   }).length;
 }
 
-export function paintLiveEvidenceHighlights() {
+export function paintLiveEvidenceHighlights(messageIds?: readonly string[]) {
   document.querySelectorAll<HTMLElement>("[data-slot=conversation-message][data-live-evidence]").forEach((node) => {
     node.removeAttribute("data-live-evidence");
   });
 
-  const messageIds = new Set(listEvidenceSelects().map((select) => select.value).filter(Boolean));
-  for (const messageId of messageIds) {
+  const ids = messageIds ?? listEvidenceSelects().map((select) => select.value).filter(Boolean);
+  for (const messageId of ids) {
     document.getElementById(`msg-${messageId}`)?.setAttribute("data-live-evidence", "");
   }
 }

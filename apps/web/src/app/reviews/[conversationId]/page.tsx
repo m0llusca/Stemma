@@ -12,6 +12,7 @@ import { AgentCriterionFeedbackList } from "@/components/feedback/agent-criterio
 import { ToastActionForm } from "@/app/coaching/toast-action-form";
 import { AiDraftDecisionControls } from "@/components/review/ai-draft-decision-controls";
 import { ConversationTimeline } from "@/components/review/conversation-timeline";
+import { EvidenceDraftProvider } from "@/components/review/evidence-draft";
 import { LiveEvidenceTotal } from "@/components/review/evidence-live-count";
 import { ReviewPanel } from "@/components/review/review-panel";
 import { ReviewSavedToast } from "@/components/review/review-saved-toast";
@@ -460,11 +461,16 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
     hasDraftReview: Boolean(currentDraftReview),
     hasFinalizedReview: Boolean(latestFinalizedReview)
   });
+  const evidenceDraftScores = canShowReviewPanel ? currentDraftReview?.scores : scorePreviewReview?.scores;
+  const evidenceDraftByCriterion = Object.fromEntries(
+    (scorecard?.criteria ?? []).map((criterion) => [
+      criterion.id,
+      evidenceDraftScores?.find((score) => score.criterionId === criterion.id)?.evidenceMessageId ?? ""
+    ])
+  );
   const evidenceMessageIds = Array.from(
     new Set(
-      scorePreviewReview?.scores
-        .map((score) => score.evidenceMessageId)
-        .filter((messageId): messageId is string => Boolean(messageId)) ?? []
+      Object.values(evidenceDraftByCriterion).filter((messageId): messageId is string => Boolean(messageId))
     )
   );
   const messageById = new Map(conversation.messages.map((message) => [message.id, message]));
@@ -1223,6 +1229,11 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
         />
       ) : null}
 
+      <EvidenceDraftProvider
+        criterionIds={scorecard?.criteria.map((criterion) => criterion.id) ?? []}
+        initialByCriterion={evidenceDraftByCriterion}
+        allowedMessageIds={conversation.messages.map((message) => message.id)}
+      >
       <div
         id="review-workspace"
         className={cn(
@@ -1333,6 +1344,7 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
       </div>
 
       {detailPane}
+      </EvidenceDraftProvider>
     </PageShell>
   );
 }

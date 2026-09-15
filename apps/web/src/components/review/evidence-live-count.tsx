@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useEvidenceDraftOptional } from "@/components/review/evidence-draft";
 import {
   countAttachedEvidence,
   EVIDENCE_APPLIED_EVENT,
@@ -33,11 +34,19 @@ function subscribeEvidenceLive(update: () => void) {
   };
 }
 
-function useLiveEvidenceCount(initialCount: number, criterionIds?: readonly string[]) {
+function useDomEvidenceCount(
+  initialCount: number,
+  criterionIds: readonly string[] | undefined,
+  enabled: boolean
+) {
   const [count, setCount] = useState(initialCount);
   const criterionKey = criterionIds?.join("\0") ?? "";
 
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
     const ids = criterionKey ? criterionKey.split("\0") : undefined;
     const refresh = () => {
       setCount(countAttachedEvidence(ids));
@@ -46,18 +55,21 @@ function useLiveEvidenceCount(initialCount: number, criterionIds?: readonly stri
 
     refresh();
     return subscribeEvidenceLive(refresh);
-  }, [criterionKey, initialCount]);
+  }, [criterionKey, enabled, initialCount]);
 
   return count;
 }
 
 export function LiveEvidenceTotal({ initialCount }: { initialCount: number }) {
-  const count = useLiveEvidenceCount(initialCount);
+  const draft = useEvidenceDraftOptional();
+  const fallbackCount = useDomEvidenceCount(initialCount, undefined, !draft);
+  const count = draft?.count ?? fallbackCount;
 
   return (
     <>
       <strong
         data-slot="review-evidence-count"
+        data-review-evidence-dirty={draft?.isDirty ? "true" : "false"}
         className="text-base text-foreground tabular-nums"
       >
         {count}
@@ -76,7 +88,9 @@ export function LiveEvidenceGroupChip({
   criterionIds: readonly string[];
   initialCount: number;
 }) {
-  const count = useLiveEvidenceCount(initialCount, criterionIds);
+  const draft = useEvidenceDraftOptional();
+  const fallbackCount = useDomEvidenceCount(initialCount, criterionIds, !draft);
+  const count = draft ? draft.countFor(criterionIds) : fallbackCount;
 
   if (count === 0) {
     return null;
@@ -91,10 +105,17 @@ export function LiveEvidenceGroupChip({
 
 /** Keeps timeline rings in sync when the score pane is already mounted. */
 export function LiveEvidenceHighlights() {
+  const draft = useEvidenceDraftOptional();
+
   useEffect(() => {
+    if (draft) {
+      paintLiveEvidenceHighlights(draft.attachedMessageIds);
+      return;
+    }
+
     paintLiveEvidenceHighlights();
-    return subscribeEvidenceLive(paintLiveEvidenceHighlights);
-  }, []);
+    return subscribeEvidenceLive(() => paintLiveEvidenceHighlights());
+  }, [draft, draft?.attachedMessageIds]);
 
   return null;
 }
