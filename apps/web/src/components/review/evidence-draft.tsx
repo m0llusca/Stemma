@@ -8,6 +8,31 @@ import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 
 export type EvidenceDraftMap = Record<string, string>;
 
+/** Shown when «В доказательство» has nowhere honest to land. */
+export const ALL_EVIDENCE_CRITERIA_FILLED_HINT =
+  "У всех критериев уже есть доказательство. Выберите поле в оценке, чтобы заменить его.";
+
+/**
+ * Focused criterion wins (intentional replace). Otherwise first empty slot.
+ * Never falls back to the first filled select — that was a silent overwrite.
+ */
+export function resolveEvidenceAttachTarget(
+  byCriterion: EvidenceDraftMap,
+  focusedCriterionId: string | null
+): string | null {
+  if (focusedCriterionId && Object.hasOwn(byCriterion, focusedCriterionId)) {
+    return focusedCriterionId;
+  }
+
+  for (const criterionId of Object.keys(byCriterion)) {
+    if (!byCriterion[criterionId]) {
+      return criterionId;
+    }
+  }
+
+  return null;
+}
+
 export type EvidenceDraftValue = {
   byCriterion: EvidenceDraftMap;
   focusedCriterionId: string | null;
@@ -96,12 +121,7 @@ export function EvidenceDraftProvider({
       }
 
       const current = byCriterionRef.current;
-      const ids = Object.keys(current);
-      const focused = focusedRef.current;
-      const target =
-        (focused && Object.hasOwn(current, focused) ? focused : undefined) ??
-        ids.find((id) => !current[id]) ??
-        ids[0];
+      const target = resolveEvidenceAttachTarget(current, focusedRef.current);
 
       if (!target) {
         return false;

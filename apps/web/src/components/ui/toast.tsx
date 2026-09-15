@@ -89,3 +89,8 @@ export function useToast(): ToastApi {
   }
   return api;
 }
+
+/** Same API when a provider exists; `null` in isolated unit trees (timeline, draft store). */
+export function useToastOptional(): ToastApi | null {
+  return useContext(ToastContext);
+}
