@@ -1,6 +1,6 @@
 # UX-контракт: таймлайн диалога
 
-Locked. Tip **`dd49657`** (squash [#155](https://github.com/m0llusca/Stemma/pull/155) / [#154](https://github.com/m0llusca/Stemma/issues/154)).
+Locked. Tip **`dd49657`** (squash [#155](https://github.com/m0llusca/Stemma/pull/155) / [#154](https://github.com/m0llusca/Stemma/issues/154)). Evidence slots: tip **`429a2d0`** ([#156](https://github.com/m0llusca/Stemma/pull/156)).
 
 Спека Marques: [comment](https://github.com/m0llusca/Stemma/issues/154#issuecomment-5680463591) + уточнение SYSTEM / живой evidence. Макет Романа — в [#154](https://github.com/m0llusca/Stemma/issues/154).
 
@@ -60,6 +60,21 @@ Locked. Tip **`dd49657`** (squash [#155](https://github.com/m0llusca/Stemma/pull
 | Controlled `criterion.*.evidenceMessageId` заполняется | |
 
 «Сохранить черновик» забирает то же значение (`data-review-evidence-dirty`). Реплика подсвечивается до сейва.
+
+### Полные слоты (`429a2d0` / [#156](https://github.com/m0llusca/Stemma/pull/156))
+
+Когда **все** слоты `evidenceMessageId` уже заполнены:
+
+| Фокус на поле доказательства | Контракт |
+| --- | --- |
+| Нет | «В доказательство» **не** перетирает ни один слот (включая первый). Info-toast / hint. Count, чип «N доказ.», dirty — без изменений |
+| Есть | Пишет **только** в этот слот. Намеренная замена |
+
+Hint: «У всех критериев уже есть доказательство. Выберите поле в оценке, чтобы заменить его.» Код: `resolveEvidenceAttachTarget` — фокус, иначе первый пустой, иначе `null`. Никогда первый заполненный.
+
+Приёмка no-focus: слоты заполнять только кнопками «В доказательство». Не табать и не кликать select вручную.
+
+Мягкий остаток (не гейт #156): `focusedCriterionId` — последний сфокусированный select, не «сейчас в DOM focus». После blur фокус липнет. Опциональный follow-up.
 
 ## Хвосты #155 (тот же пакет)
 
