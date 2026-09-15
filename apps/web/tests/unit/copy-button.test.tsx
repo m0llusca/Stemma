@@ -79,6 +79,45 @@ describe("CopyButton motion and timer safety", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
+  it("does not claim copied when clipboard write and execCommand both fail", async () => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: vi.fn().mockRejectedValue(new Error("denied")) }
+    });
+    vi.spyOn(document, "execCommand").mockReturnValue(false);
+
+    render(<CopyButton value="evidence" />);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Скопировать" }));
+      await Promise.resolve();
+    });
+
+    expect(screen.getByRole("button", { name: "Скопировать" })).toHaveAttribute(
+      "data-state",
+      "idle"
+    );
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("falls back to execCommand after clipboard.writeText rejects", async () => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: vi.fn().mockRejectedValue(new Error("denied")) }
+    });
+    vi.spyOn(document, "execCommand").mockReturnValue(true);
+
+    render(<CopyButton value="evidence" />);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Скопировать" }));
+      await Promise.resolve();
+    });
+
+    expect(screen.getByRole("button", { name: "Скопировано" })).toHaveAttribute(
+      "data-state",
+      "success"
+    );
+  });
+
   it("keeps copied feedback enabled after StrictMode replays the mount effect", async () => {
     const { unmount } = render(
       <StrictMode>
