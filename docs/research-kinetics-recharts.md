@@ -92,7 +92,7 @@ Spring-значения живут в `@stemma/kinetics/tokens.css` (импор�
 
 ## Residual
 
-Product SoT = Recharts (Matthew / Marques / LIVE DOM). Docs aligned; leftover reconcile [#148](https://github.com/m0llusca/Stemma/issues/148) / [#152](https://github.com/m0llusca/Stemma/issues/152). Не закрывать #116 здесь.
+Product SoT = Recharts (Matthew / Marques / LIVE DOM + this #148). #152 docs≠code closed by this fold. Не закрывать #116 здесь.
 
 #109 / #119 after `5ebcd01` / `27ebbff` / `28af033` + reports split `84370da` (tip `4f2ba3a`) — на Recharts-пути:
 

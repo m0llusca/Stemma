@@ -1,6 +1,6 @@
 # Morphicons: on master (`4f2ba3a`)
 
-Wired on tip `4f2ba3a`. Remaining work is the LIVE walk (#117 / #116), not implement.
+Wired on tip `4f2ba3a`. LIVE walk PASS (Джамал) — Copy↔Check on `/admin/tokens`. #116 stays open for Marques UX-ACCEPT + ДеШон.
 
 Roman (2026-09-09): implement, not defer. Parent epic: #116.
 Marques UX-ACCEPT (#117 spike): CopyButton + accordion/score-module chevron.
@@ -62,5 +62,5 @@ Product wrapper always passes `reducedMotion="user"`. Morphicons instant-swaps w
 - Issues #117, #116
 - Marques UX-ACCEPT: https://github.com/m0llusca/Stemma/issues/117#issuecomment-5597686664
 - `docs/research-kinetics-recharts.md` — Icon Morph Swap was Conditional; this is the product need
-- `docs/hardening-screen-matrix.md` — walk cells stay `—` until Джамал marks them
+- `docs/hardening-screen-matrix.md` — walk cells PASS on tip `4f2ba3a` (Джамал)
 - `apps/web/components.json` — static icons remain `iconLibrary: lucide`
