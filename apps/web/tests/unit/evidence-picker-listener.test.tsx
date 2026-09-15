@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import {
@@ -74,6 +74,14 @@ function EvidenceHarness({
   );
 
   return withToast ? <ToastProvider>{tree}</ToastProvider> : tree;
+}
+
+async function flushEvidenceSelectBlur() {
+  await act(async () => {
+    await new Promise<void>((resolve) => {
+      window.setTimeout(resolve, 0);
+    });
+  });
 }
 
 beforeAll(() => {
@@ -231,6 +239,55 @@ describe("evidence draft state", () => {
       "true"
     );
     expect(screen.getByText("2 доказ.")).toBeInTheDocument();
+  });
+
+  it("clears sticky focus after the evidence select blurs so a later full-slots click toasts", async () => {
+    render(
+      <EvidenceHarness
+        initialByCriterion={{ tone: "message-client", empathy: "message-operator" }}
+        withToast
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByRole("button", { name: "В доказательство" })[0]).not.toBeDisabled();
+    });
+
+    fireEvent.focus(screen.getByRole("combobox", { name: "Доказательство эмпатии" }));
+    fireEvent.blur(screen.getByRole("combobox", { name: "Доказательство эмпатии" }));
+    await flushEvidenceSelectBlur();
+
+    fireEvent.click(screen.getAllByRole("button", { name: "В доказательство" })[0]);
+
+    expect(screen.getByRole("combobox", { name: "Доказательство тона" })).toHaveValue("message-client");
+    expect(screen.getByRole("combobox", { name: "Доказательство эмпатии" })).toHaveValue("message-operator");
+    expect(document.querySelector("[data-slot=review-evidence-count]")).toHaveTextContent("2");
+    expect(document.querySelector("[data-slot=review-evidence-count]")).toHaveAttribute(
+      "data-review-evidence-dirty",
+      "false"
+    );
+    expect(await screen.findByText(ALL_EVIDENCE_CRITERIA_FILLED_HINT)).toBeInTheDocument();
+  });
+
+  it("still replaces the focused criterion when blur is part of the same click", async () => {
+    render(
+      <EvidenceHarness
+        initialByCriterion={{ tone: "message-client", empathy: "message-operator" }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByRole("button", { name: "В доказательство" })[0]).not.toBeDisabled();
+    });
+
+    fireEvent.focus(screen.getByRole("combobox", { name: "Доказательство эмпатии" }));
+    fireEvent.blur(screen.getByRole("combobox", { name: "Доказательство эмпатии" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "В доказательство" })[0]);
+
+    expect(screen.getByRole("combobox", { name: "Доказательство тона" })).toHaveValue("message-client");
+    expect(screen.getByRole("combobox", { name: "Доказательство эмпатии" })).toHaveValue("message-client");
+    expect(document.querySelector("[data-slot=review-evidence-count]")).toHaveTextContent("2");
+    expect(screen.queryByText(ALL_EVIDENCE_CRITERIA_FILLED_HINT)).not.toBeInTheDocument();
   });
 });
 
