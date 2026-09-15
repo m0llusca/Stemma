@@ -437,40 +437,40 @@ export function ConversationTimeline({
                       {initials(message.authorName)}
                     </MessageAvatar>
 
-                    <div className={cn("flex min-w-0 flex-col gap-1.5", isAgent && "items-end")}>
-                      <Bubble
-                        variant={bubbleVariantFor(message.participantType)}
-                        align={align}
-                        className={cn(
-                          "max-w-full",
-                          isAiAuthored &&
-                            "*:data-[slot=bubble-content]:border-(--ai-border) *:data-[slot=bubble-content]:bg-(--ai-soft)"
-                        )}
+                    <Bubble
+                      variant={bubbleVariantFor(message.participantType)}
+                      align={align}
+                      className={cn(
+                        "max-w-full",
+                        isAiAuthored &&
+                          "*:data-[slot=bubble-content]:border-(--ai-border) *:data-[slot=bubble-content]:bg-(--ai-soft)"
+                      )}
+                    >
+                      <BubbleContent
+                        data-slot="conversation-message-surface"
+                        data-variant="bubble"
+                        className="max-w-prose space-y-2 shadow-xs"
                       >
-                        <BubbleContent
-                          data-slot="conversation-message-surface"
-                          data-variant="bubble"
-                          className="max-w-prose space-y-2 shadow-xs"
-                        >
-                          {isAiAuthored ? (
-                            <p className="flex min-w-0 flex-wrap items-baseline gap-1.5 break-words text-xs text-muted-foreground">
-                              <Chip tone="ai">ИИ</Chip>
-                              Ответ подготовлен с подсказкой ИИ — проверьте формулировку перед зачётом.
-                            </p>
-                          ) : null}
-                          <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
-                            {message.body}
+                        {isAiAuthored ? (
+                          <p className="flex min-w-0 flex-wrap items-baseline gap-1.5 break-words text-xs text-muted-foreground">
+                            <Chip tone="ai">ИИ</Chip>
+                            Ответ подготовлен с подсказкой ИИ — проверьте формулировку перед зачётом.
                           </p>
-                        </BubbleContent>
-                      </Bubble>
+                        ) : null}
+                        <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+                          {message.body}
+                        </p>
+                      </BubbleContent>
+                    </Bubble>
+                  </div>
 
-                      <TimelineMeta
-                        sentAt={message.sentAt}
-                        showEvidence
-                        messageId={message.id}
-                        align={align}
-                      />
-                    </div>
+                  <div className={cn("w-full", isAgent ? "pr-10" : "pl-10")}>
+                    <TimelineMeta
+                      sentAt={message.sentAt}
+                      showEvidence
+                      messageId={message.id}
+                      align={align}
+                    />
                   </div>
 
                   {renderPinList(messagePins, canManagePins, currentUserId)}
