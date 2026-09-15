@@ -92,9 +92,9 @@ Spring-значения живут в `@stemma/kinetics/tokens.css` (импор�
 
 ## Residual
 
-Product SoT = Recharts (Matthew / Marques / LIVE DOM + this #148). #152 docs≠code closed by this fold. Не закрывать #116 здесь.
+Product SoT = Recharts (Matthew / Marques / LIVE DOM + #148 merged at `dc5de92`). #152 docs≠code closed. Не закрывать #116 здесь.
 
-#109 / #119 after `5ebcd01` / `27ebbff` / `28af033` + reports split `84370da` (tip `4f2ba3a`) — на Recharts-пути:
+#109 / #119 after `5ebcd01` / `27ebbff` / `28af033` + reports split `84370da` + #148 squash `dc5de92` (walk tip `4f2ba3a`) — на Recharts-пути:
 
 - Exec tooltip: shadcn `ChartTooltip` / `ChartTooltipContent` next to the bar. Reports: `ChartTooltipStatus` + `anchor` next to the mark, not the corner.
 - Sparse week series: line connects across gaps; markers only on real vertices; no empty-day hover halo off the line.
