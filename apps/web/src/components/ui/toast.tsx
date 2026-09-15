@@ -3,12 +3,16 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useMemo,
+  useState,
   type ReactNode
 } from "react";
 import { toast as sonnerToast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import type { ToastInput } from "@/lib/ui/toast-store";
+
+export type ToastTheme = "light" | "dark";
 
 type ToastApi = {
   show: (input: ToastInput) => string;
@@ -38,8 +42,17 @@ function pushToast(input: ToastInput): string {
 
 /**
  * Root toast provider — mounts shadcn/sonner Toaster and exposes useToast().
+ * Toaster chrome waits for the client effect: Sonner reads `document.dir` /
+ * theme on first render (`data-sonner-theme`, `dir`) and mismatches SSR.
  */
-export function ToastProvider({ children }: { children: ReactNode }) {
+export function ToastProvider({
+  children,
+  theme = "light"
+}: {
+  children: ReactNode;
+  theme?: ToastTheme;
+}) {
+  const [mounted, setMounted] = useState(false);
   const api = useMemo<ToastApi>(
     () => ({
       show: (input) => pushToast(input),
@@ -52,10 +65,16 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
     <ToastContext.Provider value={api}>
       {children}
-      <Toaster richColors closeButton position="top-right" offset={64} />
+      {mounted ? (
+        <Toaster theme={theme} richColors closeButton position="top-right" offset={64} />
+      ) : null}
     </ToastContext.Provider>
   );
 }

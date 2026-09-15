@@ -5,6 +5,7 @@ import "./globals.css";
 import { AppNav } from "@/components/app-nav";
 import { ToastProvider } from "@/components/ui/toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { isAuthEntryRequest } from "@/lib/auth/request-path";
 import { AuthRequiredError, getCurrentUser } from "@/lib/current-user";
 import { resolveUiAppearance } from "@/lib/ui-theme";
 import { appearanceRootProps } from "@/lib/ui-theme-root";
@@ -47,10 +48,21 @@ async function getLayoutAppearance() {
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const appearance = await getLayoutAppearance();
   const rootAppearance = appearanceRootProps(appearance);
+  const isAuthEntry = await isAuthEntryRequest();
+  const toastTheme = rootAppearance.style.colorScheme === "dark" ? "dark" : "light";
+  const chrome = (
+    <div className="flex min-h-svh flex-col">
+      <AppNav />
+      <main id="main-content" className="flex-1">
+        {children}
+      </main>
+    </div>
+  );
 
   return (
     <html
       lang="ru"
+      dir="ltr"
       className={cn(sans.variable, mono.variable, rootAppearance.className)}
       data-scroll-behavior="smooth"
       data-theme={rootAppearance["data-theme"]}
@@ -68,16 +80,13 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         >
           Перейти к содержимому
         </a>
-        <TooltipProvider>
-          <ToastProvider>
-            <div className="flex min-h-svh flex-col">
-              <AppNav />
-              <main id="main-content" className="flex-1">
-                {children}
-              </main>
-            </div>
-          </ToastProvider>
-        </TooltipProvider>
+        {isAuthEntry ? (
+          chrome
+        ) : (
+          <TooltipProvider>
+            <ToastProvider theme={toastTheme}>{chrome}</ToastProvider>
+          </TooltipProvider>
+        )}
       </body>
     </html>
   );

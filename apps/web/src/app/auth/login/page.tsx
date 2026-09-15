@@ -1,7 +1,8 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CheckCircle2, ShieldCheck, UserRoundCheck } from "lucide-react";
+import { CheckCircle2, ShieldCheck } from "lucide-react";
+import { DemoLoginDisclosure } from "@/components/auth/demo-login-disclosure";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -278,14 +279,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
         {demoUsers.length > 0 ? (
           <CardFooter className="flex-col items-stretch">
-            <details className="w-full">
-              <summary
-                role="button"
-                className="flex w-full cursor-pointer list-none items-center gap-1.5 text-sm font-medium text-foreground outline-none [&::-webkit-details-marker]:hidden focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <UserRoundCheck className="size-3.5 text-muted-foreground" aria-hidden="true" />
-                Демо-вход
-              </summary>
+            <DemoLoginDisclosure>
               <form action={signInWithDemoUser} className="mt-3.5">
                 <input type="hidden" name="returnTo" value={returnTo} />
                 <FieldGroup className="gap-3.5">
@@ -304,7 +298,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                   </Button>
                 </FieldGroup>
               </form>
-            </details>
+            </DemoLoginDisclosure>
           </CardFooter>
         ) : null}
       </Card>

@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import "@testing-library/jest-dom/vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
@@ -20,9 +22,14 @@ beforeAll(() => {
   });
 });
 
-vi.mock("next-themes", () => ({
-  useTheme: () => ({ theme: "light", resolvedTheme: "light", setTheme: vi.fn() })
-}));
+describe("Toaster theme", () => {
+  it("does not read next-themes system theme (SSR/client attribute mismatch)", () => {
+    const source = readFileSync(resolve(process.cwd(), "src/components/ui/sonner.tsx"), "utf8");
+    expect(source).not.toMatch(/from ["']next-themes["']/);
+    expect(source).not.toMatch(/useTheme/);
+    expect(source).toContain('theme === "dark" ? "dark" : "light"');
+  });
+});
 
 function Trigger() {
   const toast = useToast();
