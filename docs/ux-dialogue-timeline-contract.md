@@ -1,6 +1,6 @@
 # UX-контракт: таймлайн диалога
 
-Locked. Tip **`dd49657`** (squash [#155](https://github.com/m0llusca/Stemma/pull/155) / [#154](https://github.com/m0llusca/Stemma/issues/154)). Evidence slots: tip **`429a2d0`** ([#156](https://github.com/m0llusca/Stemma/pull/156)). Evidence focus: tip **`c8cea9e`** ([#159](https://github.com/m0llusca/Stemma/pull/159)).
+Locked. Tip **`dd49657`** (squash [#155](https://github.com/m0llusca/Stemma/pull/155) / [#154](https://github.com/m0llusca/Stemma/issues/154)). Evidence slots: tip **`429a2d0`** ([#156](https://github.com/m0llusca/Stemma/pull/156)). Evidence focus: tip **`c8cea9e`** ([#159](https://github.com/m0llusca/Stemma/pull/159)). Evidence blur / `activeSelectRef`: tip **`9d1c439`** ([#161](https://github.com/m0llusca/Stemma/pull/161)).
 
 Спека Marques: [comment](https://github.com/m0llusca/Stemma/issues/154#issuecomment-5680463591) + уточнение SYSTEM / живой evidence. Макет Романа — в [#154](https://github.com/m0llusca/Stemma/issues/154).
 
@@ -74,7 +74,7 @@ Hint: «У всех критериев уже есть доказательст�
 
 Приёмка no-focus: слоты заполнять только кнопками «В доказательство». Не табать и не кликать select вручную.
 
-Blur селекта доказательства **сбрасывает** `focusedCriterionId` (`c8cea9e` / [#159](https://github.com/m0llusca/Stemma/pull/159)) и DOM-fallback `activeSelectRef`. Полные слоты без фокуса → info-toast / no-op, тихой подмены нет. «Есть» в таблице — живой фокус; тот же клик «В доказательство», что снял select, ещё пишет в этот слот (`setTimeout(0)`).
+Blur селекта доказательства **сбрасывает** `focusedCriterionId` (`c8cea9e` / [#159](https://github.com/m0llusca/Stemma/pull/159)) и DOM-fallback `activeSelectRef` (`9d1c439` / [#161](https://github.com/m0llusca/Stemma/pull/161)). Полные слоты без фокуса → info-toast / no-op, тихой подмены нет. «Есть» в таблице — живой фокус; тот же клик «В доказательство», что снял select, ещё пишет в этот слот (`setTimeout(0)`).
 
 ## Хвосты #155 (тот же пакет)
 
