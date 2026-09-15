@@ -89,6 +89,16 @@ Spring-значения живут в `@stemma/kinetics/tokens.css` (импор�
 
 ## Residual
 
+#109 / #119 after `5ebcd01` / `27ebbff` / `28af033` + reports split `84370da` (tip `4f2ba3a`):
+
+- Tooltip sits next to the mark (`ChartTooltipStatus` + `anchor`). Not stuck in the corner.
+- Sparse week series: line connects across gaps; markers only on real vertices; no empty-day hover halo off the line.
+- Report SVG: CSS aspect = viewBox, `preserveAspectRatio="xMidYMid meet"` — ticks and labels stay readable.
+- AI-drift: trim empty leading/trailing weeks.
+- Reason timelines: keep calendar zeros (zero is a vertex).
+- Overview after Wave B: decision-first — trend + drivers. Distribution → **Исполнение**; sentiment / CSAT → **Разрезы**. See `report-page-views.tsx`. Do not invent extra panels on Обзор.
+- Exec: still `StaticChartContainer` + hand-rolled SVG bars, not Recharts `BarChart`. No `dynamic({ ssr:false })` in RSC.
+
 Empty «Сигналы риска»: RSC `EmptyState` + `queueFilterResetHref(EXEC)` — never Suspense / «Загрузка графика».
 
 Non-empty Exec: static client import → `StaticChartContainer` + first-paint SVG rects. No Recharts `<BarChart>`, no `.recharts-wrapper`, no `accessibilityLayer`, no eternal pending.
@@ -97,7 +107,7 @@ Non-empty Exec: static client import → `StaticChartContainer` + first-paint SV
 
 ~~LIVE blank wrapper / eternal pending~~ — fixed (#113).
 
-#109 / #119 visual contract: «Цель» HTML badge outside the plot (`ChartGoalBadge`, chip + tabular-nums, no SVG rotate); score-over-time sparkline uses padded 1:1 geometry + `preserveAspectRatio="xMidYMid meet"` so markers stay circular; footer Мин/Цель/Макс is `ChartScaleFooter` (`text-sm tabular-nums`); Exec / Lead SLA bars share `StaticCategoryBarPlot` (static SVG rects, HTML axis labels); report rich plots lock CSS aspect to the viewBox so `preserveAspectRatio="none"` does not squash ticks/markers; `data-qc-motion="chart-enter"` on `StaticChartContainer` / score sparkline; series entrance on (`data-animation-active="true"` + `AnimatedRectangle` / CSS).
+#109 / #119 visual chrome: «Цель» HTML badge outside the plot (`ChartGoalBadge`, chip + tabular-nums, no SVG rotate); score-over-time sparkline uses padded 1:1 geometry + `preserveAspectRatio="xMidYMid meet"` so markers stay circular; footer Мин/Цель/Макс is `ChartScaleFooter` (`text-sm tabular-nums`); Exec / Lead SLA bars share `StaticCategoryBarPlot` (static SVG rects, HTML axis labels); `data-qc-motion="chart-enter"` on `StaticChartContainer` / score sparkline; series entrance on (`data-animation-active="true"` + `AnimatedRectangle` / CSS).
 
 ## Тесты
 
