@@ -2,7 +2,10 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { EvidenceJumpLink } from "@/components/review/evidence-jump-link";
-import { paintLiveEvidenceHighlights } from "@/components/review/evidence-picker-listener";
+import {
+  EVIDENCE_SELECT_SELECTOR,
+  paintLiveEvidenceHighlights
+} from "@/components/review/evidence-picker-listener";
 import { FieldDescription } from "@/components/ui/field";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 
@@ -13,8 +16,9 @@ export const ALL_EVIDENCE_CRITERIA_FILLED_HINT =
   "У всех критериев уже есть доказательство. Выберите поле в оценке, чтобы заменить его.";
 
 /**
- * Focused criterion wins (intentional replace). Otherwise first empty slot.
+ * Live evidence-select focus wins (intentional replace). Otherwise first empty slot.
  * Never falls back to the first filled select — that was a silent overwrite.
+ * `focusedCriterionId` is not sticky after the select blurs.
  */
 export function resolveEvidenceAttachTarget(
   byCriterion: EvidenceDraftMap,
@@ -31,6 +35,22 @@ export function resolveEvidenceAttachTarget(
   }
 
   return null;
+}
+
+/**
+ * After the select blurs, drop store focus unless another evidence select is active.
+ * Deferred so a «В доказательство» click that caused the blur can still attach.
+ */
+function scheduleClearFocusedCriterionIfSelectLeft(
+  setFocusedCriterionId: (criterionId: string | null) => void
+) {
+  window.setTimeout(() => {
+    const active = document.activeElement;
+    if (active instanceof HTMLSelectElement && active.matches(EVIDENCE_SELECT_SELECTOR)) {
+      return;
+    }
+    setFocusedCriterionId(null);
+  }, 0);
 }
 
 export type EvidenceDraftValue = {
@@ -230,6 +250,7 @@ export function EvidenceMessageSelect({
       value={byCriterion[criterionId] ?? ""}
       onChange={(event) => setCriterionEvidence(criterionId, event.target.value)}
       onFocus={() => setFocusedCriterionId(criterionId)}
+      onBlur={() => scheduleClearFocusedCriterionIfSelectLeft(setFocusedCriterionId)}
       className="w-full"
     >
       <NativeSelectOption value="">Без привязки к сообщению</NativeSelectOption>
