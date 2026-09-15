@@ -1,7 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -35,6 +35,10 @@ type AdminDialogProps = {
  * Admin settings dialog on shadcn Dialog (Base UI).
  * Replaces native <dialog> + BEM so modals work without unimported 40-admin.css.
  * Children stay server-rendered forms with server actions intact.
+ *
+ * Dialog chrome mounts only after the client effect: Base UI Trigger/Portal
+ * stamp aria-* / data-* / popup ids that do not match the SSR HTML
+ * (`A tree hydrated but some attributes…` on /admin/tokens).
  */
 export function AdminDialog({
   triggerLabel,
@@ -45,7 +49,20 @@ export function AdminDialog({
   wide = false,
   children
 }: AdminDialogProps) {
+  const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(defaultOpen);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <Button type="button" className={cn(triggerClassName)}>
+        {triggerLabel}
+      </Button>
+    );
+  }
 
   return (
     <Dialog
@@ -61,39 +78,41 @@ export function AdminDialog({
       <DialogTrigger render={<Button type="button" className={cn(triggerClassName)} />}>
         {triggerLabel}
       </DialogTrigger>
-      <DialogContent
-        className={cn(
-          "max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)] gap-4 overflow-hidden",
-          wide ? "sm:max-w-3xl" : "sm:max-w-lg"
-        )}
-        showCloseButton={false}
-      >
-        <DialogHeader className="flex flex-row items-start justify-between gap-3 space-y-0 pr-8">
-          <div className="flex min-w-0 flex-col gap-1.5">
-            <DialogTitle>{title}</DialogTitle>
-            {description ? <DialogDescription>{description}</DialogDescription> : null}
-          </div>
-          <DialogClose
-            render={
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                className="absolute top-2 right-2"
-                aria-label="Закрыть окно"
-              />
-            }
-          >
-            <X aria-hidden="true" />
-          </DialogClose>
-        </DialogHeader>
-        <div
-          data-slot="admin-dialog-body"
-          className="min-h-0 overflow-y-auto overscroll-contain"
+      {open ? (
+        <DialogContent
+          className={cn(
+            "max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)] gap-4 overflow-hidden",
+            wide ? "sm:max-w-3xl" : "sm:max-w-lg"
+          )}
+          showCloseButton={false}
         >
-          <div className="flex flex-col gap-4">{children}</div>
-        </div>
-      </DialogContent>
+          <DialogHeader className="flex flex-row items-start justify-between gap-3 space-y-0 pr-8">
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <DialogTitle>{title}</DialogTitle>
+              {description ? <DialogDescription>{description}</DialogDescription> : null}
+            </div>
+            <DialogClose
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="absolute top-2 right-2"
+                  aria-label="Закрыть окно"
+                />
+              }
+            >
+              <X aria-hidden="true" />
+            </DialogClose>
+          </DialogHeader>
+          <div
+            data-slot="admin-dialog-body"
+            className="min-h-0 overflow-y-auto overscroll-contain"
+          >
+            <div className="flex flex-col gap-4">{children}</div>
+          </div>
+        </DialogContent>
+      ) : null}
     </Dialog>
   );
 }

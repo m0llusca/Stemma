@@ -8,6 +8,17 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("AdminDialog", () => {
+  it("does not SSR dialog content or portal attributes before the client mount", () => {
+    render(
+      <AdminDialog triggerLabel="Новый ключ" title="Новый ключ">
+        <p>Форма</p>
+      </AdminDialog>
+    );
+
+    expect(document.querySelector("[data-slot='dialog-content']")).toBeNull();
+    expect(document.querySelector("[data-slot='dialog-trigger']")).not.toBeNull();
+  });
+
   it("stays closed until the trigger is pressed and opens as a shadcn dialog", async () => {
     render(
       <AdminDialog
