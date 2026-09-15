@@ -46,7 +46,7 @@ Empty ops / exec triage is an observation, not a certificate. Copy is **«Нет
 
 Ops KPI drills (`opsQueueKpiHref`) never use that impostor: overdue → `/reviews?due=overdue`; unstarted → `/reviews?qaStatus=QUEUED`; zero → role home or unfiltered `/reviews`.
 
-Analyst **«Сегодня»** (nav + ⌘K mode) is the mine+overdue inbox. **«Проверки»** stays the unfiltered `/reviews` list. ⌘K does not list **«Пульс дня»** → `/dashboard` for this role. A typed `/dashboard` remaps to the same inbox (`canLandOnDashboard` is false for QA).
+Analyst **«Сегодня»** (nav + ⌘K mode) is the mine+overdue inbox. **«Проверки»** stays the unfiltered `/reviews` list. ⌘K does not list **«Пульс дня»** → `/dashboard` for this role. A typed `/dashboard` remaps to the same inbox (`canLandOnDashboard` is false for QA). Dual-home residual closed in #155; timeline + evidence gate: [ux-dialogue-timeline-contract.md](ux-dialogue-timeline-contract.md).
 
 ### Welcome-back + filter reset
 
