@@ -129,6 +129,7 @@ function flashClassName(isHighlighted: boolean) {
   return cn(
     "scroll-mt-20",
     "data-[evidence-flash]:rounded-lg data-[evidence-flash]:bg-primary/10 data-[evidence-flash]:ring-2 data-[evidence-flash]:ring-primary/40",
+    "data-[live-evidence]:rounded-lg data-[live-evidence]:bg-primary/5 data-[live-evidence]:ring-1 data-[live-evidence]:ring-primary/20",
     "motion-safe:data-[evidence-flash]:animate-pulse motion-reduce:data-[evidence-flash]:animate-none motion-reduce:data-[evidence-flash]:bg-primary/15",
     isHighlighted && "rounded-lg bg-primary/5 ring-1 ring-primary/20"
   );

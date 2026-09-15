@@ -12,6 +12,7 @@ import { kineticsStyle } from "@stemma/kinetics";
 import type { ReactNode } from "react";
 import { DisclosureMorphChevron } from "@/components/ui/disclosure-morph-chevron";
 import { criterionPredictionChipLabel } from "@/components/review/ai-prediction-chip";
+import { LiveEvidenceGroupChip, LiveEvidenceHighlights } from "@/components/review/evidence-live-count";
 import { EvidencePickerListener } from "@/components/review/evidence-picker-listener";
 import { EvidenceJumpLink } from "@/components/review/evidence-jump-link";
 import { ReviewKeyboard } from "@/components/review/review-keyboard";
@@ -358,6 +359,7 @@ export function ReviewPanel({
   return (
     <ReviewFormShell className="review-panel-form panel overflow-clip bg-card">
       <EvidencePickerListener />
+      <LiveEvidenceHighlights />
       <input type="hidden" name="conversationId" value={conversationId} />
       <input type="hidden" name="scorecardId" value={scorecard.id} />
       <input type="hidden" name="reviewSource" value={reviewSource} />
@@ -498,11 +500,10 @@ export function ReviewPanel({
                       <Chip tone={issueCount > 0 ? "warning" : "success"}>
                         {issueCount > 0 ? `${issueCount} замеч.` : "без замечаний"}
                       </Chip>
-                      {evidenceCount > 0 ? (
-                        <Chip tone="info">
-                          {evidenceCount} доказ.
-                        </Chip>
-                      ) : null}
+                      <LiveEvidenceGroupChip
+                        criterionIds={group.criteria.map((criterion) => criterion.id)}
+                        initialCount={evidenceCount}
+                      />
                       {commentCount > 0 ? (
                         <Chip tone="accent">
                           {commentCount} комм.

@@ -12,6 +12,7 @@ import { AgentCriterionFeedbackList } from "@/components/feedback/agent-criterio
 import { ToastActionForm } from "@/app/coaching/toast-action-form";
 import { AiDraftDecisionControls } from "@/components/review/ai-draft-decision-controls";
 import { ConversationTimeline } from "@/components/review/conversation-timeline";
+import { LiveEvidenceTotal } from "@/components/review/evidence-live-count";
 import { ReviewPanel } from "@/components/review/review-panel";
 import { ReviewSavedToast } from "@/components/review/review-saved-toast";
 import { WorkbenchPaneToggle } from "@/components/review/workbench-pane-toggle";
@@ -646,10 +647,7 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
       <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2.5" aria-label="Сводка доказательств проверки">
         <div className="grid gap-1 rounded-xl border border-border bg-muted/30 p-3">
           <span className="text-xs text-muted-foreground">Доказательства</span>
-          <strong className="text-base text-foreground tabular-nums">{evidenceMessageIds.length}</strong>
-          <small className="text-xs text-muted-foreground">
-            {evidenceMessageIds.length > 0 ? "Подсвечены в таймлайне диалога." : "Пока нет привязанных сообщений."}
-          </small>
+          <LiveEvidenceTotal initialCount={evidenceMessageIds.length} />
         </div>
         <div className="grid gap-1 rounded-xl border border-border bg-muted/30 p-3">
           <span className="text-xs text-muted-foreground">Итоговый риск</span>
