@@ -10,9 +10,7 @@ import { Chip } from "@/components/ui/chip";
 import { Marker, MarkerContent } from "@/components/ui/marker";
 import {
   Message as ChatMessage,
-  MessageAvatar,
   MessageContent,
-  MessageFooter,
   MessageGroup,
   MessageHeader
 } from "@/components/ui/message";
@@ -68,6 +66,29 @@ function formatTimestamp(value: Date) {
 
 function isAgentParty(participantType: Message["participantType"]) {
   return participantType === "HUMAN_AGENT" || participantType === "AI_AGENT";
+}
+
+/** Evidence is only for real dialogue turns (client / operator / ИИ), not SYSTEM or notes. */
+function canAttachEvidence(
+  participantType: Message["participantType"],
+  isPrivate: boolean
+) {
+  if (isPrivate) {
+    return false;
+  }
+
+  switch (participantType) {
+    case "CUSTOMER":
+    case "HUMAN_AGENT":
+    case "AI_AGENT":
+      return true;
+    case "SYSTEM":
+      return false;
+    default: {
+      const _exhaustive: never = participantType;
+      return _exhaustive;
+    }
+  }
 }
 
 function bubbleVariantFor(participantType: Message["participantType"]) {
@@ -189,7 +210,8 @@ function TimelineMeta({
   align: "start" | "end" | "center";
 }) {
   return (
-    <MessageFooter
+    <div
+      data-slot="conversation-message-meta"
       className={cn(
         "flex flex-wrap items-center gap-2 px-1",
         align === "end" && "justify-end",
@@ -204,7 +226,28 @@ function TimelineMeta({
         {formatTimestamp(sentAt)}
       </time>
       {showEvidence ? <EvidenceMessageButton messageId={messageId} /> : null}
-    </MessageFooter>
+    </div>
+  );
+}
+
+function ChatAvatar({
+  name,
+  participantType
+}: {
+  name: string;
+  participantType: Message["participantType"];
+}) {
+  return (
+    <div
+      data-slot="conversation-message-avatar"
+      className={cn(
+        "flex size-8 shrink-0 items-center justify-center self-end overflow-hidden rounded-full border text-xs font-semibold",
+        avatarToneClass(participantType)
+      )}
+      aria-hidden="true"
+    >
+      {initials(name)}
+    </div>
   );
 }
 
@@ -363,7 +406,7 @@ export function ConversationTimeline({
                   </Marker>
                   <TimelineMeta
                     sentAt={message.sentAt}
-                    showEvidence
+                    showEvidence={false}
                     messageId={message.id}
                     align="center"
                   />
@@ -425,17 +468,10 @@ export function ConversationTimeline({
                     data-slot="conversation-message-row"
                     className={cn("flex items-end gap-2", isAgent && "flex-row-reverse")}
                   >
-                    <MessageAvatar
-                      data-slot="conversation-message-avatar"
-                      className={cn(
-                        "size-8 self-end border text-xs font-semibold translate-y-0",
-                        "group-has-data-[slot=message-footer]/message:translate-y-0",
-                        avatarToneClass(message.participantType)
-                      )}
-                      aria-hidden="true"
-                    >
-                      {initials(message.authorName)}
-                    </MessageAvatar>
+                    <ChatAvatar
+                      name={message.authorName}
+                      participantType={message.participantType}
+                    />
 
                     <Bubble
                       variant={bubbleVariantFor(message.participantType)}
@@ -467,7 +503,10 @@ export function ConversationTimeline({
                   <div className={cn("w-full", isAgent ? "pr-10" : "pl-10")}>
                     <TimelineMeta
                       sentAt={message.sentAt}
-                      showEvidence
+                      showEvidence={canAttachEvidence(
+                        message.participantType,
+                        message.isPrivate
+                      )}
                       messageId={message.id}
                       align={align}
                     />

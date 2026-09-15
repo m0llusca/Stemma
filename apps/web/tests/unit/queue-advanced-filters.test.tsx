@@ -126,4 +126,38 @@ describe("QueueAdvancedFilters", () => {
       "overdue"
     );
   });
+
+  it("drops the overlay after close so queue rows stay clickable", async () => {
+    const { container } = render(
+      <div>
+        <form id="review-queue-filters">
+          <QueueAdvancedFilters
+            activeCount={1}
+            parameterCount={12}
+            formId="review-queue-filters"
+            preserveValues={[{ name: "due", value: "overdue" }]}
+          >
+            <div>Фильтры</div>
+          </QueueAdvancedFilters>
+        </form>
+        <a href="/reviews/demo-conversation">Открыть кейс</a>
+      </div>
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /^точные фильтры/i }));
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(document.querySelector('[data-slot="sheet-overlay"]')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Закрыть" }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+    expect(document.querySelector('[data-slot="sheet-overlay"]')).not.toBeInTheDocument();
+    expect(document.querySelector("[inert]")).not.toBeInTheDocument();
+
+    const row = screen.getByRole("link", { name: "Открыть кейс" });
+    expect(row).toBeVisible();
+    expect(row).not.toHaveAttribute("aria-hidden", "true");
+  });
 });

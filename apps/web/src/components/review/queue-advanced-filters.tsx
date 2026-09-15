@@ -107,6 +107,8 @@ export function QueueAdvancedFilters({
                     {counterLabel}
                   </Chip>
                 </SheetTrigger>
+                {/* Unmount on close so the modal overlay/inert cannot linger over the queue. */}
+                {open ? (
                 <SheetContent
                   side="right"
                   className="gap-0 data-[side=right]:w-full data-[side=right]:max-w-none data-[side=right]:sm:max-w-md max-sm:data-[side=right]:inset-y-0"
@@ -147,6 +149,7 @@ export function QueueAdvancedFilters({
                     </div>
                   </div>
                 </SheetContent>
+                ) : null}
               </Sheet>
             </div>
             <HelpTooltip
