@@ -69,7 +69,10 @@ describe("pending-access holding state", () => {
     expect(screen.getByText("viewer@example.com")).not.toBeNull();
     expect(screen.getByText("Без доступа")).not.toBeNull();
     const logout = screen.getByRole("button", { name: "Выйти" });
-    expect(logout.getAttribute("href")).toBe("/auth/logout");
+    const logoutForm = logout.closest("form");
+    expect(logoutForm?.getAttribute("action")).toBe("/auth/logout");
+    expect(logoutForm?.getAttribute("method")).toBe("post");
+    expect(logout.getAttribute("href")).toBeNull();
     expect(screen.queryByRole("navigation", { name: "Основные разделы" })).toBeNull();
     expect(screen.queryByRole("button", { name: /Командная палитра|⌘K|Поиск/i })).toBeNull();
     expect(screen.queryByRole("button", { name: "Сменить роль" })).toBeNull();

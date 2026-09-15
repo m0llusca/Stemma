@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ShieldAlert } from "lucide-react";
 import { DemoAccountMenu } from "@/components/auth/demo-role-switch";
@@ -79,9 +78,11 @@ export default async function PendingAccessPage() {
               }
             />
           ) : (
-            <Button render={<Link href="/auth/logout" />} nativeButton={false} variant="outline" className="w-full">
-              Выйти
-            </Button>
+            <form action="/auth/logout" method="post" className="w-full">
+              <Button type="submit" variant="outline" className="w-full">
+                Выйти
+              </Button>
+            </form>
           )}
         </CardFooter>
       </Card>

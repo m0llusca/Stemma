@@ -49,7 +49,8 @@ describe("auth logout route", () => {
 
     expect(mocks.revokeAuthSession).toHaveBeenCalledWith("session-token");
     expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe("http://localhost/auth/login?loggedOut=1");
+    expect(response.headers.get("location")).toBe("/auth/login?loggedOut=1");
+    expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.cookies.get("qc_session")?.value).toBe("");
     expect(response.cookies.get("qc_current_user")?.value).toBe("");
   });
@@ -73,6 +74,43 @@ describe("auth logout route", () => {
 
     expect(mocks.revokeAuthSession).toHaveBeenCalledWith("session-token");
     expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe("http://localhost/auth/login?loggedOut=1");
+    expect(response.headers.get("location")).toBe("/auth/login?loggedOut=1");
+    expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("does not revoke the session on Next Link prefetch", async () => {
+    const request = new NextRequest("http://localhost/auth/logout", {
+      method: "GET",
+      headers: {
+        cookie: "qc_session=session-token; qc_current_user=user-1",
+        "next-router-prefetch": "1",
+        purpose: "prefetch"
+      }
+    });
+
+    const response = await GET(request);
+
+    expect(mocks.revokeAuthSession).not.toHaveBeenCalled();
+    expect(response.status).toBe(204);
+    expect(response.headers.get("location")).toBeNull();
+    expect(response.cookies.get("qc_session")).toBeUndefined();
+  });
+
+  it("keeps Location relative when the request origin is localhost behind a public host", async () => {
+    const request = new NextRequest("http://localhost:3000/auth/logout", {
+      method: "POST",
+      headers: {
+        cookie: "qc_session=session-token",
+        host: "localhost:3000",
+        "x-forwarded-host": "two-estimate-jury-experiences.trycloudflare.com",
+        "x-forwarded-proto": "https"
+      }
+    });
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("/auth/login?loggedOut=1");
+    expect(response.headers.get("location")).not.toContain("localhost");
   });
 });
