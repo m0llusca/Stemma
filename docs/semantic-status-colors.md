@@ -29,6 +29,7 @@ If a metric needs domain-specific thresholds, add a helper near the metric domai
 - Cert and operational step are not the same «Готовность». Cert badge = **«Сертификация»**; step badge = **«Шаг»**. Adapter panel title = **«Операционный профиль»** (steps **«Операционные шаги»**). OTRS diagnostics footer: **«Диагностика ≠ живая сертификация»** (`probe-honesty.ts`).
 - Save/connect (`probeBeforeSaveGate`): **claim_live** without `live_certified` is blocked; **activate** without a successful probe is blocked (probe-before-save); activate with probe warns fail-closed (enable ≠ live cert); config warns fail-closed. No green save success without live cert. Admin **«Уведомления»** (`/admin/channels`) is outgoing Slack/Teams/Telegram/WhatsApp — not integrations and not SSO.
 - Admin system rows use neutral for not-yet-run jobs, info for planned work, warning for degraded queues, and negative for blocking failures.
+- Calibration honesty: KPI **«Согласованность»** is the selected session (`По этой сессии`); the **«Активных сессий»** card hint is workspace-wide (`всего в рабочей области`). A closed session with outstanding scores is **«Закрыта · ждут оценки»** (`warning`), not **«Завершена»**. Admin hub system card counts **«N ошибок очереди»**; `/admin/system` says **«N критичных: ошибки очереди · интеграции · окружение»** — do not collapse those into one green.
 
 ## Rules
 

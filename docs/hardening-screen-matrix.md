@@ -1,8 +1,10 @@
 # Screen matrix — hardening #116
 
-Walk checklist for epic [#116](https://github.com/m0llusca/Stemma/issues/116). ACCEPT for #116 = this matrix all green + Marques UX-ACCEPT + ДеШон PASS.
+Walk checklist for epic [#116](https://github.com/m0llusca/Stemma/issues/116) (**closed**). ACCEPT for #116 = this matrix all green + Marques UX-ACCEPT + ДеШон PASS.
 
-Master tip **`dc5de92`** (squash of [#148](https://github.com/m0llusca/Stemma/issues/148); PR tip was `1a12803`). [#148](https://github.com/m0llusca/Stemma/issues/148) is **merged**. LIVE walk **PASS** on `4f2ba3a` (Джамал, 0 FAIL): QA / Exec / Admin / Lead / Agent / Viewer + role-switch Admin→Exec. Matthew ACK: cells PASS with walk tip SHA. Role headers stay walk PASS on `4f2ba3a`; package is master `dc5de92`. Epic still open until Джамал / ДеШон hard-reload on master gates green. Chart SoT = Recharts (LIVE + #148). #152 docs≠code closed. Login/tokens Next 0 Issues LIVE PASS (Джамал + André probe). Soft `/reports` «1 Issue» NACK (ДеШон / Джамал) — not a blocker. Do not invent PASS for the master epic re-walk.
+LIVE stand: https://bailey-pat-freedom-solutions.trycloudflare.com (ephemeral; tip **`ac35def`**, squash [#164](https://github.com/m0llusca/Stemma/pull/164) / [#163](https://github.com/m0llusca/Stemma/issues/163) closed). Dead: `two-estimate-jury-experiences…`, `fairfield-bestsellers…`. #116 walk package stayed on `dc5de92` / walk `4f2ba3a` — cells below are that walk, not a new epic pass.
+
+Master tip **`dc5de92`** (squash of [#148](https://github.com/m0llusca/Stemma/issues/148); PR tip was `1a12803`). [#148](https://github.com/m0llusca/Stemma/issues/148) is **merged**. LIVE walk **PASS** on `4f2ba3a` (Джамал, 0 FAIL): QA / Exec / Admin / Lead / Agent / Viewer + role-switch Admin→Exec. Matthew ACK: cells PASS with walk tip SHA. Role headers stay walk PASS on `4f2ba3a`; package is master `dc5de92`. [#116](https://github.com/m0llusca/Stemma/issues/116) **closed**. Chart SoT = Recharts (LIVE + #148). #152 docs≠code closed. Login/tokens Next 0 Issues LIVE PASS (Джамал + André probe). Soft `/reports` «1 Issue» NACK (ДеШон / Джамал) — not a blocker. Do not invent PASS for the master epic re-walk.
 
 Child streams (code on master **`dc5de92`**):
 
@@ -22,13 +24,13 @@ Exact-filters Sheet stays closed until the user opens it (no auto-open overlay o
 
 Login / tokens Next Issues **0** LIVE PASS (Джамал + André probe). Soft `/reports` «1 Issue» NACK (ДеШон / Джамал) — not a blocker. Walk PASS on `/auth/login` is DEMO picker / land / logout.
 
-LIVE: https://two-estimate-jury-experiences.trycloudflare.com (ephemeral; master tip `dc5de92`). The old `offering-vendor-late-homes` URL is dead.
+LIVE: https://bailey-pat-freedom-solutions.trycloudflare.com (ephemeral; current stand tip `ac35def`, #164 / #163 closed). #116 walk package stayed on `dc5de92`. Dead: `two-estimate-jury-experiences…`, `fairfield-bestsellers…`.
 
 Demo seed emails, no password, all `@example.com`: `admin@`, `qa@`, `lead@`, `maria.qa@`, `exec@`, `ivan@`, `olga.agent@`, `denis.agent@`, `elena.agent@`, `viewer@`.
 
 **PASS** = control works **and** BE is honest (no silent no-op, no fake-green, no impostor `/reviews?status=unreviewed`). Soft smoke (login / bars / role-switch) is **not** enough.
 
-Cells below: `PASS` = Jamal LIVE on tip `4f2ba3a`. Not a master-`dc5de92` epic re-walk (in progress). `n/a` = stream has no surface on that row.
+Cells below: `PASS` = Jamal LIVE on tip `4f2ba3a`. Not a master-`dc5de92` epic re-walk; #116 closed. Current stand tip `ac35def`. `n/a` = stream has no surface on that row.
 
 SoT: [`role-home.ts`](../apps/web/src/lib/auth/role-home.ts), [`navigation.ts`](../apps/web/src/lib/shell/navigation.ts) `visibleTopNavAreas`, [app-shell.md](app-shell.md).
 
@@ -243,11 +245,11 @@ Home `/auth/pending-access`. `AppNav` null — no empty areas, no ⌘K.
 
 ## How to use
 
-Джамал: LIVE walk **PASS** on tip `4f2ba3a` (0 FAIL). Cells above reflect that walk. Master epic re-walk on `dc5de92` is in progress — do not tick new PASS here. Visual dead click on other surfaces → [#118](https://github.com/m0llusca/Stemma/issues/118). `aria-expanded` mismatch on `[data-slot=review-disclosure-trigger]` → [#125](https://github.com/m0llusca/Stemma/issues/125), not a visual FAIL. Charts LIVE paint → [#119](https://github.com/m0llusca/Stemma/issues/119); docs SoT = Recharts (#148 merged). Login/tokens 0 Issues LIVE PASS. Morph → [#117](https://github.com/m0llusca/Stemma/issues/117): Copy↔Check on `/admin/tokens`; chevron on review/accordion.
+Джамал: LIVE walk **PASS** on tip `4f2ba3a` (0 FAIL). Cells above reflect that walk. #116 closed on the `dc5de92` package — do not tick new PASS here for later tips. Visual dead click on other surfaces → [#118](https://github.com/m0llusca/Stemma/issues/118). `aria-expanded` mismatch on `[data-slot=review-disclosure-trigger]` → [#125](https://github.com/m0llusca/Stemma/issues/125), not a visual FAIL. Charts LIVE paint → [#119](https://github.com/m0llusca/Stemma/issues/119); docs SoT = Recharts (#148 merged). Login/tokens 0 Issues LIVE PASS. Morph → [#117](https://github.com/m0llusca/Stemma/issues/117): Copy↔Check on `/admin/tokens`; chevron on review/accordion.
 
-ДеШон: adversarial still open on master `dc5de92` — team currently hard-reloading. Try the no-op, the impostor filter, leaked Take next on Exec/Agent, VIEWER deep-link.
+ДеШон: adversarial notes from the `dc5de92` package stay historical. Try the no-op, the impostor filter, leaked Take next on Exec/Agent, VIEWER deep-link.
 
-Close [#116](https://github.com/m0llusca/Stemma/issues/116) only when epic gates green on master `dc5de92` (this matrix `PASS` + Marques UX-ACCEPT + ДеШон PASS). Team currently hard-reloading. Do not close on the `4f2ba3a` walk alone.
+[#116](https://github.com/m0llusca/Stemma/issues/116) **closed**. Historical walk PASS stays on tip `4f2ba3a` / package `dc5de92`. Current stand tip `ac35def` (bailey LIVE). Do not invent a new PASS table for later tips.
 
 ---
 
@@ -260,5 +262,5 @@ Close [#116](https://github.com/m0llusca/Stemma/issues/116) only when epic gates
 - [research-kinetics-recharts.md](research-kinetics-recharts.md) — Exec = Recharts `BarChart`; drill SoT; no vanity
 - [research-morphicons.md](research-morphicons.md) — #117: CopyButton gate `/admin/tokens`; chevron on review/accordion; top-nav Menu/Search. Walk PASS on `4f2ba3a`; package on master `dc5de92`
 - [ux-agent-feedback-contract.md](ux-agent-feedback-contract.md) — self-review pack
-- [ux-dialogue-timeline-contract.md](ux-dialogue-timeline-contract.md) — #154/#155 timeline + LIVE evidence на master **`dd49657`**. Exact-filters overlay steal и QA `/dashboard` remap закрыты в том пакете. Tip этой матрицы остаётся `dc5de92`
+- [ux-dialogue-timeline-contract.md](ux-dialogue-timeline-contract.md) — #154/#155 timeline + LIVE evidence на master **`dd49657`**. Exact-filters overlay steal и QA `/dashboard` remap закрыты в том пакете. Evidence hide / no-panel: **`ac35def`** (#164). Tip walk-таблиц этой матрицы остаётся `dc5de92`
 - [semantic-status-colors.md](semantic-status-colors.md) — probe-before-save, cert ≠ step
