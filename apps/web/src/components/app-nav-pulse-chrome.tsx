@@ -97,7 +97,7 @@ export function AppNavPulseChrome({ items }: { items: WorkPulseItem[] }) {
               "hidden h-8 shrink-0 gap-1.5 px-1.5 text-muted-foreground sm:inline-flex"
             )}
           >
-            <span className="hidden text-xs 2xl:inline">{item.label}</span>
+            <span className="text-xs">{item.label}</span>
             <Badge variant={pulseBadgeVariant(item.tone)}>{item.value}</Badge>
           </Link>
         ))}

@@ -347,8 +347,8 @@ export function ReportParameterLens({
               handleFieldChange("period", event.currentTarget.value)
             }
           >
-            <NativeSelectOption value="vk-current">Текущий 22–21</NativeSelectOption>
-            <NativeSelectOption value="vk-previous">Прошлый 22–21</NativeSelectOption>
+            <NativeSelectOption value="vk-current">Текущий 22–21 · с 22-го по 21-е</NativeSelectOption>
+            <NativeSelectOption value="vk-previous">Прошлый 22–21 · с 22-го по 21-е</NativeSelectOption>
             <NativeSelectOption value="calendar-current">Текущий месяц</NativeSelectOption>
             <NativeSelectOption value="calendar-previous">Прошлый месяц</NativeSelectOption>
             <NativeSelectOption value="quarter-current">Квартал</NativeSelectOption>

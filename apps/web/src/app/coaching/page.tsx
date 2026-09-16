@@ -215,7 +215,7 @@ export default function CoachingPage({ searchParams }: CoachingPageProps) {
 async function CoachingPageContent({ searchParams }: CoachingPageProps) {
   const [user, rawSearchParams] = await Promise.all([getCurrentUser(), searchParams]);
   if (!canAccessTraining(user.role)) {
-    denyPageAccess();
+    denyPageAccess(user);
   }
   const now = new Date();
   const view = selectedView(rawSearchParams.view);

@@ -1258,6 +1258,7 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
                 canCoach={canAuthorCoachingPins}
                 canManagePins={canManageWorkflow}
                 currentUserId={user.id}
+                allowEvidenceAttach={canShowReviewPanel}
               />
             </div>
           }

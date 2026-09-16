@@ -3,6 +3,7 @@ import {
   agentAppealDisabledReason,
   agentAppealNextSteps,
   agentAppealPhaseLabels,
+  agentAppealTriggerLabel,
   canAgentOpenAppeal,
   toAgentAppealPhase
 } from "@/lib/feedback/agent-appeal";
@@ -33,6 +34,18 @@ describe("agent appeal phases", () => {
     expect(agentAppealDisabledReason({ appealStatus: "open", feedbackStatus: "appeal" })).toContain("уже подана");
     expect(agentAppealDisabledReason({ appealStatus: "confirmed", feedbackStatus: "acknowledged" })).toContain("закрыта");
     expect(agentAppealDisabledReason({ appealStatus: "none", feedbackStatus: "acknowledged" })).toContain("принята");
+  });
+
+  it("uses the phase label instead of repeating «Открыть апелляцию» after submit", () => {
+    expect(
+      agentAppealTriggerLabel({ allowed: true, phase: "none", openLabel: "Оспорить оценку" })
+    ).toBe("Оспорить оценку");
+    expect(
+      agentAppealTriggerLabel({ allowed: false, phase: "submitted", openLabel: "Оспорить оценку" })
+    ).toBe("Подана");
+    expect(
+      agentAppealTriggerLabel({ allowed: false, phase: "in_review", openLabel: "Апелляция" })
+    ).toBe("На рассмотрении");
   });
 
   it("states next steps after submit including SLA", () => {

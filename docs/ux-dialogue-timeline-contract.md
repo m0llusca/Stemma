@@ -24,6 +24,8 @@ Locked. Tip **`dd49657`** (squash [#155](https://github.com/m0llusca/Stemma/pull
 
 Сохранить: coaching pins, выбор evidence, Enter/клик на модулях оценки.
 
+Финализированная HUMAN-проверка: `allowEvidenceAttach={canShowReviewPanel}`. Если панели оценки нет — «В доказательство» нет. Кнопка без селектов — тупик.
+
 ## Внутренние заметки (`isPrivate`) и коучинг
 
 Одна хронология. Не отдельная вкладка.

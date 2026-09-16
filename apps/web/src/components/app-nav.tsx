@@ -10,6 +10,7 @@ import { canSeeOpsQueuePulse, roleHomePath } from "@/lib/auth/role-home";
 import { AuthRequiredError } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { roleLabels } from "@/lib/labels";
+import { reportReviewRangeHref } from "@/lib/reports/report-format";
 import { getShellSnapshot, type ShellSnapshot } from "@/lib/shell/snapshot";
 import { visibleTopNavAreas } from "@/lib/shell/navigation";
 
@@ -135,6 +136,12 @@ export async function getNavPulseItems(user: ShellSnapshot["user"]): Promise<Pul
   const canAccessTraining =
     hasPermission(user.role, "training:manage") || hasPermission(user.role, "training:consume");
 
+  const now = new Date();
+  const thirtyDaysStart = new Date(now.getTime() - 29 * 24 * 60 * 60 * 1000);
+  const thirtyDayHighRiskHref = reportReviewRangeHref(thirtyDaysStart, now, {
+    riskLevel: "HIGH_OR_CRITICAL"
+  });
+
   const [queuedCount, highRiskCount, trainingCount] = await Promise.all([
     canSeeOpsPulse
       ? prisma.conversation.count({
@@ -147,6 +154,7 @@ export async function getNavPulseItems(user: ShellSnapshot["user"]): Promise<Pul
             workspaceId: user.workspaceId,
             status: "FINALIZED",
             reviewSource: "HUMAN",
+            finalizedAt: { gte: thirtyDaysStart, lte: now },
             findings: { some: { riskLevel: { in: ["HIGH", "CRITICAL"] } } }
           }
         })
@@ -166,8 +174,8 @@ export async function getNavPulseItems(user: ShellSnapshot["user"]): Promise<Pul
   if (canSeeOpsPulse) {
     items.push({ href: "/reviews?qaStatus=QUEUED", label: "Очередь", value: queuedCount });
     items.push({
-      href: "/reviews?status=reviewed&riskLevel=HIGH_OR_CRITICAL",
-      label: "Риск",
+      href: thirtyDayHighRiskHref,
+      label: "Риск 30д",
       value: highRiskCount,
       tone: highRiskCount > 0 ? "risk" : "neutral"
     });

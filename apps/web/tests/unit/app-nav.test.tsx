@@ -325,7 +325,7 @@ describe("app nav", () => {
     const pulseSurfaces = screen.getAllByLabelText("Рабочий пульс");
     const pulse = pulseSurfaces.find((element) => element.tagName === "DIV");
     expect(pulse).toBeDefined();
-    const risk = within(pulse!).getByRole("link", { name: "Риск: 0" });
+    const risk = within(pulse!).getByRole("link", { name: "Риск 30д: 0" });
     expect(risk.querySelector('[class*="bg-destructive"]')).toBeNull();
     expect(risk.querySelector('[class*="text-destructive"]')).toBeNull();
   });
@@ -339,7 +339,7 @@ describe("app nav", () => {
     const pulseSurfaces = screen.getAllByLabelText("Рабочий пульс");
     const pulse = pulseSurfaces.find((element) => element.tagName === "DIV");
     expect(pulse).toBeDefined();
-    const risk = within(pulse!).getByRole("link", { name: "Риск: 3" });
+    const risk = within(pulse!).getByRole("link", { name: "Риск 30д: 3" });
     expect(risk.querySelector('[class*="bg-destructive"]')).not.toBeNull();
   });
 
@@ -349,7 +349,17 @@ describe("app nav", () => {
     await AppNav();
 
     expect(mocks.prisma.conversation.count).toHaveBeenCalled();
-    expect(mocks.prisma.review.count).toHaveBeenCalled();
+    expect(mocks.prisma.review.count).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          finalizedAt: expect.objectContaining({
+            gte: expect.any(Date),
+            lte: expect.any(Date)
+          }),
+          findings: { some: { riskLevel: { in: ["HIGH", "CRITICAL"] } } }
+        })
+      })
+    );
     expect(mocks.prisma.trainingAssignment.count).toHaveBeenCalled();
   });
 

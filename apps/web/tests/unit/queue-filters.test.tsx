@@ -46,7 +46,9 @@ describe("QueueFilters", () => {
     expect(new FormData(form as HTMLFormElement).get("qaStatus")).toBe("QUEUED");
     expect(screen.getByText("Статус проверки: В очереди")).toBeInTheDocument();
     expect(screen.getByText("Сбросить фильтры").closest("a")).toHaveAttribute("href", "/reviews");
-    expect(screen.getByText(/Применено фильтров: 1\. Найдено обращений: 12\./)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Применено фильтров: 1 \(точных: 1\)\. Найдено обращений: 12\./)
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /^точные фильтры/i }));
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
@@ -54,6 +56,29 @@ describe("QueueFilters", () => {
     expect(screen.getByText("Срок (SLA)")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /что такое sla/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /что такое otrs/i })).toBeInTheDocument();
+  });
+
+  it("separates search/итог from exact filters in the live count", () => {
+    render(
+      <QueueFilters
+        filters={{ status: "reviewed", q: "Мила", qaStatus: "QUEUED" }}
+        sources={[]}
+        assignees={[]}
+        qaAssignees={[]}
+        supportLines={[]}
+        teamNames={[]}
+        resultCount={4}
+      />
+    );
+
+    expect(
+      screen.getByText(
+        /Применено фильтров: 3 \(поиск\/итог: 2 · точных: 1\)\. Найдено обращений: 4\./
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^точные фильтры/i })).toHaveTextContent(
+      "1 применено"
+    );
   });
 
   it("shows the Итог chip with reviewed/unreviewed words, not status-chip words", () => {

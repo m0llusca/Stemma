@@ -173,19 +173,26 @@ export function buildExecRiskChartModel(input: ExecRiskChartHrefInput): ExecRisk
     return { empty: true, resetHref };
   }
 
-  return {
-    empty: false,
-    resetHref,
-    bars: EXEC_RISK_CHART_KEYS.map((key) => {
-      const value = execRiskChartValue(key, signal);
+  const bars = EXEC_RISK_CHART_KEYS.flatMap((key) => {
+    const value = execRiskChartValue(key, signal);
+    if (!isLiveExecRiskCount(value)) {
+      return [];
+    }
 
-      return {
+    return [
+      {
         key,
         label: execRiskChartLabels[key],
         value,
         href: execRiskChartBarHref(key, input),
-        tone: value === 0 ? "neutral" : key === "queued" ? "warning" : "danger"
-      };
-    })
+        tone: key === "queued" ? ("warning" as const) : ("danger" as const)
+      }
+    ];
+  });
+
+  return {
+    empty: false,
+    resetHref,
+    bars
   };
 }

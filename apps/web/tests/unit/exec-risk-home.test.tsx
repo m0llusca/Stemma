@@ -23,7 +23,7 @@ describe("ExecRiskHome", () => {
       />
     );
 
-    expect(screen.getByText("Риск")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Сегодня" })).toBeInTheDocument();
     expect(screen.getByText(/операционный хром скрыт/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Разобрать/ })).toHaveAttribute("href", hrefs.overdue);
 

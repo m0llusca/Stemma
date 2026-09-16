@@ -160,4 +160,19 @@ describe("buildExecRiskChartModel", () => {
     ]);
     expect(model.bars.some((bar) => bar.tone === "neutral" && bar.value > 0)).toBe(false);
   });
+
+  it("drops zero bars so a live queue does not sit next to a fake 0", () => {
+    const model = buildExecRiskChartModel({
+      signal: { overdueReviewCount: 4, highRiskCount: 0, queuedCount: 8 },
+      hrefs,
+      role: "EXEC"
+    });
+
+    expect(model.empty).toBe(false);
+    if (model.empty) {
+      throw new Error("expected a live chart model");
+    }
+
+    expect(model.bars.map((bar) => bar.key)).toEqual(["overdue", "queued"]);
+  });
 });

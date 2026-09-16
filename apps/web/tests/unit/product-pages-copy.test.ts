@@ -94,9 +94,10 @@ describe("dashboard page copy", () => {
 });
 
 describe("reviews page take-next copy", () => {
-  it("uses the shared Take-next verb and wires preview through queueHref, not a peek link", () => {
+  it("uses the shared Take-next verb once on the page header, not a peek link", () => {
     expect(reviewsPage).toContain("TAKE_NEXT_LABEL");
-    expect(reviewsPage).toContain("queueHref={data.currentHref}");
+    expect(reviewsPage).toContain('name="queueHref" value={data.currentHref}');
+    expect(reviewsPage).not.toContain("canTakeNext=");
     expect(reviewsPage).not.toContain("openHref=");
     expect(reviewsPage).not.toContain("Открыть приоритетный кейс");
   });

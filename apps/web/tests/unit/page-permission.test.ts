@@ -8,13 +8,17 @@ const mocks = vi.hoisted(() => ({
   unauthorized: vi.fn(() => {
     throw new Error("NEXT_HTTP_ERROR_FALLBACK;401");
   }),
+  redirect: vi.fn((href: string) => {
+    throw new Error(`NEXT_REDIRECT;${href}`);
+  }),
   getCurrentUser: vi.fn(),
   requireCurrentUserPermission: vi.fn()
 }));
 
 vi.mock("next/navigation", () => ({
   forbidden: mocks.forbidden,
-  unauthorized: mocks.unauthorized
+  unauthorized: mocks.unauthorized,
+  redirect: mocks.redirect
 }));
 
 vi.mock("@/lib/current-user", () => {
@@ -61,10 +65,22 @@ describe("requirePagePermission", () => {
 
   it("maps PermissionDeniedError to the Next.js forbidden interrupt", async () => {
     mocks.requireCurrentUserPermission.mockRejectedValue(new PermissionDeniedError());
+    mocks.getCurrentUser.mockResolvedValue({ id: "qa-1", role: "QA_ANALYST" });
     const { requirePagePermission } = await import("@/lib/page-permission");
 
     await expect(requirePagePermission("users:manage")).rejects.toThrow("NEXT_HTTP_ERROR_FALLBACK;403");
     expect(mocks.forbidden).toHaveBeenCalledOnce();
+    expect(mocks.redirect).not.toHaveBeenCalled();
+  });
+
+  it("sends a VIEWER deep-link to pending-access instead of a 403 wall", async () => {
+    mocks.requireCurrentUserPermission.mockRejectedValue(new PermissionDeniedError());
+    mocks.getCurrentUser.mockResolvedValue({ id: "viewer-1", role: "VIEWER" });
+    const { requirePagePermission } = await import("@/lib/page-permission");
+
+    await expect(requirePagePermission("reviews:read")).rejects.toThrow("NEXT_REDIRECT;/auth/pending-access");
+    expect(mocks.redirect).toHaveBeenCalledWith("/auth/pending-access");
+    expect(mocks.forbidden).not.toHaveBeenCalled();
   });
 
   it("does not map a generic error with permission copy to forbidden", async () => {
@@ -124,5 +140,13 @@ describe("denyPageAccess", () => {
 
     expect(() => denyPageAccess()).toThrow("NEXT_HTTP_ERROR_FALLBACK;403");
     expect(mocks.forbidden).toHaveBeenCalledOnce();
+  });
+
+  it("sends VIEWER to pending-access instead of forbidden", async () => {
+    const { denyPageAccess } = await import("@/lib/page-permission");
+
+    expect(() => denyPageAccess({ role: "VIEWER" })).toThrow("NEXT_REDIRECT;/auth/pending-access");
+    expect(mocks.redirect).toHaveBeenCalledWith("/auth/pending-access");
+    expect(mocks.forbidden).not.toHaveBeenCalled();
   });
 });

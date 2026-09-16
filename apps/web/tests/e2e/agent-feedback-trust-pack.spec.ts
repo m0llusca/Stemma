@@ -72,7 +72,7 @@ test("SUPPORT_AGENT opens a deduction pack and can start an appeal", async ({ br
   await expect(appealTrigger).toBeEnabled();
   await appealTrigger.click();
   await expect(firstDeduction.getByLabel("Обоснование")).toBeVisible();
-  await expect(firstDeduction.getByRole("button", { name: "Открыть апелляцию" })).toBeVisible();
+  await expect(firstDeduction.getByRole("button", { name: "Отправить" })).toBeVisible();
 
   await context.close();
 });

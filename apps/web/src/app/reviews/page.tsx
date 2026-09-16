@@ -150,9 +150,7 @@ export async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
       <QueueNextCasePreview
         subject={queuePreview.subject}
         description={`${queuePreview.customerName} · ${queuePreview.assigneeName ?? "оператор не назначен"}`}
-        queueHref={data.currentHref}
         statusConversation={queuePreview}
-        canTakeNext={data.canWriteReviews}
       >
         <StatKpi
           label="Оценка"
