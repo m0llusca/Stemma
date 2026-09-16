@@ -89,7 +89,9 @@ An operator on a narrow saved view sees case A as preview, presses the page-head
 
 - Label: **«Следующий кейс»**
 - **Collapsed by default** (adversarial verdict: do not remove — collapse)
-- Collapsed chrome: identity + status chip. No **«Взять следующий»** — that CTA is the page header only
+- Collapsed chrome: identity + status chip. No **«Взять следующий»** — that CTA is the page header only. Do not put a second Take-next on the preview
+- Hug content: no `h-full` stretch against the table (`items-start` workspace). Density: [ux-density-contract.md](ux-density-contract.md)
+- SLA/OTRS filter helper is `sr-only`. Soft: first-visit Day1 Alert **«SLA и OTRS»** is still fat — not this contract
 - Expand reveals priority rationale and signal context
 - Page action **«Взять следующий»** remains available regardless of preview expand state
 - Status chip: same `ReviewStatusChip` as the queue row (see below)
@@ -138,4 +140,4 @@ Merging «Итог» into «Статус проверки» would drop the “an
 | Saved views write-gate | `apps/web/src/components/review/queue-saved-views.tsx`, `apps/web/src/lib/queue-view-actions.ts` |
 | Unit tests | `apps/web/tests/unit/review-keyboard.test.ts`, `queue-next-case-preview.test.tsx`, `queue-table-status-chip.test.tsx`, `review-status-chip.test.ts`, `queue-href-filters.test.ts`, `app-nav-shell.test.tsx` (pulse + ⌘K + same FormData), `next-review-query.test.ts`, `queue-view-actions.test.ts`, `review-actions-lifecycle.test.ts` |
 
-Related: [app-shell.md](app-shell.md) (role homes, ⌘K), [ux-persona-adversarial-synthesis.md](ux-persona-adversarial-synthesis.md).
+Related: [app-shell.md](app-shell.md) (role homes, ⌘K), [ux-density-contract.md](ux-density-contract.md) (queue banner / preview hug), [ux-persona-adversarial-synthesis.md](ux-persona-adversarial-synthesis.md).
