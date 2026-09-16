@@ -526,6 +526,7 @@
     --table-row-height: 2.375rem;
     --page-gutter: clamp(0.875rem, 1.5vw, 1.5rem);
     --section-gap: 1.125rem;
+    --app-topbar-inline: 14px;
   }
 
   [data-density="comfortable"] {
@@ -538,6 +539,7 @@
     --table-row-height: 2.75rem;
     --page-gutter: clamp(1rem, 2vw, 1.75rem);
     --section-gap: 1.5rem;
+    --app-topbar-inline: 18px;
   }
 
   [data-density="spacious"] {
@@ -550,6 +552,7 @@
     --table-row-height: 3.125rem;
     --page-gutter: clamp(1.25rem, 2.5vw, 2rem);
     --section-gap: 1.875rem;
+    --app-topbar-inline: 22px;
   }
 
   [data-corners="sharp"] {

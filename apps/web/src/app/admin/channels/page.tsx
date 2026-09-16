@@ -286,7 +286,7 @@ async function AdminChannelsPageContent() {
                 </CardAction>
               </div>
             </CardHeader>
-            <CardContent className="grid gap-4 pt-(--card-spacing)">
+            <CardContent className="grid gap-4">
               <StatStrip
                 items={[
                   {
@@ -425,7 +425,7 @@ async function AdminChannelsPageContent() {
                 </span>
               </div>
             </CardHeader>
-            <CardContent className="pt-(--card-spacing)">
+            <CardContent>
               {latestDeliveries.length === 0 ? (
                 <EmptyState
                   size="inline"

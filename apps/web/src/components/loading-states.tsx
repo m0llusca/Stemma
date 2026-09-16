@@ -22,7 +22,7 @@ function Shell({
   return (
     <div
       className={cn(
-        "mx-auto flex w-full max-w-[var(--content-max-width,1420px)] flex-col gap-6 p-4 md:p-6",
+        "mx-auto flex w-full max-w-[var(--content-max-width,1420px)] flex-col gap-(--section-gap) p-(--page-shell-padding)",
         className
       )}
       aria-busy="true"

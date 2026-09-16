@@ -113,7 +113,7 @@ export function OtrsDiagnosticsPanel({ integrationId, latestDiagnostic }: OtrsDi
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="grid gap-4 pt-(--card-spacing)">
+      <CardContent className="grid gap-4">
         <form action={formAction} className="grid gap-3 rounded-lg border p-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
           <ActionFlowGuard
             onResult={(value) => {

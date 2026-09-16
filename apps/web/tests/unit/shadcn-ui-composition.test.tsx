@@ -93,8 +93,10 @@ describe("shadcn UI composition primitives", () => {
     const tabs = screen.getByRole("navigation", { name: "Разделы страницы" });
     const content = document.querySelector('[data-slot="page-shell-content"]');
 
-    expect(shell).toHaveClass("min-w-0", "p-3", "md:p-6");
+    expect(shell).toHaveClass("min-w-0", "p-(--page-shell-padding)", "gap-(--section-gap)");
     expect(shell).not.toHaveClass("p-4");
+    expect(shell).not.toHaveClass("p-3");
+    expect(content).toHaveClass("gap-(--section-gap)");
     expect(content).toHaveClass("min-w-0");
     expect(tabs).toHaveClass("flex-nowrap", "overflow-x-auto");
     expect(tabs).not.toHaveClass("flex-wrap");

@@ -110,7 +110,7 @@ export function ReportKpiRow({
         tabletTrackSpan={2}
         className="min-[390px]:col-span-2 xl:col-span-2"
       >
-        <Card className="h-full">
+        <Card>
           <CardHeader className="pb-2">
             <CardDescription>{scoreLabel}</CardDescription>
             <div className="flex flex-wrap items-end gap-2">
@@ -158,7 +158,7 @@ export function ReportKpiRow({
           desktopTrackSpan={1}
           tabletTrackSpan={1}
         >
-          <Card className="h-full">
+          <Card>
             <CardHeader className="pb-2">
               <CardDescription>{item.label}</CardDescription>
               <CardTitle

@@ -327,7 +327,7 @@ export function ReportPageViews(props: ReportPageModel) {
             </Link>
           </CardAction>
         </CardHeader>
-        <CardContent className="pt-(--card-spacing)">
+        <CardContent>
           <CriterionMatrix
             columns={matrixColumns}
             rows={matrixRows}

@@ -392,7 +392,7 @@ async function AdminUsersPageContent({ searchParams }: AdminUsersPageProps) {
                 Каждая строка сохраняется отдельно и сразу пишет событие аудита.
               </CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col gap-4 pt-(--card-spacing)">
+            <CardContent className="flex flex-col gap-4">
               {usersSetupHint ? (
                 <CoachCallout
                   title={usersSetupHint.title}
@@ -547,7 +547,7 @@ async function AdminUsersPageContent({ searchParams }: AdminUsersPageProps) {
                 Права не назначаются вручную: роль определяет весь набор доступов.
               </CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col gap-4 pt-(--card-spacing)">
+            <CardContent className="flex flex-col gap-4">
               {permissionGroups.map((group) => (
                 <Card key={group.title} size="sm" className="bg-muted/20">
                   <CardHeader>

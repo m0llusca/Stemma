@@ -716,7 +716,7 @@ function NonOtrsIntegrationSummary({
           <CardTitle className="break-words">Фоновые задачи</CardTitle>
           <CardDescription className="break-words">Без отображения сырых payload.</CardDescription>
         </CardHeader>
-        <CardContent className="grid min-w-0 gap-2 pt-(--card-spacing)">
+        <CardContent className="grid min-w-0 gap-2">
           {jobs.length > 0 ? (
             jobs.slice(0, 5).map((job) => {
               const status = backendJobStatusView(job.status);
@@ -899,7 +899,7 @@ async function IntegrationDetailsPageContent({ params, searchParams }: Integrati
               Статус, последний запуск и состояние импорта без раскрытия технических payload.
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid min-w-0 items-start gap-4 pt-(--card-spacing) xl:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
+          <CardContent className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
             <div className="grid min-w-0 rounded-lg border border-border px-3">
               <IntegrationFact label="Статус интеграции">
                 {opsStatusLabel}
@@ -935,7 +935,7 @@ async function IntegrationDetailsPageContent({ params, searchParams }: Integrati
               Диагностика, предпросмотр, импорт и история запусков.
             </CardDescription>
           </CardHeader>
-          <CardContent className="min-w-0 pt-(--card-spacing)">
+          <CardContent className="min-w-0">
             {integration.type === "otrs_family" ? (
               <OtrsDetailCockpit
                 integration={integration}
@@ -1094,7 +1094,7 @@ function OtrsDetailCockpit({
                 Используйте только для ручной проверки JSON, когда connector-путь недоступен.
               </CardDescription>
             </CardHeader>
-            <CardContent className="pt-(--card-spacing)">
+            <CardContent>
               <OtrsImportTester />
             </CardContent>
           </Card>

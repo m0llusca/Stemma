@@ -575,7 +575,7 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
                 return (
                   <li key={signal.id} className="flex min-w-0 items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-foreground">{signal.subject}</p>
+                      <p className="truncate text-sm font-medium text-foreground" title={signal.subject}>{signal.subject}</p>
                       <p className="text-xs text-muted-foreground">
                         {outcomeLabel} · {signal.createdAt.toLocaleDateString("ru-RU")}
                       </p>
@@ -621,7 +621,7 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
               <Badge variant="secondary">{lowAgreementRows.length}</Badge>
             </CardAction>
           </CardHeader>
-          <CardContent className="pt-(--card-spacing)">
+          <CardContent>
             {lowAgreementRows.length > 0 ? (
               <ul className="flex flex-col gap-2" aria-label="Список расхождений между проверяющими">
                 {lowAgreementRows.map((row) => {
@@ -636,7 +636,7 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
                       className="flex min-w-0 flex-col gap-2 rounded-lg border border-border bg-muted/20 p-3 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="min-w-0 flex flex-col gap-0.5">
-                        <p className="truncate text-sm font-medium text-foreground">{row.conversationSubject}</p>
+                        <p className="truncate text-sm font-medium text-foreground" title={row.conversationSubject}>{row.conversationSubject}</p>
                         <p className="text-xs text-muted-foreground">
                           {row.conversationExternalId} ·{" "}
                           <Link href={sessionHref} className="underline-offset-4 hover:underline">
@@ -681,7 +681,7 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
               </Button>
             </CardAction>
           </CardHeader>
-          <CardContent className="pt-(--card-spacing)">
+          <CardContent>
             {reviewerVolumeRows.length > 0 ? (
               <Table aria-label="Финализации по проверяющим за 30 дней">
                 <TableHeader>
@@ -917,7 +917,10 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
                 <ClipboardCheck size={15} className="shrink-0 text-muted-foreground" aria-hidden="true" />
                 <div className="flex min-w-0 flex-col gap-0.5">
                   <span className="text-xs text-muted-foreground">Форма оценки</span>
-                  <span className="truncate text-sm font-medium text-foreground underline-offset-4 hover:underline">
+                  <span
+                    className="truncate text-sm font-medium text-foreground underline-offset-4 hover:underline"
+                    title={`${selectedSession.scorecard.name} · v${selectedSession.scorecard.version}`}
+                  >
                     {selectedSession.scorecard.name} · v{selectedSession.scorecard.version}
                   </span>
                 </div>
@@ -958,7 +961,7 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
                                 >
                                   {initialsOf(participant.user.name)}
                                 </span>
-                                <span className="max-w-[6rem] truncate text-xs font-medium normal-case">{participant.user.name}</span>
+                                <span className="max-w-[6rem] truncate text-xs font-medium normal-case" title={participant.user.name}>{participant.user.name}</span>
                               </div>
                             </TableHead>
                           ))}

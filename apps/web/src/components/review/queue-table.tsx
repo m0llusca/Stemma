@@ -128,7 +128,7 @@ function QueueTableRows({
         return (
           <TableRow key={conversation.id}>
             {canWriteReviews ? (
-              <TableCell>
+              <TableCell className="h-auto py-1.5">
                 <Checkbox
                   name="conversationId"
                   value={conversation.id}
@@ -137,7 +137,7 @@ function QueueTableRows({
               </TableCell>
             ) : null}
 
-            <TableCell>
+            <TableCell className="h-auto py-1.5">
               <span
                 className="inline-flex size-7 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground"
                 aria-hidden="true"
@@ -146,49 +146,62 @@ function QueueTableRows({
               </span>
             </TableCell>
 
-            <TableCell>
+            <TableCell className="h-auto py-1.5">
               <ReviewStatusChip conversation={conversation} />
             </TableCell>
 
-            <TableCell className="max-w-[420px] whitespace-normal">
+            <TableCell className="h-auto max-w-[420px] py-1.5 whitespace-normal">
               <div className="flex min-w-0 flex-col gap-0.5">
                 <Link
                   href={reviewHref}
-                  className="font-medium text-foreground hover:underline"
+                  className="truncate font-medium text-foreground hover:underline"
+                  title={conversation.subject}
                 >
                   {conversation.subject}
                 </Link>
-                <span className="text-xs text-muted-foreground">{conversation.priorityReason}</span>
-                <span className="text-xs text-muted-foreground">
+                <span
+                  className="truncate text-xs text-muted-foreground"
+                  title={[
+                    conversation.priorityReason,
+                    conversation.customerName,
+                    conversation.assigneeName ?? "оператор не назначен",
+                    channelLabels[conversation.channel],
+                    formatMessageCount(conversation.messageCount),
+                    externalSourceLabel(conversation.externalSource),
+                    ...signalItems
+                  ].join(" · ")}
+                >
+                  {conversation.priorityReason}
+                  {" · "}
                   {conversation.customerName} · {conversation.assigneeName ?? "оператор не назначен"} ·{" "}
                   {channelLabels[conversation.channel]} · {formatMessageCount(conversation.messageCount)} ·{" "}
                   {externalSourceLabel(conversation.externalSource)}
                   {signalItems.length > 0 ? ` · ${signalItems.join(", ")}` : ""}
                 </span>
                 {conversation.pendingReopen ? (
-                  <span className="text-xs text-amber-700 dark:text-amber-400">
+                  <span className="truncate text-xs text-amber-700 dark:text-amber-400" title={conversation.pendingReopen.reason}>
                     Причина запроса: {conversation.pendingReopen.reason}
                   </span>
                 ) : null}
               </div>
             </TableCell>
 
-            <TableCell className="whitespace-normal">
+            <TableCell className="h-auto py-1.5 whitespace-normal">
               <span className="text-sm text-foreground">{conversation.qaAssigneeName ?? "Не назначен"}</span>
             </TableCell>
 
-            <TableCell className={cn("whitespace-normal", isOverdue && "text-destructive")}>
+            <TableCell className={cn("h-auto py-1.5 whitespace-normal", isOverdue && "text-destructive")}>
               <span className="text-sm font-medium tabular-nums">
                 {dueLabel}
                 {isOverdue ? <span className="sr-only"> — просрочено</span> : null}
               </span>
             </TableCell>
 
-            <TableCell className="text-right font-medium tabular-nums">
+            <TableCell className="h-auto py-1.5 text-right font-medium tabular-nums">
               {formatQualityScore(latestFinalizedReview?.totalScore, draftReview ? "Черновик" : "—")}
             </TableCell>
 
-            <TableCell>
+            <TableCell className="h-auto py-1.5">
               <Button
                 render={<Link href={reviewHref} />}
                 nativeButton={false}

@@ -5,7 +5,7 @@ import { adminLoadingLabel } from "@/lib/admin-sections";
 export default function AdminLoading() {
   return (
     <div
-      className="mx-auto flex w-full max-w-[var(--content-max-width,1420px)] flex-col gap-6 p-4 md:p-6"
+      className="mx-auto flex w-full max-w-[var(--content-max-width,1420px)] flex-col gap-(--section-gap) p-(--page-shell-padding)"
       aria-busy="true"
       aria-label={adminLoadingLabel("/admin")}
     >
@@ -20,7 +20,7 @@ export default function AdminLoading() {
 
       <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]" aria-hidden="true">
         <Card className="h-fit">
-          <CardContent className="flex flex-col gap-4 pt-(--card-spacing)">
+          <CardContent className="flex flex-col gap-4">
             <Skeleton className="h-9 w-full" />
             {Array.from({ length: 3 }).map((_, group) => (
               <div key={group} className="flex flex-col gap-2">
@@ -37,7 +37,7 @@ export default function AdminLoading() {
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 6 }).map((_, index) => (
               <Card key={index}>
-                <CardContent className="flex flex-col gap-3 pt-(--card-spacing)">
+                <CardContent className="flex flex-col gap-3">
                   <Skeleton className="h-3 w-20" />
                   <Skeleton className="h-6 w-28" />
                   <Skeleton className="h-3 w-full" />

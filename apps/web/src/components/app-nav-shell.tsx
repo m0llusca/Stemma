@@ -289,7 +289,7 @@ function AppNavShellChrome({
       aria-label="Глобальная навигация"
       data-slot="app-nav"
     >
-      <div className="flex min-h-14 w-full min-w-0 items-center gap-3 px-4 md:px-6">
+      <div className="flex min-h-14 w-full min-w-0 items-center gap-3 px-(--app-topbar-inline)">
         <Link
           href={homeHref}
           className="inline-flex size-11 shrink-0 items-center justify-center rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
@@ -410,7 +410,7 @@ function AppNavShellChrome({
           onClick={openCommand}
         >
           <MorphIcon icon={commandOpen ? X : Search} data-icon="inline-start" />
-          <span className="hidden truncate xl:inline">Поиск или команда</span>
+          <span className="hidden truncate xl:inline" title="Поиск или команда">Поиск или команда</span>
           <Kbd className="ml-auto hidden xl:inline-flex">⌘K</Kbd>
         </Button>
 
@@ -426,7 +426,9 @@ function AppNavShellChrome({
               ? `Профиль: ${roleLabel}, ${user.name}`
               : `Профиль: ${user.name}`
           }
-          triggerTitle={user.email}
+          triggerTitle={
+            roleLabel ? `${roleLabel} · ${user.email}` : user.email
+          }
           triggerClassName={cn(
             buttonVariants({ variant: "ghost", size: "sm" }),
             "relative z-30 min-h-11 shrink-0 gap-1.5 px-2"
@@ -458,11 +460,14 @@ function AppNavShellChrome({
             </>
           }
         >
-          <span className="flex min-w-0 flex-col items-start gap-0.5 text-left">
-            <span className="max-w-36 truncate text-sm font-medium leading-none">
+          <span className="flex min-w-0 max-w-[12.5rem] flex-col items-start gap-0.5 text-left sm:max-w-[15rem]">
+            <span
+              className="text-pretty text-sm font-medium leading-tight"
+              title={roleLabel ?? user.name}
+            >
               {roleLabel ?? user.name}
             </span>
-            <span className="max-w-36 truncate text-xs text-muted-foreground">
+            <span className="w-full truncate text-xs text-muted-foreground" title={user.email}>
               {user.email}
             </span>
           </span>

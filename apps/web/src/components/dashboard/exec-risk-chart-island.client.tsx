@@ -7,15 +7,17 @@ import {
   type ErrorInfo,
   type ReactNode
 } from "react";
+import { EXEC_RISK_CHART_MIN_HEIGHT_CLASS } from "@/components/charts/chart-visual-preset";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ExecRiskChart } from "@/components/dashboard/exec-risk-chart.client";
 import { ExecRiskEmptyState } from "@/components/dashboard/exec-risk-empty";
 import { isExecRiskBarsEmpty, type ExecRiskChartBar } from "@/lib/dashboard/exec-risk-home";
+import { cn } from "@/lib/utils";
 
 function ChartLoadError({ onRetry }: { onRetry: () => void }) {
   return (
-    <Alert role="alert" className="min-h-[240px] content-center">
+    <Alert role="alert" className={cn(EXEC_RISK_CHART_MIN_HEIGHT_CLASS, "content-center")}>
       <AlertTitle>Не удалось загрузить график</AlertTitle>
       <AlertDescription>
         Плитки риска выше открывают те же срезы очереди. Попробуйте загрузить график ещё раз.

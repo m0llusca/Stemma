@@ -40,7 +40,7 @@ export function PageShell({
     <div
       data-slot="page-shell"
       className={cn(
-        "mx-auto flex min-w-0 w-full max-w-[var(--content-max-width,1420px)] flex-col gap-6 p-3 md:p-6",
+        "mx-auto flex min-w-0 w-full max-w-[var(--content-max-width,1420px)] flex-col gap-(--section-gap) p-(--page-shell-padding)",
         className
       )}
     >
@@ -100,7 +100,7 @@ export function PageShell({
       )}
 
       {children != null ? (
-        <div data-slot="page-shell-content" className="flex min-w-0 flex-col gap-7">
+        <div data-slot="page-shell-content" className="flex min-w-0 flex-col gap-(--section-gap)">
           {children}
         </div>
       ) : null}

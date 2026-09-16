@@ -684,10 +684,10 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
                                   попытка {job.attempts}/{job.maxAttempts} · {job.createdBy?.name ?? "Автоматика"}
                                 </span>
                                 {job.events[0] ? (
-                                  <span className="line-clamp-2 text-xs text-muted-foreground">{job.events[0].message}</span>
+                                  <span className="line-clamp-2 text-xs text-muted-foreground" title={job.events[0].message}>{job.events[0].message}</span>
                                 ) : null}
                                 {job.errorMessage ? (
-                                  <span className="line-clamp-2 text-xs font-medium text-destructive">{job.errorMessage}</span>
+                                  <span className="line-clamp-2 text-xs font-medium text-destructive" title={job.errorMessage}>{job.errorMessage}</span>
                                 ) : null}
                               </div>
                             </TableCell>

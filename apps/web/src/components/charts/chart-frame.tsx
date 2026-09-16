@@ -94,7 +94,10 @@ export function ChartFrame({
         </div>
       </CardHeader>
       <CardContent className="py-4">
-        <div data-slot="chart-frame-content" className="min-h-60">
+        <div
+          data-slot="chart-frame-content"
+          className={state.kind === "loading" || state.kind === "ready" ? "min-h-60" : undefined}
+        >
           {state.kind === "loading" ? (
             <div
               role="status"

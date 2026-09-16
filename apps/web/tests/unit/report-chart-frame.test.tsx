@@ -412,7 +412,16 @@ describe("ChartFrame", () => {
 
   it.each([
     ["loading", { kind: "loading" } as const],
-    ["ready", { kind: "ready" } as const],
+    ["ready", { kind: "ready" } as const]
+  ])("keeps plot geometry in the %s state", (_label, state) => {
+    const { container } = renderFrame({ state });
+
+    expect(container.querySelector('[data-slot="chart-frame-content"]')).toHaveClass(
+      "min-h-60"
+    );
+  });
+
+  it.each([
     ["empty", { kind: "empty" } as const],
     [
       "error",
@@ -421,10 +430,10 @@ describe("ChartFrame", () => {
         message: "Не удалось получить агрегированные данные."
       } as const
     ]
-  ])("preserves the common content geometry in the %s state", (_label, state) => {
+  ])("does not reserve a plot hole in the %s state", (_label, state) => {
     const { container } = renderFrame({ state });
 
-    expect(container.querySelector('[data-slot="chart-frame-content"]')).toHaveClass(
+    expect(container.querySelector('[data-slot="chart-frame-content"]')).not.toHaveClass(
       "min-h-60"
     );
   });

@@ -26,8 +26,8 @@ export function QueueNextCasePreview({
   children
 }: QueueNextCasePreviewProps) {
   return (
-    <Card className="h-full gap-0 overflow-clip py-0" data-slot="queue-next-case-preview">
-      <Collapsible className="group/preview flex h-full min-w-0 flex-col">
+    <Card className="gap-0 overflow-clip py-0" data-slot="queue-next-case-preview">
+      <Collapsible className="group/preview flex min-w-0 flex-col">
         <CardHeader className="gap-1.5 border-b border-border">
           <CollapsibleTrigger className="flex w-full cursor-pointer items-start justify-between gap-3 bg-transparent p-0 text-left outline-none focus-visible:rounded-md focus-visible:ring-2 focus-visible:ring-ring/50">
             <div className="min-w-0">

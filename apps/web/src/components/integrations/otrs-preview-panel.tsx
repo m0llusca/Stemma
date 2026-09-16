@@ -168,7 +168,7 @@ export function OtrsPreviewPanel({ integrationId, latestPreviewRun }: OtrsPrevie
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="grid gap-4 pt-(--card-spacing)">
+      <CardContent className="grid gap-4">
         <div className="grid gap-4 xl:grid-cols-2">
           <form action={previewAction} className="grid gap-3 rounded-lg border p-3">
             <ActionFlowGuard onResult={handlePreviewResult} />

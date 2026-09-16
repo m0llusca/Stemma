@@ -27,7 +27,7 @@ export async function AdminFrame({
   return (
     <div
       className={cn(
-        "grid min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-[204px_minmax(0,1fr)] lg:gap-7",
+        "grid min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-[204px_minmax(0,1fr)] lg:gap-(--section-gap)",
         className
       )}
     >
