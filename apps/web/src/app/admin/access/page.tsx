@@ -936,7 +936,7 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
                   </CardContent>
                 </>
               ) : (
-                <CardContent className="pt-(--card-spacing)">
+                <CardContent>
                   <ScimTokenManager
                     titleId="scim-token-title"
                     providerId={selectedProvider.id}

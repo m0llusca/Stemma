@@ -125,7 +125,7 @@ export function MetricInsightStrip({
         <p className="max-w-md text-sm text-muted-foreground sm:text-right">{description}</p>
       </CardHeader>
 
-      <CardContent className="grid gap-3 pt-(--card-spacing) md:grid-cols-2 xl:grid-cols-4">
+      <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {items.map((item) => {
           const progress = roundedProgress(item.progress);
           return (
@@ -138,7 +138,7 @@ export function MetricInsightStrip({
             >
               <div className="flex items-start justify-between gap-2">
                 <span className="inline-flex min-w-0 items-center gap-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  <span className="truncate">{item.label}</span>
+                  <span className="truncate" title={item.label}>{item.label}</span>
                   {item.explanation ? (
                     <HelpTooltip
                       label={item.explanationLabel ?? `Что значит сигнал ${item.label}?`}
@@ -260,7 +260,7 @@ export function CriterionHeatmapPanel({
         </CardAction>
       </CardHeader>
 
-      <CardContent className="flex flex-col gap-4 pt-(--card-spacing)">
+      <CardContent className="flex flex-col gap-4">
         <div className="grid gap-2 sm:grid-cols-3" aria-label="Сводка карты критериев">
           <article className="flex flex-col gap-1 rounded-lg border border-border bg-muted/20 p-3">
             <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">

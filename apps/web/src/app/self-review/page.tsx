@@ -5,6 +5,12 @@ import { Suspense } from "react";
 import { PageSkeleton } from "@/components/loading-states";
 import { AgentAppealForm } from "@/components/feedback/agent-appeal-form";
 import { AgentCriterionFeedbackList } from "@/components/feedback/agent-criterion-feedback-list";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -237,11 +243,12 @@ async function SelfReviewPageContent() {
           : "Откройте детали, чтобы сверить цитату и комментарий проверяющего.";
 
     return (
-      <Card key={conversation.id} size="sm" className="gap-0">
-        <CardHeader className="border-b pb-3">
-          <div className="flex min-w-0 flex-col gap-2">
+      <AccordionItem key={conversation.id} value={conversation.id} className="border-0">
+      <Card size="sm" className="gap-0">
+        <CardHeader className="flex flex-row items-start justify-between gap-2 border-b pb-3">
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
             <div className="flex min-w-0 items-start justify-between gap-3">
-              <CardTitle className="min-w-0">
+              <CardTitle className="min-w-0 truncate" title={conversation.subject}>
                 <Link
                   href={`/reviews/${conversation.id}`}
                   className="text-foreground underline-offset-4 hover:underline"
@@ -264,8 +271,15 @@ async function SelfReviewPageContent() {
               ) : null}
             </div>
           </div>
+          <AccordionTrigger
+            className="flex-none shrink-0 px-2 py-1 hover:no-underline"
+            aria-label={`Разбор: ${conversation.subject}`}
+          >
+            <span className="sr-only">Разбор</span>
+          </AccordionTrigger>
         </CardHeader>
 
+        <AccordionContent className="pb-0">
         <CardContent className="flex flex-col gap-3 pt-3">
           <p className="text-sm text-foreground">{review.summary}</p>
           {review.feedbackComment?.trim() ? (
@@ -388,7 +402,7 @@ async function SelfReviewPageContent() {
                   {agentAppealNextSteps({ phase: appealPhase, dueAt: review.appealDueAt })}
                 </p>
               ) : null}
-              <div className="min-w-[min(100%,16rem)] flex-1">
+              <div className="shrink-0">
                 <AgentAppealForm
                   reviewId={review.id}
                   allowed={canOpenAppeal}
@@ -418,7 +432,9 @@ async function SelfReviewPageContent() {
             </Button>
           )}
         </CardFooter>
+        </AccordionContent>
       </Card>
+      </AccordionItem>
     );
   };
 
@@ -517,7 +533,7 @@ async function SelfReviewPageContent() {
                       {strengthCriteria.map((stat) => (
                         <li key={stat.label} className="flex flex-col gap-1.5">
                           <div className="flex items-center justify-between gap-2">
-                            <span className="min-w-0 truncate text-sm text-foreground">{stat.label}</span>
+                            <span className="min-w-0 truncate text-sm text-foreground" title={stat.label}>{stat.label}</span>
                             <span className="shrink-0 text-sm font-medium tabular-nums text-muted-foreground">
                               {stat.averagePercent}%
                             </span>
@@ -540,7 +556,7 @@ async function SelfReviewPageContent() {
                       {focusCriteria.map((stat) => (
                         <li key={stat.label} className="flex flex-col gap-1.5">
                           <div className="flex items-center justify-between gap-2">
-                            <span className="min-w-0 truncate text-sm text-foreground">{stat.label}</span>
+                            <span className="min-w-0 truncate text-sm text-foreground" title={stat.label}>{stat.label}</span>
                             <span className="shrink-0 text-sm font-medium tabular-nums text-muted-foreground">
                               {stat.averagePercent}%
                             </span>
@@ -577,7 +593,14 @@ async function SelfReviewPageContent() {
           </CardHeader>
           <CardContent className="flex flex-col gap-3 pt-4">
             {actionConversations.length > 0 ? (
-              actionConversations.map((conversation) => renderFeedbackCard(conversation))
+              <Accordion
+                defaultValue={[actionConversations[0].id]}
+                multiple={false}
+                keepMounted={false}
+                className="gap-3"
+              >
+                {actionConversations.map((conversation) => renderFeedbackCard(conversation))}
+              </Accordion>
             ) : (
               <EmptyState
                 icon={<MessageSquareText size={24} aria-hidden="true" />}
@@ -600,7 +623,9 @@ async function SelfReviewPageContent() {
           </CardHeader>
           <CardContent className="flex flex-col gap-3 pt-4">
             {historyConversations.length > 0 ? (
-              historyConversations.map((conversation) => renderFeedbackCard(conversation, "history"))
+              <Accordion multiple={false} keepMounted={false} className="gap-3">
+                {historyConversations.map((conversation) => renderFeedbackCard(conversation, "history"))}
+              </Accordion>
             ) : (
               <EmptyState
                 size="inline"

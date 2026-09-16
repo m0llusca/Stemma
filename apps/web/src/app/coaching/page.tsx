@@ -746,7 +746,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
               </Chip>
             </CardAction>
           </CardHeader>
-          <CardContent className="flex max-h-[28rem] flex-col gap-3 overflow-y-auto overscroll-contain pt-(--card-spacing)">
+          <CardContent className="flex max-h-[28rem] flex-col gap-3 overflow-y-auto overscroll-contain">
             {openActionsPage.items.map((action) => {
               const conversationId = action.finding.review.conversationId;
               const overdue = isOverdue(action.dueAt, now);
@@ -897,7 +897,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                         >
                           {index + 1}
                         </span>
-                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{categoryName}</span>
+                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground" title={categoryName}>{categoryName}</span>
                         <Chip tone="neutral" className="tabular-nums">
                           {count}
                         </Chip>
@@ -951,7 +951,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
           </CardAction>
         </CardHeader>
 
-        <CardContent className="flex flex-col gap-4 pt-(--card-spacing)">
+        <CardContent className="flex flex-col gap-4">
           {canManageCoachingOps && createPlanOpen ? (
             <ToastActionForm
               action={createCoachingPlanState}
@@ -1027,15 +1027,12 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                   <li key={plan.id} id={`coaching-plan-${plan.id}`}>
                     <Card
                       size="sm"
-                      className={cn(
-                        "h-full",
-                        isFocusedPlan && "ring-2 ring-primary/40"
-                      )}
+                      className={cn(isFocusedPlan && "ring-2 ring-primary/40")}
                     >
                       <CardHeader>
                         <div className="flex min-w-0 items-center gap-2 text-primary">
                           <Target size={16} aria-hidden="true" />
-                          <CardTitle className="truncate text-foreground">{plan.title}</CardTitle>
+                          <CardTitle className="truncate text-foreground" title={plan.title}>{plan.title}</CardTitle>
                         </div>
                         <CardAction>
                           <Chip tone={planStatusTone(plan.status)}>{planStatusLabel(plan.status)}</Chip>
@@ -1183,7 +1180,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
               </Button>
             </CardAction>
           </CardHeader>
-          <CardContent className="pt-(--card-spacing)">
+          <CardContent>
             <ToastActionForm action={createTrainingAssignmentState} aria-label="Новая учебная задача">
               <FieldGroup className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <Field>
@@ -1267,7 +1264,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
               </Button>
             </CardAction>
           </CardHeader>
-          <CardContent className="pt-(--card-spacing)">
+          <CardContent>
             <ToastActionForm action={createKnowledgeEntryState} aria-label="Новая типовая ошибка">
               <FieldGroup className="grid gap-3 sm:grid-cols-2">
                 <KnowledgeCategoryFields categories={categoryOptions} defaultCategory={ruleCategoryDefault} />
@@ -1331,7 +1328,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
             ) : null}
           </CardAction>
         </CardHeader>
-        <CardContent className="pt-(--card-spacing)">
+        <CardContent>
           {contextualKnowledge.length > 0 ? (
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {contextualKnowledge.slice(0, 3).map((entry) => {
@@ -1341,7 +1338,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                 return (
                   <Card key={entry.id} size="sm">
                     <CardHeader>
-                      <CardDescription className="truncate">{entry.category}</CardDescription>
+                      <CardDescription className="truncate" title={entry.category}>{entry.category}</CardDescription>
                       <CardAction>
                         <Chip tone={riskTone}>{riskLevelLabels[entry.riskLevel]}</Chip>
                       </CardAction>
@@ -1392,7 +1389,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
           </CardAction>
         </CardHeader>
 
-        <CardContent className="flex flex-col gap-4 pt-(--card-spacing)">
+        <CardContent className="flex flex-col gap-4">
           <nav
             aria-label="Виды разборов"
             className="flex flex-nowrap items-center gap-1 overflow-x-auto border-b border-border pb-px"

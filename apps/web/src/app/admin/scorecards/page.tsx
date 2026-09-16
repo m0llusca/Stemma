@@ -252,7 +252,7 @@ async function AdminScorecardsPageContent({ searchParams }: AdminScorecardsPageP
                   </CardAction>
                 ) : null}
               </CardHeader>
-              <CardContent className="pt-(--card-spacing)">
+              <CardContent>
                 {isEditingActiveScorecard && activeScorecard ? (
                   <ScorecardVersionForm
                     mode="edit"
@@ -385,7 +385,7 @@ async function AdminScorecardsPageContent({ searchParams }: AdminScorecardsPageP
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="flex flex-col gap-2 pt-(--card-spacing)">
+              <CardContent className="flex flex-col gap-2">
                 {scorecards.length === 0 ? (
                   <EmptyState
                     size="inline"

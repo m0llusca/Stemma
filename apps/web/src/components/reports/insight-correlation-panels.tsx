@@ -62,7 +62,7 @@ export function ReasonTrendPanel({
           <CardTitle id="reason-trend-title">Причины и темы</CardTitle>
           <CardDescription>Нет замечаний за выбранный период</CardDescription>
         </CardHeader>
-        <CardContent className="pt-(--card-spacing)">
+        <CardContent>
           <EmptyState
             icon={<Inbox size={22} aria-hidden="true" />}
             title="Нет замечаний"
@@ -106,7 +106,7 @@ export function ReasonTrendPanel({
             Повторяющиеся причины замечаний и их динамика к прошлому периоду
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col gap-3 pt-(--card-spacing)">
+        <CardContent className="flex flex-col gap-3">
           {rows.map((row) => (
             <article
               key={row.category}
@@ -195,7 +195,7 @@ export function SentimentCorrelationPanel({
           </CardAction>
         ) : null}
       </CardHeader>
-      <CardContent className="flex flex-col gap-3 pt-(--card-spacing)">
+      <CardContent className="flex flex-col gap-3">
         {scoredCount === 0 ? (
           <EmptyState
             icon={<MessageSquareWarning size={22} aria-hidden="true" />}
@@ -303,7 +303,7 @@ export function QaCsatMatrixPanel({
           </CardAction>
         ) : null}
       </CardHeader>
-      <CardContent className="flex flex-col gap-3 pt-(--card-spacing)">
+      <CardContent className="flex flex-col gap-3">
         {matrix.totalCount === 0 ? (
           <EmptyState
             icon={<Scale size={22} aria-hidden="true" />}

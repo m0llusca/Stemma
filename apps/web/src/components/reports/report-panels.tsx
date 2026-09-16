@@ -215,7 +215,7 @@ export function ReportFocusPanel({
           </Button>
         </CardAction>
       </CardHeader>
-      <CardContent className="grid gap-3 pt-(--card-spacing) sm:grid-cols-2 lg:grid-cols-3">
+      <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((item) => {
           const content = (
             <>
@@ -332,7 +332,7 @@ export function PeriodMovementPanel({
               Слабейшие срезы и следующее проверяемое действие.
             </p>
           </CardHeader>
-          <CardContent className="pt-(--card-spacing)">
+          <CardContent>
             <div className="grid gap-3">
               {driverItems.map((item) => {
                 const content = (
@@ -422,7 +422,7 @@ export function InsightSummary({
         </CardAction>
       </CardHeader>
       <CardContent
-        className="grid gap-3 pt-(--card-spacing) sm:grid-cols-2 lg:grid-cols-3"
+        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
         aria-label="Где смотреть сейчас"
       >
         {focusItems.map((row) => {

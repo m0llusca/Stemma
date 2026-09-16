@@ -402,7 +402,7 @@ async function AdminHomePageContent() {
               <CardTitle id="admin-status-heading">Состояние разделов</CardTitle>
               <CardDescription>Текущее значение и статус по каждой области настроек.</CardDescription>
             </CardHeader>
-            <CardContent className="pt-(--card-spacing)">
+            <CardContent>
               <ul className="grid min-w-0 grid-cols-1 gap-1 md:grid-cols-2">
                 {visibleCards.map((card) => {
                   const Icon = card.icon;
@@ -423,13 +423,14 @@ async function AdminHomePageContent() {
                         >
                           <Icon className="size-3.5" aria-hidden="true" />
                         </span>
-                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground" title={card.title}>
                           {card.title}
                         </span>
                         {card.metric ? (
                           <Badge
                             variant={metricBadgeVariant(tone)}
-                            className="max-w-[50%] shrink-0 truncate tabular-nums"
+                            className="max-w-[9rem] shrink-0 truncate tabular-nums"
+                            title={card.metric}
                           >
                             {card.metric}
                           </Badge>

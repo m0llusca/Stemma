@@ -205,7 +205,7 @@ export function QueueFilters({
         Exact-filters track is minmax (not max-content) so the helper line wraps
         instead of stretching the row and shoving reset off-alignment.
       */}
-      <div className="grid grid-cols-1 items-start gap-3 p-4 sm:grid-cols-[minmax(0,1fr)_minmax(11rem,14rem)] xl:grid-cols-[minmax(0,1fr)_minmax(11rem,14rem)_minmax(13rem,17rem)_auto]">
+      <div className="grid grid-cols-1 items-start gap-2 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(11rem,14rem)] xl:grid-cols-[minmax(0,1fr)_minmax(11rem,14rem)_minmax(13rem,17rem)_auto]">
         <Field className="min-w-0">
           <FieldLabel htmlFor="queue-filter-q">Поиск</FieldLabel>
           <Input

@@ -40,7 +40,7 @@ export function BreakdownTable({
   actionLabel?: string;
 }) {
   return (
-    <Card id={id} size="sm" className="h-full gap-0 overflow-clip scroll-mt-24 py-0">
+    <Card id={id} size="sm" className="gap-0 overflow-clip scroll-mt-24 py-0">
       <CardHeader className="border-b py-4">
         <CardTitle>{title}</CardTitle>
         <CardDescription>
@@ -70,7 +70,7 @@ export function BreakdownTable({
               <TableBody>
                 {rows.map((row) => (
                   <TableRow key={row.label}>
-                    <TableCell className="max-w-[220px] truncate px-4 font-medium">{row.label}</TableCell>
+                    <TableCell className="max-w-[220px] truncate px-4 font-medium" title={row.label}>{row.label}</TableCell>
                     <TableCell className="px-4 text-right">
                       <Chip tone="neutral" size="sm" numeric>
                         {row.count} {countLabel.toLowerCase()}
@@ -139,7 +139,7 @@ export function QuotaTable({
   period: ReportPeriod;
 }) {
   return (
-    <Card id={id} size="sm" className="h-full gap-0 overflow-clip scroll-mt-24 py-0">
+    <Card id={id} size="sm" className="gap-0 overflow-clip scroll-mt-24 py-0">
       <CardHeader className="border-b py-4">
         <CardTitle>Нормы проверок</CardTitle>
         <CardDescription>План, факт и доля негативного CSAT по операторам.</CardDescription>

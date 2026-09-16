@@ -554,14 +554,14 @@ async function DashboardPageContent() {
         {canViewPeerQualityMetrics || leadSlaChart ? (
         <div className="grid min-w-0 content-start gap-3">
         {canViewPeerQualityMetrics ? (
-        <Card className="min-h-[260px]">
+        <Card>
           <CardHeader className="border-b pb-(--card-spacing)">
             <CardTitle className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
               <TrendingUp size={14} aria-hidden="true" />
               Качество команды · 7 дней
             </CardTitle>
           </CardHeader>
-          <CardContent className="pt-(--card-spacing)">
+          <CardContent>
             {checkedThisWeek === 0 ? (
               <EmptyState
                 size="inline"
@@ -588,7 +588,7 @@ async function DashboardPageContent() {
                 Те же срезы, что и у плиток — клик по столбцу открывает отфильтрованную очередь.
               </CardDescription>
             </CardHeader>
-            <CardContent className="pt-(--card-spacing)">
+            <CardContent>
               {leadSlaChart.empty ? (
                 <ExecRiskEmptyState resetHref={leadSlaChart.resetHref} />
               ) : (
@@ -612,7 +612,7 @@ async function DashboardPageContent() {
                 </CardAction>
               ) : null}
             </CardHeader>
-            <CardContent className="grid gap-3 pt-(--card-spacing)">
+            <CardContent className="grid gap-3">
               <CardDescription>
                 {isLeadDashboard
                   ? "Операторы с наибольшей нагрузкой по риску и апелляциям — переход в очередь по клику."
@@ -644,7 +644,7 @@ async function DashboardPageContent() {
                         <span className="inline-flex size-8 items-center justify-center rounded-md border border-border bg-card text-[11px] font-semibold text-muted-foreground">
                           {agent.name.slice(0, 2).toLocaleUpperCase("ru-RU")}
                         </span>
-                        <strong className="truncate text-sm font-medium text-foreground">{agent.name}</strong>
+                        <strong className="truncate text-sm font-medium text-foreground" title={agent.name}>{agent.name}</strong>
                         {agent.riskCount > 0 ? (
                           <Chip tone="danger" className="self-center tabular-nums">
                             {agent.riskCount} риск
@@ -655,7 +655,10 @@ async function DashboardPageContent() {
                         <em className="self-center text-lg font-semibold not-italic tabular-nums text-foreground">
                           {Math.round(agent.average)}
                         </em>
-                        <small className="col-start-2 min-w-0 truncate text-xs text-muted-foreground">
+                        <small
+                          className="col-start-2 min-w-0 truncate text-xs text-muted-foreground"
+                          title={`${formatReviewCount(agent.count)}${agent.appealCount > 0 ? ` · ${agent.appealCount} апелл.` : ""}`}
+                        >
                           {formatReviewCount(agent.count)}
                           {agent.appealCount > 0 ? ` · ${agent.appealCount} апелл.` : ""}
                         </small>
@@ -684,7 +687,7 @@ async function DashboardPageContent() {
                   Нагрузка проверяющих
                 </CardTitle>
               </CardHeader>
-              <CardContent className="pt-(--card-spacing)">
+              <CardContent>
                 {reviewerWorkload.length === 0 ? (
                   <EmptyState
                     size="inline"
@@ -693,22 +696,23 @@ async function DashboardPageContent() {
                     description="Назначьте роли QA / тимлид / админ, чтобы видеть очередь по исполнителям."
                   />
                 ) : (
-                  <Table>
+                  <Table className="table-fixed">
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Проверяющий</TableHead>
-                        <TableHead className="text-right">Открыто</TableHead>
-                        <TableHead className="text-right">Очередь</TableHead>
-                        <TableHead className="text-right">В работе</TableHead>
+                        <TableHead className="w-[40%]">Проверяющий</TableHead>
+                        <TableHead className="w-[20%] text-right">Открыто</TableHead>
+                        <TableHead className="w-[20%] text-right">Очередь</TableHead>
+                        <TableHead className="w-[20%] text-right">В работе</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {reviewerWorkload.map((row) => (
                         <TableRow key={row.id}>
-                          <TableCell>
+                          <TableCell className="min-w-0">
                             <Link
                               href={reviewerWorkloadHref(row.name)}
-                              className="font-medium text-foreground underline-offset-4 hover:underline"
+                              className="block truncate font-medium text-foreground underline-offset-4 hover:underline"
+                              title={row.name}
                             >
                               {row.name}
                             </Link>
@@ -756,7 +760,7 @@ async function DashboardPageContent() {
                   Ещё в фокусе
                 </CardTitle>
               </CardHeader>
-              <CardContent className="grid gap-2 pt-(--card-spacing)">
+              <CardContent className="grid gap-2">
                 {secondaryFocusItems.map((item) => {
                   const Icon = item.icon;
 
@@ -764,18 +768,18 @@ async function DashboardPageContent() {
                     <Link
                       key={item.href}
                       href={item.href}
-                      className="dashboard-focus-row grid min-h-[62px] min-w-0 grid-cols-[32px_minmax(0,1fr)_minmax(52px,auto)] items-center gap-2.5 rounded-lg border border-border/60 bg-muted/40 px-3 py-2.5 transition-colors hover:border-border hover:bg-muted/70"
+                      className="dashboard-focus-row grid min-w-0 grid-cols-[32px_minmax(0,1fr)_minmax(52px,auto)] items-center gap-2.5 rounded-lg border border-border/60 bg-muted/40 px-3 py-2 transition-colors hover:border-border hover:bg-muted/70"
                     >
                       <span className="inline-flex size-8 items-center justify-start text-muted-foreground">
                         <Icon size={16} aria-hidden="true" />
                       </span>
                       <span className="grid min-w-0 gap-1 content-center">
-                        <strong className="truncate text-sm font-medium text-foreground">{item.label}</strong>
-                        <small className="truncate text-xs text-muted-foreground">{item.hint}</small>
+                        <strong className="truncate text-sm font-medium text-foreground" title={item.label}>{item.label}</strong>
+                        <small className="truncate text-xs text-muted-foreground" title={item.hint}>{item.hint}</small>
                       </span>
                       <span
                         className={cn(
-                          "inline-grid min-h-[42px] grid-cols-[auto_14px] items-center justify-end gap-2.5",
+                          "inline-grid grid-cols-[auto_14px] items-center justify-end gap-2.5",
                           statusToneClass(item.tone)
                         )}
                       >
@@ -797,7 +801,7 @@ async function DashboardPageContent() {
                 Ближайшее обучение
               </CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-2 pt-(--card-spacing)">
+            <CardContent className="grid gap-2">
               {recentTrainings.length === 0 ? (
                 <EmptyState
                   size="inline"
@@ -812,7 +816,7 @@ async function DashboardPageContent() {
                     href="/coaching"
                     className="grid min-w-0 gap-0.5 rounded-lg border border-border/60 bg-muted/40 p-2.5 transition-colors hover:border-border hover:bg-muted/70"
                   >
-                    <strong className="truncate text-sm font-medium text-foreground">{assignment.title}</strong>
+                    <strong className="truncate text-sm font-medium text-foreground" title={assignment.title}>{assignment.title}</strong>
                     <span className="text-xs text-muted-foreground">{assignment.assigneeName}</span>
                     <small className="text-xs text-muted-foreground">
                       {assignment.dueAt ? `до ${formatDate(assignment.dueAt)}` : "без срока"} ·{" "}
@@ -862,10 +866,20 @@ async function DashboardPageContent() {
                         {event.actor?.name?.slice(0, 2).toLocaleUpperCase("ru-RU") ?? "QA"}
                       </span>
                       <span className="grid min-w-0 gap-0.5">
-                        <strong className="truncate text-sm font-medium text-foreground">
+                        <strong
+                          className="truncate text-sm font-medium text-foreground"
+                          title={`${event.actor?.name ?? "Система"} · ${reviewEventActionLabel(event.action)}`}
+                        >
                           {event.actor?.name ?? "Система"} · {reviewEventActionLabel(event.action)}
                         </strong>
-                        <small className="truncate text-xs text-muted-foreground">
+                        <small
+                          className="truncate text-xs text-muted-foreground"
+                          title={
+                            event.review?.conversation.externalId ??
+                            event.review?.conversation.subject ??
+                            "Проверка"
+                          }
+                        >
                           {event.review?.conversation.externalId ??
                             event.review?.conversation.subject ??
                             "Проверка"}

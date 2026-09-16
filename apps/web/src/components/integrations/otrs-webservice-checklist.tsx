@@ -62,7 +62,7 @@ export function OtrsWebserviceChecklist({ baseUrl, config }: OtrsWebserviceCheck
         </h2>
         <CardDescription>Параметры, которые должны совпадать с GenericInterface в OTRS/Znuny/OTOBO.</CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-4 pt-(--card-spacing)">
+      <CardContent className="grid gap-4">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-lg border p-3">
             <p className="text-xs font-medium text-muted-foreground">Продукт</p>

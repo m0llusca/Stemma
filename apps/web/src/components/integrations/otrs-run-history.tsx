@@ -98,7 +98,7 @@ export function OtrsRunHistory({ runs, jobsByRunId }: OtrsRunHistoryProps) {
         <CardDescription>Предпросмотр, выборочные импорты и связанные backend-задачи.</CardDescription>
       </CardHeader>
 
-      <CardContent className="grid gap-4 pt-(--card-spacing)">
+      <CardContent className="grid gap-4">
         {runs.length === 0 ? (
           <Alert>
             <AlertDescription>Запусков для этого источника пока нет.</AlertDescription>

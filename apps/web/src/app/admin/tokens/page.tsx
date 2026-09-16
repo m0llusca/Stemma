@@ -235,7 +235,7 @@ export async function AdminTokensPageContent({ searchParams }: AdminTokensPagePr
                   <StatusBadge tone="neutral">{apiTokens.length}</StatusBadge>
                 </div>
               </CardHeader>
-              <CardContent className="grid gap-4 pt-(--card-spacing)">
+              <CardContent className="grid gap-4">
                 {apiTokenSetupHint ? (
                   <CoachCallout
                     title={apiTokenSetupHint.title}
@@ -357,7 +357,7 @@ export async function AdminTokensPageContent({ searchParams }: AdminTokensPagePr
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="pt-(--card-spacing)">
+              <CardContent>
                 {demoAuthEnabled ? (
                   <div className="grid gap-3 md:grid-cols-2">
                     <div className="grid gap-2 rounded-xl border border-border bg-muted/30 p-4">

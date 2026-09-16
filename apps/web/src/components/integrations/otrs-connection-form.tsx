@@ -182,7 +182,7 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="grid gap-5 pt-(--card-spacing)">
+      <CardContent className="grid gap-5">
         <form action={detectAction} className="grid gap-2 border-b pb-4">
           <input type="hidden" name="baseUrl" value={integration.baseUrl ?? ""} />
           <input type="hidden" name="webServiceName" value={webServiceName} />

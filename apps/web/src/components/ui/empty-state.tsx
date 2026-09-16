@@ -31,7 +31,7 @@ export function EmptyState({
   className?: string;
 }) {
   return (
-    <Empty className={cn(size === "inline" ? "min-h-0 border-0 py-6" : "py-12", className)}>
+    <Empty className={cn(size === "inline" ? "min-h-0 border-0 py-3" : "py-8", className)}>
       <EmptyHeader>
         {icon != null ? <EmptyMedia variant="icon">{icon}</EmptyMedia> : null}
         <EmptyTitle>{title}</EmptyTitle>

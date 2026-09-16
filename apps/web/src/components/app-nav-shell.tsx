@@ -289,7 +289,7 @@ function AppNavShellChrome({
       aria-label="Глобальная навигация"
       data-slot="app-nav"
     >
-      <div className="flex min-h-14 w-full min-w-0 items-center gap-3 px-4 md:px-6">
+      <div className="flex min-h-14 w-full min-w-0 items-center gap-3 px-(--app-topbar-inline)">
         <Link
           href={homeHref}
           className="inline-flex size-11 shrink-0 items-center justify-center rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
@@ -410,7 +410,7 @@ function AppNavShellChrome({
           onClick={openCommand}
         >
           <MorphIcon icon={commandOpen ? X : Search} data-icon="inline-start" />
-          <span className="hidden truncate xl:inline">Поиск или команда</span>
+          <span className="hidden truncate xl:inline" title="Поиск или команда">Поиск или команда</span>
           <Kbd className="ml-auto hidden xl:inline-flex">⌘K</Kbd>
         </Button>
 

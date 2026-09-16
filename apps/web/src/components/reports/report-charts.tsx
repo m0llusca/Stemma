@@ -121,7 +121,7 @@ export function ChartPanel({
   children: ReactNode;
 }) {
   return (
-    <Card size="sm" className="h-full gap-0 overflow-clip py-0">
+    <Card size="sm" className="gap-0 overflow-clip py-0">
       <CardHeader className="border-b py-4">
         <CardTitle>{title}</CardTitle>
         {description ? <CardDescription>{description}</CardDescription> : null}
@@ -182,7 +182,7 @@ export function HorizontalBarChart({
         return (
           <div key={row.label} className="grid gap-1.5">
             <div className="flex min-w-0 items-baseline justify-between gap-3">
-              <p className="min-w-0 truncate text-sm font-medium text-foreground">{row.label}</p>
+              <p className="min-w-0 truncate text-sm font-medium text-foreground" title={row.label}>{row.label}</p>
               <p className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
                 {formatted}
               </p>
@@ -261,7 +261,7 @@ export function RankedList({
           </div>
           <div className="grid min-w-0 gap-1">
             <div className="flex min-w-0 items-baseline justify-between gap-3">
-              <h3 className="truncate text-sm font-semibold text-foreground">{row.label}</h3>
+              <h3 className="truncate text-sm font-semibold text-foreground" title={row.label}>{row.label}</h3>
               <div className="inline-flex shrink-0 items-center gap-1.5">
                 <strong className="text-sm font-semibold tabular-nums text-foreground">
                   {valueFormatter ? valueFormatter(row.value) : row.value}
@@ -387,7 +387,7 @@ export function QuotaProgressBars({
         const content = (
           <>
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-foreground">{row.label}</p>
+              <p className="truncate text-sm font-medium text-foreground" title={row.label}>{row.label}</p>
               <span className="text-xs text-muted-foreground">
                 {remaining > 0 ? `Осталось ${remaining}` : "Норма закрыта"}
               </span>

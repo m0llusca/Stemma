@@ -160,7 +160,7 @@ export function QueueAdvancedFilters({
             />
           </div>
         </Field>
-        <p className="text-xs leading-snug text-muted-foreground text-pretty" data-slot="exact-filters-help">
+        <p className="sr-only" data-slot="exact-filters-help">
           Редкие срезы (источник, SLA, риск) — в панели, чтобы не мешать «Взять следующий».
         </p>
       </div>

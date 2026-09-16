@@ -41,7 +41,7 @@ function QueueWorkspaceRoot({
     >
       <div
         data-slot="review-queue-workspace"
-        className="flex min-w-0 flex-col gap-6"
+        className="flex min-w-0 flex-col gap-(--section-gap)"
       >
         {children}
       </div>
@@ -89,7 +89,7 @@ function QueueWorkspaceMain({
 }: QueueWorkspaceMainProps) {
   return (
     <section
-      className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)]"
+      className="grid min-w-0 grid-cols-1 items-start gap-(--section-gap) xl:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)]"
       aria-label={ariaLabel}
     >
       <div data-slot="review-queue-list" className="min-w-0">
