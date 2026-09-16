@@ -1,6 +1,6 @@
 # UX-контракт: таймлайн диалога
 
-Locked. Tip **`dd49657`** (squash [#155](https://github.com/m0llusca/Stemma/pull/155) / [#154](https://github.com/m0llusca/Stemma/issues/154)). Evidence slots: tip **`429a2d0`** ([#156](https://github.com/m0llusca/Stemma/pull/156)). Evidence focus: tip **`c8cea9e`** ([#159](https://github.com/m0llusca/Stemma/pull/159)). Evidence blur / `activeSelectRef`: tip **`9d1c439`** ([#161](https://github.com/m0llusca/Stemma/pull/161)).
+Locked. Tip **`dd49657`** (squash [#155](https://github.com/m0llusca/Stemma/pull/155) / [#154](https://github.com/m0llusca/Stemma/issues/154)). Evidence slots: tip **`429a2d0`** ([#156](https://github.com/m0llusca/Stemma/pull/156)). Evidence focus: tip **`c8cea9e`** ([#159](https://github.com/m0llusca/Stemma/pull/159)). Evidence blur / `activeSelectRef`: tip **`9d1c439`** ([#161](https://github.com/m0llusca/Stemma/pull/161)). Evidence hide (finalized / no panel): tip **`ac35def`** ([#164](https://github.com/m0llusca/Stemma/pull/164)).
 
 Спека Marques: [comment](https://github.com/m0llusca/Stemma/issues/154#issuecomment-5680463591) + уточнение SYSTEM / живой evidence. Макет Романа — в [#154](https://github.com/m0llusca/Stemma/issues/154).
 
