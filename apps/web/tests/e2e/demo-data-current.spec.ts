@@ -5,7 +5,7 @@ import { buildDemoDateExpectations } from "./helpers/demo-date-expectations";
 test.setTimeout(120_000);
 
 const demoSeedAnchor = resolveDemoSeedNow(process.env);
-const expectedDates = buildDemoDateExpectations(demoSeedAnchor);
+const expectedDates = buildDemoDateExpectations(demoSeedAnchor, new Date());
 
 async function signInThroughDemo(page: Page) {
   await page.goto("/auth/login?returnTo=/dashboard");
