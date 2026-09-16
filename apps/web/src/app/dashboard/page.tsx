@@ -15,7 +15,6 @@ import { Chip } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page-shell";
 import { Separator } from "@/components/ui/separator";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TriageStrip } from "@/components/ui/triage-strip";
 
 import { ExecRiskEmptyState } from "@/components/dashboard/exec-risk-empty";
@@ -696,55 +695,57 @@ async function DashboardPageContent() {
                     description="Назначьте роли QA / тимлид / админ, чтобы видеть очередь по исполнителям."
                   />
                 ) : (
-                  <Table className="table-fixed">
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[40%]">Проверяющий</TableHead>
-                        <TableHead className="w-[20%] text-right">Открыто</TableHead>
-                        <TableHead className="w-[20%] text-right">Очередь</TableHead>
-                        <TableHead className="w-[20%] text-right">В работе</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {reviewerWorkload.map((row) => (
-                        <TableRow key={row.id}>
-                          <TableCell className="min-w-0">
-                            <Link
-                              href={reviewerWorkloadHref(row.name)}
-                              className="block truncate font-medium text-foreground underline-offset-4 hover:underline"
-                              title={row.name}
-                            >
-                              {row.name}
-                            </Link>
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">
-                            <Link
-                              href={reviewerWorkloadHref(row.name)}
-                              className="underline-offset-4 hover:underline"
-                            >
-                              {row.openCount}
-                            </Link>
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">
-                            <Link
-                              href={reviewerWorkloadHref(row.name, "QUEUED")}
-                              className="text-muted-foreground underline-offset-4 hover:underline"
-                            >
-                              {row.queuedCount}
-                            </Link>
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">
-                            <Link
-                              href={reviewerWorkloadHref(row.name, "IN_PROGRESS")}
-                              className="text-muted-foreground underline-offset-4 hover:underline"
-                            >
-                              {row.inProgressCount}
-                            </Link>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                  <div
+                    className="grid min-w-0 gap-y-1.5"
+                    role="table"
+                    aria-label="Очередь и в работе по проверяющим"
+                  >
+                    <div
+                      className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-end gap-x-3 text-xs font-medium text-muted-foreground"
+                      role="row"
+                    >
+                      <span role="columnheader">Проверяющий</span>
+                      <span className="text-right leading-tight" role="columnheader">
+                        Очередь
+                      </span>
+                      <span className="text-right leading-tight" role="columnheader">
+                        В работе
+                      </span>
+                    </div>
+                    {reviewerWorkload.map((row) => (
+                      <div
+                        key={row.id}
+                        className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-baseline gap-x-3 text-sm"
+                        role="row"
+                      >
+                        <Link
+                          href={reviewerWorkloadHref(row.name)}
+                          className="min-w-0 truncate font-medium text-foreground underline-offset-4 hover:underline"
+                          title={`${row.name} · открыто ${row.openCount}`}
+                        >
+                          {row.name}
+                          <span className="font-normal text-muted-foreground">
+                            {" "}
+                            · {row.openCount}
+                          </span>
+                        </Link>
+                        <Link
+                          href={reviewerWorkloadHref(row.name, "QUEUED")}
+                          className="min-w-10 text-right tabular-nums text-muted-foreground underline-offset-4 hover:underline"
+                          title={`Очередь: ${row.queuedCount}`}
+                        >
+                          {row.queuedCount}
+                        </Link>
+                        <Link
+                          href={reviewerWorkloadHref(row.name, "IN_PROGRESS")}
+                          className="min-w-10 text-right tabular-nums text-muted-foreground underline-offset-4 hover:underline"
+                          title={`В работе: ${row.inProgressCount}`}
+                        >
+                          {row.inProgressCount}
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
                 )}
                 <p className="mt-2 text-xs text-muted-foreground">
                   Открытая нагрузка = В очереди + В работе — та же метрика, что и у автоназначения.

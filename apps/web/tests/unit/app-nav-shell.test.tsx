@@ -483,6 +483,27 @@ describe("app nav shell", () => {
     }
   });
 
+  it("keeps the TEAM_LEAD role readable in chrome via wrap and title", () => {
+    const roleLabel = "Руководитель контроля качества";
+    render(
+      <AppNavShell
+        {...baseProps}
+        user={{
+          name: "Мария Лид",
+          email: "lead@example.com",
+          roleLabel
+        }}
+      />
+    );
+
+    const account = screen.getByRole("button", {
+      name: `Профиль: ${roleLabel}, Мария Лид`
+    });
+    expect(account).toHaveAttribute("title", `${roleLabel} · lead@example.com`);
+    expect(account).toHaveTextContent(roleLabel);
+    expect(account.querySelector(".truncate")?.textContent).not.toBe(roleLabel);
+  });
+
   it("derives the compact menu and full navigation from the same active-area contract", () => {
     mocks.pathname = "/reviews/abc";
     render(<AppNavShell {...baseProps} />);

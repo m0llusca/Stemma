@@ -78,4 +78,23 @@ describe("density layout contract (#166)", () => {
     expect(adminFrame).toContain("lg:gap-(--section-gap)");
     expect(adminFrame).not.toContain("lg:gap-7");
   });
+
+  it("chrome role wraps with title instead of max-w-36 clip", () => {
+    const topbar = src("components/app-nav-shell.tsx");
+
+    expect(topbar).toContain("title={roleLabel ?? user.name}");
+    expect(topbar).toContain("text-pretty");
+    expect(topbar).not.toContain("max-w-36");
+  });
+
+  it("lead workload lists Queue and In-work without a clipped Table overflow", () => {
+    const dashboard = src("app/dashboard/page.tsx");
+
+    expect(dashboard).toContain('role="table"');
+    expect(dashboard).toContain("Очередь");
+    expect(dashboard).toContain("В работе");
+    expect(dashboard).toContain("grid-cols-[minmax(0,1fr)_auto_auto]");
+    expect(dashboard).not.toContain("table-fixed");
+    expect(dashboard).not.toContain('from "@/components/ui/table"');
+  });
 });

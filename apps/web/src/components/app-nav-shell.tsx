@@ -426,7 +426,9 @@ function AppNavShellChrome({
               ? `Профиль: ${roleLabel}, ${user.name}`
               : `Профиль: ${user.name}`
           }
-          triggerTitle={user.email}
+          triggerTitle={
+            roleLabel ? `${roleLabel} · ${user.email}` : user.email
+          }
           triggerClassName={cn(
             buttonVariants({ variant: "ghost", size: "sm" }),
             "relative z-30 min-h-11 shrink-0 gap-1.5 px-2"
@@ -458,11 +460,14 @@ function AppNavShellChrome({
             </>
           }
         >
-          <span className="flex min-w-0 flex-col items-start gap-0.5 text-left">
-            <span className="max-w-36 truncate text-sm font-medium leading-none">
+          <span className="flex min-w-0 max-w-[12.5rem] flex-col items-start gap-0.5 text-left sm:max-w-[15rem]">
+            <span
+              className="text-pretty text-sm font-medium leading-tight"
+              title={roleLabel ?? user.name}
+            >
               {roleLabel ?? user.name}
             </span>
-            <span className="max-w-36 truncate text-xs text-muted-foreground">
+            <span className="w-full truncate text-xs text-muted-foreground" title={user.email}>
               {user.email}
             </span>
           </span>
