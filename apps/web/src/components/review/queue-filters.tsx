@@ -170,14 +170,19 @@ export function QueueFilters({
     filters.finalizedTo ? { label: "Период по", value: filters.finalizedTo.toLocaleDateString("ru-RU") } : null
   ].filter((filter): filter is { label: string; value: string } => Boolean(filter));
 
+  const surfaceFilterCount = (filters.q ? 1 : 0) + (filters.status !== "all" ? 1 : 0);
+  const liveBreakdown =
+    surfaceFilterCount > 0
+      ? `поиск/итог: ${surfaceFilterCount} · точных: ${activeAdvancedFilterCount}`
+      : `точных: ${activeAdvancedFilterCount}`;
   const liveAnnouncement =
     activeFilters.length === 0
       ? resultCount != null
         ? `Фильтры сброшены. Найдено обращений: ${resultCount}.`
         : "Фильтры сброшены."
       : resultCount != null
-        ? `Применено фильтров: ${activeFilters.length}. Найдено обращений: ${resultCount}.`
-        : `Применено фильтров: ${activeFilters.length}.`;
+        ? `Применено фильтров: ${activeFilters.length} (${liveBreakdown}). Найдено обращений: ${resultCount}.`
+        : `Применено фильтров: ${activeFilters.length} (${liveBreakdown}).`;
 
   return (
     <AutoSubmitFilterForm

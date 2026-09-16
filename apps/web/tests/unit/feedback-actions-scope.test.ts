@@ -159,6 +159,17 @@ describe("feedback action scope enforcement", () => {
     expect(mocks.tx.review.update).not.toHaveBeenCalled();
   });
 
+  it("rejects an empty appeal comment instead of relying on a hidden required field", async () => {
+    const { updateReviewFeedback } = await import("@/lib/feedback-actions");
+    const formData = new FormData();
+    formData.set("reviewId", "review-1");
+    formData.set("action", "appeal_opened");
+    formData.set("comment", "   ");
+
+    await expect(updateReviewFeedback(formData)).rejects.toThrow("Напишите обоснование");
+    expect(mocks.tx.review.update).not.toHaveBeenCalled();
+  });
+
   it("allows a support agent to act on their own review matched by assignee id", async () => {
     const { updateReviewFeedback } = await import("@/lib/feedback-actions");
     mocks.prisma.review.findFirst.mockResolvedValue(

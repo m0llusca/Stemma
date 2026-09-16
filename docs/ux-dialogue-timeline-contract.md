@@ -24,6 +24,8 @@ Locked. Tip **`dd49657`** (squash [#155](https://github.com/m0llusca/Stemma/pull
 
 Сохранить: coaching pins, выбор evidence, Enter/клик на модулях оценки.
 
+Финализированная HUMAN-проверка: `allowEvidenceAttach={canShowReviewPanel}`. Если панели оценки нет — «В доказательство» нет. Кнопка без селектов — тупик.
+
 ## Внутренние заметки (`isPrivate`) и коучинг
 
 Одна хронология. Не отдельная вкладка.
@@ -83,10 +85,10 @@ Blur селекта доказательства **сбрасывает** `focus
 
 ## Не в пакете #155
 
-Хвосты e2e из тела PR — не закрыты кодом #155. SoT: [e2e-verify-database.md](e2e-verify-database.md).
+Хвосты e2e из тела PR закрыты в [#163](https://github.com/m0llusca/Stemma/issues/163). SoT: [e2e-verify-database.md](e2e-verify-database.md).
 
-- Moscow 22nd / UTC 21st (~21:00–00:00Z) — рассинхрон seed (MSK) и заголовков отчётов (UTC)
-- Независимая идентичность verify-DB allowlist (`TEST_DATABASE_URL` vs `DATABASE_URL`)
+- Moscow 22nd / UTC 21st — e2e ждёт UTC-заголовки приложения (`now`); продукт не менялся
+- Verify-DB allowlist — одна identity (loopback + port + db + `schema=public`)
 
 ## Ownership
 

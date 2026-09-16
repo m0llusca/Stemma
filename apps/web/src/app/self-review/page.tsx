@@ -42,7 +42,7 @@ import {
   riskLevelLabels
 } from "@/lib/labels";
 import { criterionEarnedPercent } from "@/lib/reports/report-aggregation";
-import { formatReviewCount } from "@/lib/reports/report-format";
+import { formatReviewCount, russianPlural } from "@/lib/reports/report-format";
 import { clampQualityScore, formatQualityScoreDelta } from "@/lib/score-display";
 import { requirePagePermission } from "@/lib/page-permission";
 
@@ -570,7 +570,9 @@ async function SelfReviewPageContent() {
             <CardTitle>Требуют ответа</CardTitle>
             <CardDescription>Оценки, где нужно подтвердить, оспорить или проверить переответ.</CardDescription>
             <CardAction>
-              <Chip tone={actionConversations.length > 0 ? "accent" : "neutral"}>{actionConversations.length}</Chip>
+              <Chip tone={actionConversations.length > 0 ? "accent" : "neutral"}>
+                {russianPlural(actionConversations.length, ["оценка", "оценки", "оценок"])}
+              </Chip>
             </CardAction>
           </CardHeader>
           <CardContent className="flex flex-col gap-3 pt-4">
@@ -591,7 +593,9 @@ async function SelfReviewPageContent() {
             <CardTitle>История</CardTitle>
             <CardDescription>Закрытые и подтвержденные проверки без срочного действия.</CardDescription>
             <CardAction>
-              <Chip tone="neutral">{historyConversations.length}</Chip>
+              <Chip tone="neutral">
+                {russianPlural(historyConversations.length, ["запись", "записи", "записей"])}
+              </Chip>
             </CardAction>
           </CardHeader>
           <CardContent className="flex flex-col gap-3 pt-4">
@@ -613,7 +617,9 @@ async function SelfReviewPageContent() {
             <CardTitle>Учебные задачи</CardTitle>
             <CardDescription>Короткий список того, что нужно закрыть после разбора.</CardDescription>
             <CardAction>
-              <Chip tone="neutral">{assignments.length}</Chip>
+              <Chip tone="neutral">
+                {russianPlural(assignments.length, ["задача", "задачи", "задач"])}
+              </Chip>
             </CardAction>
           </CardHeader>
           <CardContent className="flex flex-col gap-3 pt-4">

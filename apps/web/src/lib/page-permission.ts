@@ -1,11 +1,21 @@
-import { forbidden, unauthorized } from "next/navigation";
+import type { RoleName } from "@prisma/client";
+import { forbidden, redirect, unauthorized } from "next/navigation";
 import { isPermissionDeniedError, type Permission } from "@/lib/auth/permissions";
 import { getCurrentUser, isAuthRequiredError, requireCurrentUserPermission } from "@/lib/current-user";
+
+function denyOrPendingAccess(role?: RoleName): never {
+  if (role === "VIEWER") {
+    redirect("/auth/pending-access");
+  }
+
+  forbidden();
+}
 
 /**
  * Page/RSC authz gate.
  * Missing/invalid session → Next.js `unauthorized()` (`unauthorized.tsx`, 401).
- * Permission denials → `forbidden()` (`forbidden.tsx`, 403).
+ * VIEWER (no product permissions) → `/auth/pending-access`, not a 403 wall.
+ * Other permission denials → `forbidden()` (`forbidden.tsx`, 403).
  * Neither path hits the generic `error.tsx` «Что-то пошло не так».
  * API routes and server actions keep `requireCurrentUserPermission`.
  */
@@ -18,7 +28,15 @@ export async function requirePagePermission(permission: Permission) {
     }
 
     if (isPermissionDeniedError(error)) {
-      return forbidden();
+      let role: RoleName | undefined;
+      try {
+        const user = await getCurrentUser();
+        role = user.role;
+      } catch {
+        return forbidden();
+      }
+
+      return denyOrPendingAccess(role);
     }
 
     throw error;
@@ -42,6 +60,6 @@ export async function requirePageUser() {
 }
 
 /** Fail closed on a page when a custom role check already decided deny. */
-export function denyPageAccess(): never {
-  forbidden();
+export function denyPageAccess(user?: { role: RoleName }): never {
+  return denyOrPendingAccess(user?.role);
 }

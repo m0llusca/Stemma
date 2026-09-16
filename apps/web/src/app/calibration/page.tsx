@@ -53,6 +53,11 @@ import {
 
 import { prisma } from "@/lib/db";
 import { CALIBRATION_APPEAL_SIGNAL_ACTION, reviewEventActionLabel } from "@/lib/review-events";
+import {
+  calibrationItemClosedBadge,
+  calibrationSessionStatusLabel,
+  calibrationSessionStatusTone
+} from "@/lib/calibration/session-status";
 import { reportReviewRangeHref, russianPlural } from "@/lib/reports/report-format";
 import { formatQualityScore } from "@/lib/score-display";
 import { cn } from "@/lib/utils";
@@ -70,27 +75,12 @@ function firstParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
-function statusLabel(status: string) {
-  const labels: Record<string, string> = {
-    draft: "Черновик",
-    active: "Активна",
-    completed: "Завершена",
-    archived: "В архиве"
-  };
-
-  return labels[status] ?? status;
+function statusLabel(status: string, waitingCount = 0) {
+  return calibrationSessionStatusLabel(status, waitingCount);
 }
 
-function statusTone(status: string): StatusBadgeTone {
-  if (status === "completed") {
-    return "success";
-  }
-
-  if (status === "active") {
-    return "info";
-  }
-
-  return "neutral";
+function statusTone(status: string, waitingCount = 0): StatusBadgeTone {
+  return calibrationSessionStatusTone(status, waitingCount);
 }
 
 function signedDelta(value: number) {
@@ -529,7 +519,11 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
           <StatKpi
             label="Согласованность"
             value={selectedAlignmentPercent != null ? `${selectedAlignmentPercent}%` : "—"}
-            hint={selectedAlignmentPercent != null ? "Цель — 85–90% в пределах ±10" : "Появится после оценок участников"}
+            hint={
+              selectedAlignmentPercent != null
+                ? "По этой сессии · цель 85–90% в пределах ±10"
+                : "Появится после оценок участников этой сессии"
+            }
           />
           <StatKpi
             label="Готовность"
@@ -619,9 +613,9 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
       >
         <Card aria-label="Низкая согласованность калибровки">
           <CardHeader className="border-b">
-            <CardTitle>Низкая согласованность</CardTitle>
+            <CardTitle>Низкая согласованность в рабочей области</CardTitle>
             <CardDescription>
-              Пары CALIBRATION-оценок одного обращения, где консенсус ниже 75% или разброс баллов выше ±10.
+              Не эта сессия: пары CALIBRATION-оценок по всем сессиям, где консенсус ниже 75% или разброс баллов выше ±10.
             </CardDescription>
             <CardAction>
               <Badge variant="secondary">{lowAgreementRows.length}</Badge>
@@ -845,7 +839,9 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
                         : "border-border bg-card hover:bg-muted/40"
                     )}
                   >
-                    <StatusBadge tone={statusTone(summary.session.status)}>{statusLabel(summary.session.status)}</StatusBadge>
+                    <StatusBadge tone={statusTone(summary.session.status, summary.waitingCount)}>
+                      {statusLabel(summary.session.status, summary.waitingCount)}
+                    </StatusBadge>
                     <strong className="line-clamp-2 text-sm font-medium leading-snug text-foreground">{summary.session.name}</strong>
                     <span className="flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
                       <span>{summary.progress}% готово</span>
@@ -867,7 +863,9 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
           <CardHeader className="border-b">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <CardTitle>{selectedSession.name}</CardTitle>
-              <StatusBadge tone={statusTone(selectedSession.status)}>{statusLabel(selectedSession.status)}</StatusBadge>
+              <StatusBadge tone={statusTone(selectedSession.status, selectedWaitingCount)}>
+                {statusLabel(selectedSession.status, selectedWaitingCount)}
+              </StatusBadge>
             </div>
             <CardDescription>
               {selectedSession.notes || "Сравните оценки по одним обращениям и зафиксируйте, где правило трактуется по-разному."}
@@ -1315,7 +1313,7 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
                                   </Button>
                                 ) : (
                                   <Badge variant="secondary">
-                                    {selectedSession.status === "archived" ? "Архив" : "Завершена"}
+                                    {calibrationItemClosedBadge(selectedSession.status, selectedWaitingCount)}
                                   </Badge>
                                 )}
                               </div>

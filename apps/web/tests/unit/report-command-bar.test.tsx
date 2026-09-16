@@ -176,7 +176,7 @@ describe("ReportParameterLens", () => {
     expect(grainField).toHaveClass("min-w-30");
 
     expect(
-      screen.getByRole("option", { name: "Текущий 22–21" })
+      screen.getByRole("option", { name: "Текущий 22–21 · с 22-го по 21-е" })
     ).toBeInTheDocument();
     expect(
       screen.getByRole("option", { name: "Прошлый период" })

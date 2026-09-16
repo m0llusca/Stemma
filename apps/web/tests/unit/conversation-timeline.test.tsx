@@ -445,6 +445,24 @@ describe("ConversationTimeline", () => {
     expect(note?.querySelector('[data-slot="conversation-message-row"]')).not.toBeInTheDocument();
   });
 
+  it("hides evidence attach when the score panel cannot take evidence", () => {
+    render(
+      <ConversationTimeline
+        messages={[
+          message({
+            id: "message-customer-readonly",
+            participantType: "CUSTOMER",
+            authorName: "Мария Петрова",
+            body: "Не открывается заказ."
+          })
+        ]}
+        allowEvidenceAttach={false}
+      />
+    );
+
+    expect(screen.queryByRole("button", { name: "В доказательство" })).not.toBeInTheDocument();
+  });
+
   it("does not offer evidence on SYSTEM markers", () => {
     const { container } = render(
       <ConversationTimeline

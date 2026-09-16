@@ -57,6 +57,7 @@ import { queueDirectorySync } from "@/lib/system-enqueue-actions";
 import { queueRetentionCleanup, runQueuedBackendJobs } from "@/lib/system-actions";
 import type { StatusTone } from "@/lib/ui/status-tone";
 import { requirePagePermission } from "@/lib/page-permission";
+import { russianPlural } from "@/lib/reports/report-format";
 
 export const dynamic = "force-dynamic";
 
@@ -429,11 +430,21 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
   const overallTone: StatusTone = highSeverityIssues > 0 ? "negative" : warningSignals > 0 ? "warning" : "positive";
   const overallLabel =
     overallTone === "negative" ? "Требует вмешательства" : overallTone === "warning" ? "Есть операционный риск" : "Система стабильна";
+  const criticalParts: string[] = [];
+  if (runtimeCritical) {
+    criticalParts.push("окружение");
+  }
+  if (failedJobs > 0) {
+    criticalParts.push(`${russianPlural(failedJobs, ["ошибка", "ошибки", "ошибок"])} очереди`);
+  }
+  if (integrationRiskCount > 0) {
+    criticalParts.push(`${integrationRiskCount} по интеграциям`);
+  }
   const overallSummary =
     overallTone === "negative"
-      ? `${highSeverityIssues} критичных сигналов: проверьте задачи, интеграции или окружение.`
+      ? `${highSeverityIssues} критичных: ${criticalParts.join(" · ")}.`
       : overallTone === "warning"
-        ? `${warningSignals} сигналов требуют плановой проверки, критичных ошибок нет.`
+        ? `${warningSignals} сигналов требуют плановой проверки, критичных ошибок очереди нет.`
         : "Критичных сигналов нет, ключевые подсистемы готовы к работе.";
   const nextAction: SystemNextAction = runtimeCritical
     ? {

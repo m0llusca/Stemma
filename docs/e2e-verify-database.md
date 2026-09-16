@@ -43,23 +43,24 @@ config load (`process.env.DEMO_SEED_NOW = demoSeedAnchor`) and then copied into
 the webServer env. Setting `DEMO_SEED_NOW` in the shell does not pin the e2e
 clock.
 
-### Residual: Moscow 22nd / UTC 21st (~21:00–00:00Z) — known, not fixed
+### Moscow 22nd / UTC 21st (~21:00–00:00Z) — fixed in e2e (#163)
 
-Seed calendars and the freshness guard use Moscow days (`createDemoCalendar`).
-Report headings in the app use UTC `dateOnly` (`resolveReportPeriod`).
+Seed calendars and the freshness guard still use Moscow days
+(`createDemoCalendar`). Report headings in the app still use UTC `dateOnly`
+(`resolveReportPeriod`). Product timezone is unchanged — no UX decision to
+move headings onto Moscow.
+
 Europe/Moscow is UTC+3, so Moscow midnight of the 22nd is `21:00Z` on the 21st.
+Between ~`21:00Z` and `00:00Z` the seed anchor is already Moscow noon of the
+22nd, while the running app still sees UTC 21st.
 
-Between ~`21:00Z` and `00:00Z` on that boundary:
+Approach: **match the app’s UTC wall-clock headings**. Do not skip the specs.
+`buildDemoDateExpectations(anchor, now)` takes operational dates from the
+Moscow seed `anchor` and report headings from wall-clock `now`. The e2e spec
+passes `new Date()` as `now`. A green freshness assert in that slot still
+does not prove Moscow and UTC are the same calendar day.
 
-- The seed anchor is already Moscow noon of the 22nd.
-- The freshness guard compares two Moscow calendars and can stay green.
-- Specs build expected headings from that 22nd anchor (UTC period starting the
-  22nd).
-- The running app uses wall-clock `now` still on UTC 21st and renders the
-  previous 22–21 heading.
-
-09:00Z runs are outside this window. Do not treat a green freshness assert in
-that slot as proof that report headings match.
+09:00Z runs are outside this window.
 
 Date labels in screenshots drift daily if you regenerate them. Visual baselines
 are not stored in git today.
@@ -73,24 +74,24 @@ skips could apply against a non-verify database.
 
 Bypass production demo-auth (`QC_DEMO_AUTH=enabled` in `assertProductionBootEnv`)
 and live-cert import skips (`assertIntegrationLiveCertifiedForProductionImport`)
-only when **both** `TEST_DATABASE_URL` and `DATABASE_URL` independently match the
-local verify allowlist:
+only when **both** `TEST_DATABASE_URL` and `DATABASE_URL` match the local verify
+allowlist **and** share one identity:
 
 - host in `{localhost, 127.0.0.1, ::1, postgres, db}`
 - database `qc_app_demo_verify` (or `QC_PLAYWRIGHT_DATABASE_NAME` when set)
 - `schema=public`
+- same normalized host + port + database name + `schema=public`
+
+Loopback hosts are one host: `localhost` ≡ `127.0.0.1` ≡ `::1`. An omitted
+Postgres port is `5432`. `postgres` and `db` stay allowlisted but are distinct
+from loopback and from each other. Different ports fail closed. Remote hosts
+stay rejected.
 
 A TEST/DATABASE mismatch is fail-closed (`false` / boot throw). The normal
 Playwright harness still sets both env vars to the same validated URL.
 
-### Residual: independent allowlist identity — known, not fixed
-
-Each URL is allowlisted on its own. Two different local verify-named databases
-can both pass: `localhost` vs `127.0.0.1`, or different ports, or two hosts from
-the allowlist. They are not compared as one identity.
-
-`QC_PLAYWRIGHT_DATABASE_NAME` can whitelist another local DB name. Remote hosts
-remain rejected.
+`QC_PLAYWRIGHT_DATABASE_NAME` can whitelist another local DB name; both URLs
+must still share that name on the same identity.
 
 ## What did not change
 
@@ -109,6 +110,7 @@ From `apps/web`:
 npx vitest run \
   tests/unit/demo-calendar.test.ts \
   tests/unit/demo-anchor-freshness.test.ts \
+  tests/unit/demo-date-expectations.test.ts \
   tests/unit/local-playwright-verify-database.test.ts \
   tests/unit/instrumentation-boot-gates.test.ts \
   tests/unit/integration-import-service.test.ts

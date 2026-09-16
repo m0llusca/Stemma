@@ -66,4 +66,27 @@ describe("buildDemoDateExpectations", () => {
       coachingDueDates: ["28.07.2026", "29.07.2026"]
     });
   });
+
+  it("builds UTC wall-clock report headings when the seed is already Moscow 22nd", () => {
+    const moscowNoonOnThe22nd = new Date("2026-08-22T09:00:00.000Z");
+    const utcStillOnThe21st = new Date("2026-08-21T22:00:00.000Z");
+
+    expect(buildDemoDateExpectations(moscowNoonOnThe22nd, utcStillOnThe21st)).toEqual({
+      reportHeadings: {
+        current: "Текущий период 22-21: 22.07.2026 - 21.08.2026",
+        previous: "Прошлый период 22-21: 21.06.2026 - 21.07.2026"
+      },
+      queueDueDates: {
+        QUEUED: "21.08.2026",
+        ASSIGNED: "24.08.2026",
+        IN_PROGRESS: "25.08.2026",
+        REOPENED: "22.08.2026"
+      },
+      coachingDueDates: ["22.08.2026", "23.08.2026"]
+    });
+    expect(buildDemoDateExpectations(moscowNoonOnThe22nd).reportHeadings).toEqual({
+      current: "Текущий период 22-21: 22.08.2026 - 21.09.2026",
+      previous: "Прошлый период 22-21: 22.07.2026 - 21.08.2026"
+    });
+  });
 });

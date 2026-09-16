@@ -104,6 +104,10 @@ export async function updateReviewFeedback(formData: FormData) {
   const action = stringField(formData, "action");
   const comment = stringField(formData, "comment");
 
+  if (action === "appeal_opened" && comment.length === 0) {
+    throw new Error("Напишите обоснование — с чем не согласны и почему.");
+  }
+
   if (
     managerOnlyFeedbackActions.has(action) &&
     (!canManageReviewWorkflow(user.role) || !canResolveAppeal(user.role))

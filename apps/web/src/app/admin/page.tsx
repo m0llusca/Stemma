@@ -73,7 +73,7 @@ export default function AdminHomePage() {
 async function AdminHomePageContent() {
   const user = await requirePageUser();
   if (!canAccessAdminHub(user.role)) {
-    denyPageAccess();
+    denyPageAccess(user);
   }
   const [
     workspace,
@@ -269,7 +269,10 @@ async function AdminHomePageContent() {
       title: adminSectionTitles["/admin/system"],
       icon: Activity,
       roles: ["ADMIN"],
-      metric: failedJobs > 0 ? russianPlural(failedJobs, ["ошибка", "ошибки", "ошибок"]) : "Без ошибок",
+      metric:
+        failedJobs > 0
+          ? `${russianPlural(failedJobs, ["ошибка", "ошибки", "ошибок"])} очереди`
+          : "Без ошибок очереди",
       tone: failedJobs > 0 ? "warn" : "ok"
     },
     {

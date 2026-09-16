@@ -46,6 +46,8 @@ const liveEvidence = {
 
 const LOCAL_VERIFY_DATABASE_URL =
   "postgresql://qc_app:qc_app@localhost:55432/qc_app_demo_verify?schema=public";
+const OTHER_PORT_VERIFY_DATABASE_URL =
+  "postgresql://qc_app:qc_app@127.0.0.1:5432/qc_app_demo_verify?schema=public";
 const LOCAL_DEVELOPER_DATABASE_URL =
   "postgresql://qc_app:qc_app@localhost:55432/qc_app?schema=public";
 
@@ -466,6 +468,33 @@ describe("integration import service", () => {
     });
 
     expect(mocks.prisma.certificationEvidence.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("does not skip live-cert when TEST and DATABASE are local verify-named but on different ports", async () => {
+    const { queueIntegrationImportJob } = await import("@/lib/integration-import-service");
+    vi.stubEnv("TEST_DATABASE_URL", LOCAL_VERIFY_DATABASE_URL);
+    vi.stubEnv("DATABASE_URL", OTHER_PORT_VERIFY_DATABASE_URL);
+    mocks.prisma.certificationEvidence.findFirst.mockResolvedValue(null);
+    mocks.prisma.integration.findFirst.mockResolvedValue({
+      id: "integration-1",
+      workspaceId: "workspace-1",
+      source: "zendesk",
+      type: "native_helpdesk",
+      status: "ready",
+      importLimit: 25,
+      credentials: [{ kind: "auth_password" }]
+    });
+
+    await expect(
+      queueIntegrationImportJob({
+        workspaceId: "workspace-1",
+        actorId: "user-1",
+        integrationId: "integration-1",
+        dryRun: false
+      })
+    ).rejects.toThrow("Импорт в production недоступен без живой сертификации с evidence.");
+
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
   });
 
   it("does not skip live-cert when TEST_DATABASE_URL is verify but DATABASE_URL is not", async () => {

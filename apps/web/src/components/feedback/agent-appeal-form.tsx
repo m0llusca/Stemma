@@ -10,7 +10,11 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { updateReviewFeedbackState } from "@/lib/feedback-actions";
-import { agentAppealNextSteps, type AgentAppealPhase } from "@/lib/feedback/agent-appeal";
+import {
+  agentAppealNextSteps,
+  agentAppealTriggerLabel,
+  type AgentAppealPhase
+} from "@/lib/feedback/agent-appeal";
 
 type AgentAppealFormProps = {
   reviewId: string;
@@ -42,12 +46,13 @@ export function AgentAppealForm({
   const placeholder = criterionLabel
     ? `Критерий «${criterionLabel}»: с чем не согласны и почему — со ссылкой на цитату, если есть.`
     : "С каким пунктом не согласны и почему — со ссылкой на цитату, если есть.";
+  const phaseTrigger = agentAppealTriggerLabel({ allowed, phase, openLabel: triggerLabel });
 
   if (!allowed) {
     return (
       <div className="flex flex-col gap-1.5">
         <Button type="button" variant="outline" size="sm" disabled>
-          {triggerLabel}
+          {phaseTrigger}
         </Button>
         <p className="text-xs text-muted-foreground">{disabledReason}</p>
         {phase !== "none" ? (
@@ -60,9 +65,9 @@ export function AgentAppealForm({
   return (
     <Collapsible className="rounded-lg border border-border bg-background data-open:bg-muted/20">
       <CollapsibleTrigger className="w-full cursor-pointer px-3 py-2 text-left text-sm font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
-        {triggerLabel}
+        {phaseTrigger}
       </CollapsibleTrigger>
-      <CollapsibleContent keepMounted>
+      <CollapsibleContent keepMounted={false}>
         <ToastActionForm action={updateReviewFeedbackState} className="flex flex-col gap-2 border-t border-border p-3">
           <input type="hidden" name="reviewId" value={reviewId} />
           <input type="hidden" name="action" value="appeal_opened" />
@@ -76,12 +81,12 @@ export function AgentAppealForm({
               id={commentId}
               name="comment"
               rows={2}
-              required
+              aria-required="true"
               placeholder={placeholder}
             />
           </div>
           <Button type="submit" variant="outline" size="sm">
-            Открыть апелляцию
+            Отправить
           </Button>
         </ToastActionForm>
       </CollapsibleContent>

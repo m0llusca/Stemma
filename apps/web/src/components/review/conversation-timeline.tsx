@@ -35,6 +35,8 @@ type ConversationTimelineProps = {
   canCoach?: boolean;
   canManagePins?: boolean;
   currentUserId?: string;
+  /** Hide «В доказательство» when the score panel has no evidence selects. */
+  allowEvidenceAttach?: boolean;
 };
 
 function initials(name: string) {
@@ -267,7 +269,8 @@ export function ConversationTimeline({
   coachingPins = [],
   canCoach = false,
   canManagePins = false,
-  currentUserId
+  currentUserId,
+  allowEvidenceAttach = true
 }: ConversationTimelineProps) {
   const highlightedMessages = new Set(highlightedMessageIds);
   const pinsByMessage = new Map<string, CoachingPinView[]>();
@@ -504,10 +507,10 @@ export function ConversationTimeline({
                   <div className={cn("w-full", isAgent ? "pr-10" : "pl-10")}>
                     <TimelineMeta
                       sentAt={message.sentAt}
-                      showEvidence={canAttachEvidence(
-                        message.participantType,
-                        message.isPrivate
-                      )}
+                      showEvidence={
+                        allowEvidenceAttach &&
+                        canAttachEvidence(message.participantType, message.isPrivate)
+                      }
                       messageId={message.id}
                       align={align}
                     />

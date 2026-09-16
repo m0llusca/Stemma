@@ -7,15 +7,22 @@ function formatUtcDate(value: Date) {
   return `${day}.${month}.${value.getUTCFullYear()}`;
 }
 
-export function buildDemoDateExpectations(anchor: Date) {
+/**
+ * Operational queue/coaching dates follow the Moscow seed `anchor`.
+ * Report headings follow UTC `dateOnly(now)` — the same clock
+ * `resolveReportPeriod` uses in the running app. Pass wall-clock `now` from
+ * e2e so the Moscow-22nd / UTC-21st window (~21:00–00:00Z) expects the
+ * heading the app actually renders. Product timezone is unchanged.
+ */
+export function buildDemoDateExpectations(anchor: Date, now: Date = anchor) {
   const calendar = createDemoCalendar(anchor);
   const currentReportPeriod = resolveReportPeriod(
     { period: "vk-current" },
-    anchor
+    now
   );
   const previousReportPeriod = resolveReportPeriod(
     { period: "vk-previous" },
-    anchor
+    now
   );
 
   return {

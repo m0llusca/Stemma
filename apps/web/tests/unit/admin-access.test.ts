@@ -27,7 +27,7 @@ describe("admin hub page contract", () => {
 
   it("gates /admin on canAccessAdminHub instead of audit:read alone", () => {
     expect(adminPage).toContain("canAccessAdminHub(user.role)");
-    expect(adminPage).toContain("denyPageAccess()");
+    expect(adminPage).toContain("denyPageAccess(user)");
     expect(adminPage).not.toContain('requirePagePermission("audit:read")');
   });
 

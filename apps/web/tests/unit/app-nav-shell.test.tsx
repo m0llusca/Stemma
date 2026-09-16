@@ -48,7 +48,7 @@ const baseProps = {
   areas: visibleTopNavAreas("ADMIN"),
   pulseSlot: <AppNavPulseChrome items={[
     { href: "/reviews?qaStatus=QUEUED", label: "Очередь", value: 4 },
-    { href: "/reviews?status=reviewed&riskLevel=HIGH_OR_CRITICAL", label: "Риск", value: 1, tone: "risk" as const },
+    { href: "/reviews?status=reviewed&riskLevel=HIGH_OR_CRITICAL", label: "Риск 30д", value: 1, tone: "risk" as const },
     { href: "/coaching", label: "Обучение", value: 0, tone: "neutral" as const }
   ]} />,
   user: { name: "Админ", email: "admin@example.com", roleLabel: "Администратор" },
@@ -396,7 +396,7 @@ describe("app nav shell", () => {
     expect(queueLink).toHaveAttribute("data-slot", "button");
     expect(queueLink.className).toContain("hidden");
     expect(queueLink.className).toContain("sm:inline-flex");
-    expect(screen.getByRole("link", { name: "Риск: 1" })).not.toBeNull();
+    expect(screen.getByRole("link", { name: "Риск 30д: 1" })).not.toBeNull();
     expect(screen.getByRole("link", { name: "Обучение: 0" })).not.toBeNull();
   });
 
@@ -420,7 +420,7 @@ describe("app nav shell", () => {
     ]);
     expect(destinations).not.toContain("/reviews?status=unreviewed");
     expect(within(menu).getByRole("menuitem", { name: "Очередь: 4" })).toBeInTheDocument();
-    expect(within(menu).getByRole("menuitem", { name: "Риск: 1" })).toBeInTheDocument();
+    expect(within(menu).getByRole("menuitem", { name: "Риск 30д: 1" })).toBeInTheDocument();
     expect(within(menu).getByRole("menuitem", { name: "Обучение: 0" })).toBeInTheDocument();
     expect(within(menu).queryByRole("menuitem", { name: "Взять следующий" })).toBeNull();
   });

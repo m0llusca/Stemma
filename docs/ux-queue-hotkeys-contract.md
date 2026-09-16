@@ -48,7 +48,7 @@ All take-next surfaces require `reviews:write`. UI flag: `canTakeNextCase` (shel
 | --- | --- |
 | Queue **«Взять следующий»** | `canWriteReviews` — omit the page action |
 | ⌘K **«Взять следующий»** | drop `actionId: take-next` when `!canTakeNextCase` |
-| Next-case preview CTA | `canTakeNext` — identity stays; no submit |
+| Next-case preview | no Take-next — header owns the only CTA |
 | Empty-queue **«Взять без фильтра»** | `canWriteReviews` |
 | Workbench **finalize_next** | scorecard panel only when `canSaveReviewDraft` (`reviews:write`) |
 

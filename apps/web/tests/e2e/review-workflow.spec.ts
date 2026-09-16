@@ -100,7 +100,7 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   ).toBeVisible();
   await expect(
     page.locator('[data-slot="queue-next-case-preview"]').getByRole("button", { name: "Взять следующий" })
-  ).toBeVisible();
+  ).toHaveCount(0);
   await expect(page.getByLabel("Фильтры и виды очереди")).toBeVisible();
   await expect(page.getByLabel("Предпросмотр следующего обращения")).toBeVisible();
 

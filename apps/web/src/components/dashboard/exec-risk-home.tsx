@@ -44,7 +44,7 @@ export function ExecRiskHome({
   return (
     <PageShell
       className="dashboard-shell min-w-0"
-      title="Риск"
+      title="Сегодня"
       description="За 30 секунд — просроченный SLA и высокий риск, с переходом в очередь. Операционный хром скрыт."
     >
       <TriageStrip
@@ -83,7 +83,11 @@ export function ExecRiskHome({
           value={signal.queuedCount}
           tone={signal.queuedCount > 0 ? "warning" : "neutral"}
           label="Очередь без старта"
-          hint={inWorkCount > 0 ? `${inWorkCount} уже в работе` : "ещё не взяли в проверку"}
+          hint={
+            inWorkCount > 0
+              ? `${signal.queuedCount} ждут старта · ${inWorkCount} уже в работе`
+              : "ещё не взяли в проверку"
+          }
         />
       </section>
 

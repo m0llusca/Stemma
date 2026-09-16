@@ -69,6 +69,18 @@ export function agentAppealDisabledReason(input: AgentAppealAvailabilityInput): 
   return "Апелляция по этой проверке недоступна.";
 }
 
+export function agentAppealTriggerLabel(input: {
+  allowed: boolean;
+  phase: AgentAppealPhase;
+  openLabel: string;
+}): string {
+  if (input.allowed || input.phase === "none") {
+    return input.openLabel;
+  }
+
+  return agentAppealPhaseLabels[input.phase];
+}
+
 export function agentAppealNextSteps(input: {
   phase: AgentAppealPhase;
   dueAt?: Date | null;
