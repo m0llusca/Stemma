@@ -577,7 +577,7 @@ describe("RankedDriverChart", () => {
       container.querySelector('[data-slot="ranked-selected-marker"]')
     ).toHaveStyle({
       left: `${(168 / 520) * 100}%`,
-      top: `${(55.5 / 220) * 100}%`
+      top: `${(24 / 94) * 100}%`
     });
 
     fireEvent.keyDown(plot, { key: "ArrowDown" });
@@ -594,7 +594,7 @@ describe("RankedDriverChart", () => {
       container.querySelector('[data-slot="ranked-selected-marker"]')
     ).toHaveStyle({
       left: `${((335 + (4 / 6) * 167) / 520) * 100}%`,
-      top: `${(146.5 / 220) * 100}%`
+      top: `${(52 / 94) * 100}%`
     });
 
     fireEvent.keyDown(plot, { key: "Escape" });
