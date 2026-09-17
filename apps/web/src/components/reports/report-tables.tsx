@@ -156,14 +156,14 @@ export function QuotaTable({
             <Table className="w-full table-fixed">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="sticky left-0 z-10 w-[26%] bg-card px-4">Оператор</TableHead>
-                  <TableHead className="w-[12%] px-4 whitespace-normal">Линия</TableHead>
+                  <TableHead className="sticky left-0 z-10 w-[22%] bg-card px-4">Оператор</TableHead>
+                  <TableHead className="w-[10%] px-4 whitespace-normal">Линия</TableHead>
                   <TableHead className="w-[8%] px-4 text-right">План</TableHead>
                   <TableHead className="w-[8%] px-4 text-right">Факт</TableHead>
                   <TableHead className="w-[10%] px-4 text-right whitespace-normal">Осталось</TableHead>
                   <TableHead className="w-[14%] px-4 text-right">DSAT</TableHead>
-                  <TableHead className="px-4 whitespace-normal">Статус</TableHead>
-                  <TableHead className="w-20 px-4 text-right">
+                  <TableHead className="w-[20%] px-4 whitespace-normal">Статус</TableHead>
+                  <TableHead className="w-24 px-4 text-right">
                     <span className="sr-only">Действие</span>
                   </TableHead>
                 </TableRow>

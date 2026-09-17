@@ -473,40 +473,44 @@ export function ReportPageViews(props: ReportPageModel) {
         <section
           data-slot="report-details-criteria"
           aria-label="Критерии, норма и источники"
-          className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3 [&>*]:min-w-0"
+          className="flex min-w-0 flex-col gap-4"
         >
-          <BreakdownTable
-            id="details-blocks"
-            title="Блоки критериев"
-            rows={withScoreDeltas(blockScoreRows, previousBlockScoreRows)}
-            countLabel="Оценок"
-            showAverage
-          />
-          {hasEntityFilters ? (
-            <Card id="details-quotas" size="sm" className="h-fit gap-0 py-0">
-              <CardHeader className="py-3">
-                <CardTitle>Нормы проверок недоступны</CardTitle>
-                <CardDescription>
-                  Нормы рассчитаны для полной выборки. Сбросьте фильтры
-                  команды, источника, риска и блока.
-                </CardDescription>
-              </CardHeader>
-            </Card>
-          ) : (
-            <QuotaTable
-              id="details-quotas"
-              quotas={quotas}
-              reviews={finalizedReviews}
-              period={period}
+          <div className="grid items-start gap-4 md:grid-cols-2 [&>*]:min-w-0">
+            <BreakdownTable
+              id="details-blocks"
+              title="Блоки критериев"
+              rows={withScoreDeltas(blockScoreRows, previousBlockScoreRows)}
+              countLabel="Оценок"
+              showAverage
             />
-          )}
-          <BreakdownTable
-            id="details-sources"
-            title="Источники"
-            rows={withScoreDeltas(sourceRows, previousSourceRows)}
-            countLabel="Проверок"
-            showAverage
-          />
+            <BreakdownTable
+              id="details-sources"
+              title="Источники"
+              rows={withScoreDeltas(sourceRows, previousSourceRows)}
+              countLabel="Проверок"
+              showAverage
+            />
+          </div>
+          <div data-slot="report-details-quotas" className="min-w-0">
+            {hasEntityFilters ? (
+              <Card id="details-quotas" size="sm" className="h-fit gap-0 py-0">
+                <CardHeader className="py-3">
+                  <CardTitle>Нормы проверок недоступны</CardTitle>
+                  <CardDescription>
+                    Нормы рассчитаны для полной выборки. Сбросьте фильтры
+                    команды, источника, риска и блока.
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            ) : (
+              <QuotaTable
+                id="details-quotas"
+                quotas={quotas}
+                reviews={finalizedReviews}
+                period={period}
+              />
+            )}
+          </div>
         </section>
         <section
           data-slot="report-details-people"

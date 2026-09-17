@@ -104,6 +104,15 @@ describe("reports density follow-up FAIL (#172)", () => {
     expect(quota).not.toContain("min-w-max");
     expect(quota).toMatch(/>\s*Открыть\s*</);
     expect(quota).not.toContain("Открыть проверки оператора");
+
+    const views = src("components/reports/report-page-views.tsx");
+    expect(views).toContain('data-slot="report-details-quotas"');
+    const criteria = views.slice(
+      views.indexOf('data-slot="report-details-criteria"'),
+      views.indexOf('data-slot="report-details-people"')
+    );
+    expect(criteria).toContain("md:grid-cols-2");
+    expect(criteria).not.toContain("xl:grid-cols-3");
   });
 
   it("Marques: ranked list and performance cards stay compact", () => {
