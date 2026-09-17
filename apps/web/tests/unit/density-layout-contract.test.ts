@@ -58,6 +58,9 @@ describe("density layout contract (#166)", () => {
     expect(page).toContain("<AccordionTrigger");
     expect(page).toContain("{conversation.subject}");
     expect(page).not.toMatch(/CardTitle[\s\S]{0,240}<Link/);
+    expect(page).not.toMatch(/<AccordionTrigger[\s\S]{0,800}<Link/);
+    expect(page).toContain("Открыть");
+    expect(page).toContain("`/reviews/${conversation.id}`");
   });
 
   it("queue SLA/OTRS chrome is collapsed and rows stay compact", () => {

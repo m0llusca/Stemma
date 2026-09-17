@@ -1,6 +1,6 @@
 # UX-контракт: плотность экранов
 
-Locked density chrome: **`dca6c00`** ([#167](https://github.com/m0llusca/Stemma/pull/167) / [#166](https://github.com/m0llusca/Stemma/issues/166)). Soft residuals: **#169 / #170** — Marques spec folded; pin tip after this commit. LIVE: https://hospital-studies-width-martha.trycloudflare.com.
+Locked density chrome: **`dca6c00`** ([#167](https://github.com/m0llusca/Stemma/pull/167) / [#166](https://github.com/m0llusca/Stemma/issues/166)). Soft residuals: **`5169e12`** ([#169](https://github.com/m0llusca/Stemma/issues/169) / [#170](https://github.com/m0llusca/Stemma/pull/170), Marques spec). LIVE: https://hospital-studies-width-martha.trycloudflare.com.
 
 Appearance density доходит до page chrome. Пустые слоты не растягивают экран. Менять ритм PageShell / Card / Empty / графиков — только явным продуктовым решением. Тихий дрейф запрещён.
 
@@ -55,7 +55,7 @@ Appearance density доходит до page chrome. Пустые слоты не
 
 - Один открытый по умолчанию: `defaultValue={[actionConversations[0].id]}`, `multiple={false}`.
 - `hiddenUntilFound`: закрытые паки остаются в DOM (`hidden="until-found"`) для find-in-page и не красят ~26k px. Не раскрывать все паки.
-- Тема/subject — `AccordionTrigger`. Клик по теме раскрывает/сворачивает (не только шеврон). `aria-expanded` совпадает с open.
+- Тема/subject — `AccordionTrigger`. Клик по теме **только** раскрывает/сворачивает (не только шеврон). Не вести на `/reviews/…`. Полный кейс — отдельная кнопка «Открыть» в теле пака. `aria-expanded` совпадает с open.
 - Гейт: высота вкладки ~3k с одним открытым, не со всеми. Не раскрывать все паки.
 
 Доска разбора (`ReviewDisclosure`): клик по заголовку/subject — тот же trigger, что и шеврон. `aria-expanded` = `open`. Закрытая панель остаётся в DOM (визуально скрыта native `details`) — find-in-page без keepMounted/~26k.

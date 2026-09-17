@@ -36,6 +36,9 @@ describe("self-review pack accordion a11y", () => {
     const openTrigger = screen.getByRole("button", { name: "Разбор: Открытый пак" });
     const closedTrigger = screen.getByRole("button", { name: "Разбор: Закрытый пак" });
 
+    expect(openTrigger.tagName).toBe("BUTTON");
+    expect(openTrigger.closest("a")).toBeNull();
+    expect(closedTrigger.closest("a")).toBeNull();
     expect(openTrigger).toHaveAttribute("aria-expanded", "true");
     expect(closedTrigger).toHaveAttribute("aria-expanded", "false");
     expect(screen.getByText("Цитата открытого пака про маршрутизацию")).toBeVisible();
