@@ -32,12 +32,11 @@ describe("coaching page agent score scope", () => {
   });
 
   it("does not sell lead empty copy to operators", () => {
-    expect(source).toContain("Здесь появятся планы развития, которые назначит руководитель.");
-    expect(source).toContain("canManageCoachingOps");
-    const emptyLead = source.indexOf("Сгруппируйте разборы оператора под одной темой развития");
-    const emptyAgent = source.indexOf("Здесь появятся планы развития, которые назначит руководитель.");
-    expect(emptyLead).toBeGreaterThan(-1);
-    expect(emptyAgent).toBeGreaterThan(emptyLead);
+    expect(source).toContain("coachingPlansEmptyDescription(user.role)");
+    expect(source).toContain("isCoachingOperatorHome(user.role)");
+    expect(source).toContain("COACHING_PLANS_AGENT_EMPTY_BODY");
+    expect(source).toMatch(/operatorHome \? \(\s*<p className="text-sm text-muted-foreground">/);
+    expect(source).not.toMatch(/operatorHome \? \(\s*<EmptyState/);
   });
 
   it("hides create CTAs and empty assignee filter when agents cannot manage coaching ops", () => {

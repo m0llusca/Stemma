@@ -51,7 +51,13 @@ import { coachingActionStatusLabels } from "@/lib/coaching-action";
 import { createCoachingPlanState, updateCoachingPlanStatusState } from "@/lib/coaching-plan-actions";
 import { filterCoachingPlansForAgent, listCoachingPlans } from "@/lib/coaching-plan";
 import { groupCoachingThemesByAgent } from "@/lib/coaching-themes";
-import { coachingInWorkKpiHint, coachingOverdueKpiHint } from "@/lib/coaching/empty-honesty";
+import {
+  COACHING_PLANS_AGENT_EMPTY_BODY,
+  coachingInWorkKpiHint,
+  coachingOverdueKpiHint,
+  coachingPlansEmptyDescription,
+  isCoachingOperatorHome
+} from "@/lib/coaching/empty-honesty";
 import {
   openCoachingActionsPageHref,
   paginateOpenCoachingActions,
@@ -231,6 +237,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
   const focusPlanId = cleanParam(rawSearchParams.planId);
   const requestedActionsPage = parseOpenCoachingActionsPage(rawSearchParams.actionsPage);
   const isSupportAgent = user.role === "SUPPORT_AGENT";
+  const operatorHome = isCoachingOperatorHome(user.role);
   // Agents may view their own training tasks; team scoring, create forms, and
   // other operators' reviews stay manager-only.
   const canManageCoachingOps = !isSupportAgent;
@@ -918,9 +925,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
               ? canManageCoachingOps
                 ? `Развитие операторов по фокус-темам. Активных планов: ${activePlanCount}.`
                 : `Ваши планы развития. Активных: ${activePlanCount}.`
-              : canManageCoachingOps
-                ? "Сгруппируйте разборы оператора под одной темой развития и отслеживайте прогресс."
-                : "Здесь появятся планы развития, которые назначит руководитель."}
+              : coachingPlansEmptyDescription(user.role)}
           </CardDescription>
           <CardAction>
             {canManageCoachingOps ? (
@@ -1132,23 +1137,19 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                 );
               })}
             </ul>
+          ) : operatorHome ? (
+            <p className="text-sm text-muted-foreground">{COACHING_PLANS_AGENT_EMPTY_BODY}</p>
           ) : (
             <EmptyState
               size="inline"
               icon={<Target size={20} aria-hidden="true" />}
               title="Планов коучинга пока нет"
-              description={
-                canManageCoachingOps
-                  ? "Создайте план, чтобы вести развитие оператора по конкретной теме и видеть эффект до и после."
-                  : "Когда тимлид назначит план развития, он появится здесь."
-              }
+              description="Создайте план, чтобы вести развитие оператора по конкретной теме и видеть эффект до и после."
               action={
-                canManageCoachingOps ? (
-                  <Button render={<Link href={createPlanHref} />} nativeButton={false}>
-                    <Target data-icon="inline-start" aria-hidden="true" />
-                    Новый план
-                  </Button>
-                ) : undefined
+                <Button render={<Link href={createPlanHref} />} nativeButton={false}>
+                  <Target data-icon="inline-start" aria-hidden="true" />
+                  Новый план
+                </Button>
               }
             />
           )}

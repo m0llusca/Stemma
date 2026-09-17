@@ -146,7 +146,8 @@ describe("Jamal deep-walk FAIL (#172)", () => {
 
   it("P1 coaching empty copy is role-aware and empty charts do not reserve a hole", () => {
     const coaching = src("app/coaching/page.tsx");
-    expect(coaching).toContain("Здесь появятся планы развития, которые назначит руководитель.");
+    expect(coaching).toContain("coachingPlansEmptyDescription(user.role)");
+    expect(coaching).toContain("COACHING_PLANS_AGENT_EMPTY_BODY");
     expect(coaching).toContain("trendPoints.length >= 2 || topCategories.length > 0");
     expect(coaching).not.toContain("canShowScoreTrend || topCategories.length > 0");
   });
