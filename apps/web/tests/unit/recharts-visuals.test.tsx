@@ -551,23 +551,26 @@ describe("lean Recharts visuals", () => {
     };
     render(<RankedDriverVisual model={longLabelModel} height={220} />);
 
-    const teamText = screen
-      .getAllByText((_, element) => element?.tagName.toLowerCase() === "text" && element.textContent?.includes(teamLabel) === true)
-      .find((element) => element.tagName.toLowerCase() === "text");
+    const teamTspans = screen.getAllByText((_, element) => {
+      return element?.tagName.toLowerCase() === "tspan" && Boolean(element.textContent);
+    });
+    const teamText = teamTspans
+      .map((node) => node.closest("text"))
+      .find((node) => node?.querySelector("title")?.textContent === teamLabel);
     const teamTitle = teamText?.querySelector("title");
     const teamLines = [...(teamText?.querySelectorAll("tspan") ?? [])].map((node) => node.textContent ?? "");
 
+    expect(teamText).toBeTruthy();
     expect(teamTitle).toHaveTextContent(teamLabel);
     expect(teamText).toHaveAttribute("pointer-events", "auto");
     expect(teamLines.join(" ")).toBe(teamLabel);
     expect(teamLines.some((line) => line.includes("…"))).toBe(false);
 
-    const operatorText = screen
-      .getAllByText(operatorLabel)
-      .find((element) => element.tagName.toLowerCase() === "text");
+    const operatorTspan = screen.getByText(operatorLabel, { selector: "tspan" });
+    const operatorText = operatorTspan.closest("text");
     expect(operatorText?.querySelector("title")).toHaveTextContent(operatorLabel);
     expect(operatorText).toHaveAttribute("pointer-events", "auto");
-    expect(operatorText?.querySelector("tspan")?.textContent).toBe(operatorLabel);
+    expect(operatorTspan).toHaveTextContent(operatorLabel);
     expect(operatorText?.textContent).not.toMatch(/Тимофе…/);
   });
 

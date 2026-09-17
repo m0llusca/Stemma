@@ -576,7 +576,7 @@ describe("RankedDriverChart", () => {
     expect(
       container.querySelector('[data-slot="ranked-selected-marker"]')
     ).toHaveStyle({
-      left: `${(104 / 440) * 100}%`,
+      left: `${(168 / 520) * 100}%`,
       top: `${(55.5 / 220) * 100}%`
     });
 
@@ -593,7 +593,7 @@ describe("RankedDriverChart", () => {
     expect(
       container.querySelector('[data-slot="ranked-selected-marker"]')
     ).toHaveStyle({
-      left: `${(369 / 440) * 100}%`,
+      left: `${((335 + (4 / 6) * 167) / 520) * 100}%`,
       top: `${(146.5 / 220) * 100}%`
     });
 
