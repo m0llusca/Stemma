@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { Info, X } from "lucide-react";
 
-import { QUEUE_GLOSSARY } from "@/components/guidance/queue-glossary";
-import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   DAY1_TOUR_DISMISS_STORAGE_KEY,
@@ -16,6 +15,8 @@ import { cn } from "@/lib/utils";
 type QueueDay1TourProps = {
   className?: string;
 };
+
+const DAY1_GLOSSARY_LINE = "контрольный срок проверки и типичный helpdesk-источник.";
 
 function readDismissed(): boolean {
   try {
@@ -34,7 +35,8 @@ function writeDismissed() {
 }
 
 /**
- * Day-1 SLA/OTRS glossary — one dismissible hint, not a stepped tour.
+ * Day-1 SLA/OTRS glossary — one compact info row (icon + text + dismiss).
+ * After dismiss, later visits keep the filters `sr-only` helper only.
  * Skipped while welcome-back is eligible so returners are not double-nudged.
  */
 export function QueueDay1Tour({ className }: QueueDay1TourProps) {
@@ -62,25 +64,22 @@ export function QueueDay1Tour({ className }: QueueDay1TourProps) {
       role="region"
       aria-label="Подсказки очереди"
       data-slot="queue-day1-glossary"
-      className={cn("border-border bg-card text-card-foreground", className)}
+      className={cn(
+        "has-[>svg]:grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 py-1.5 *:[svg]:row-span-1 *:[svg]:translate-y-0 has-data-[slot=alert-action]:pr-2",
+        className
+      )}
     >
-      <AlertAction>
+      <Info aria-hidden="true" />
+      <AlertDescription className="text-xs leading-snug">
+        <span className="font-medium text-foreground">SLA и OTRS</span>
+        {" — "}
+        {DAY1_GLOSSARY_LINE}
+      </AlertDescription>
+      <AlertAction className="static inset-auto">
         <Button type="button" variant="ghost" size="icon-xs" onClick={dismiss} aria-label="Скрыть подсказки">
           <X aria-hidden="true" />
         </Button>
       </AlertAction>
-      <div className="flex min-w-0 flex-col gap-2">
-        <AlertTitle className="mb-0 text-sm">SLA и OTRS</AlertTitle>
-        <AlertDescription>
-          <span className="block">{QUEUE_GLOSSARY.sla.content}</span>
-          <span className="mt-1 block">{QUEUE_GLOSSARY.otrs.content}</span>
-        </AlertDescription>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" size="sm" onClick={dismiss}>
-            Понятно
-          </Button>
-        </div>
-      </div>
     </Alert>
   );
 }

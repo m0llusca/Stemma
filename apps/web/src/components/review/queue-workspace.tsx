@@ -89,21 +89,21 @@ function QueueWorkspaceMain({
 }: QueueWorkspaceMainProps) {
   return (
     <section
-      className="grid min-w-0 grid-cols-1 items-start gap-(--section-gap) xl:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)]"
+      className="flex min-w-0 flex-col gap-(--section-gap)"
       aria-label={ariaLabel}
     >
-      <div data-slot="review-queue-list" className="min-w-0">
-        {children}
-      </div>
       {preview != null ? (
         <aside
           data-slot="review-queue-preview"
-          className="min-w-0 xl:sticky xl:top-[calc(var(--app-topbar-height)+1.5rem)] xl:self-start"
+          className="min-w-0"
           aria-label={previewLabel}
         >
           {preview}
         </aside>
       ) : null}
+      <div data-slot="review-queue-list" className="min-w-0">
+        {children}
+      </div>
     </section>
   );
 }

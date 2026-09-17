@@ -512,11 +512,11 @@ describe("lean Recharts visuals", () => {
     );
     expect(container.querySelector('[data-slot="ranked-zero-line"]')).toHaveAttribute(
       "x1",
-      "263"
+      "335"
     );
     expect(container.querySelector('[data-slot="ranked-zero-line"]')).toHaveAttribute(
       "x2",
-      "263"
+      "335"
     );
     expect(container.querySelectorAll(".recharts-rectangle")).toHaveLength(2);
     expect(container.querySelector('[data-series="down"]')).toHaveAttribute(
@@ -529,41 +529,49 @@ describe("lean Recharts visuals", () => {
     );
   });
 
-  it("never hard-clips ranked category labels: overlong labels ellipsis-truncate at a word boundary with the full label in a title", () => {
-    const fullLabel = "ФГИС и государственные сервисы";
+  it("keeps ranked category labels readable: wrap plus SVG title, never Тимофе… without the full name", () => {
+    const teamLabel = "ФГИС и государственные сервисы";
+    const operatorLabel = "Тимофей Нестеров";
     const longLabelModel: typeof driverModel = {
       ...driverModel,
       points: [
         {
           id: "long",
-          label: fullLabel,
+          label: teamLabel,
           sortKey: "1",
           values: { down: 6, up: null }
         },
-        driverModel.points[1]
+        {
+          id: "operator",
+          label: operatorLabel,
+          sortKey: "2",
+          values: { down: null, up: 4 }
+        }
       ]
     };
     render(<RankedDriverVisual model={longLabelModel} height={220} />);
 
-    const text = screen
-      .getAllByText(/…$/)
-      .find((element) => element.tagName.toLowerCase() === "text");
-    const title = text?.querySelector("title");
+    const teamTspans = screen.getAllByText((_, element) => {
+      return element?.tagName.toLowerCase() === "tspan" && Boolean(element.textContent);
+    });
+    const teamText = teamTspans
+      .map((node) => node.closest("text"))
+      .find((node) => node?.querySelector("title")?.textContent === teamLabel);
+    const teamTitle = teamText?.querySelector("title");
+    const teamLines = [...(teamText?.querySelectorAll("tspan") ?? [])].map((node) => node.textContent ?? "");
 
-    expect(title).toHaveTextContent(fullLabel);
-    const visible = text?.lastChild?.textContent ?? "";
+    expect(teamText).toBeTruthy();
+    expect(teamTitle).toHaveTextContent(teamLabel);
+    expect(teamText).toHaveAttribute("pointer-events", "auto");
+    expect(teamLines.join(" ")).toBe(teamLabel);
+    expect(teamLines.some((line) => line.includes("…"))).toBe(false);
 
-    expect(visible.endsWith("…")).toBe(true);
-    expect(visible.length).toBeLessThan(fullLabel.length);
-    expect(fullLabel.startsWith(visible.slice(0, -1))).toBe(true);
-    // Word-boundary cut: the first dropped character is a space, so no word
-    // is severed mid-glyph the way the viewBox edge hard-clip did (D9).
-    expect(fullLabel[visible.length - 1]).toBe(" ");
-
-    // Labels that fit keep rendering in full, without a redundant title.
-    const fitting = screen.getByText("Retention");
-    expect(fitting.querySelector("title")).not.toBeInTheDocument();
-    expect(fitting.textContent).toBe("Retention");
+    const operatorTspan = screen.getByText(operatorLabel, { selector: "tspan" });
+    const operatorText = operatorTspan.closest("text");
+    expect(operatorText?.querySelector("title")).toHaveTextContent(operatorLabel);
+    expect(operatorText).toHaveAttribute("pointer-events", "auto");
+    expect(operatorTspan).toHaveTextContent(operatorLabel);
+    expect(operatorText?.textContent).not.toMatch(/Тимофе…/);
   });
 
   it("all Task 6 SVG roots are aria-hidden and unfocusable", () => {

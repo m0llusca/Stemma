@@ -60,6 +60,13 @@ it("owns queue structure without caller-supplied layout classes", () => {
   ]) {
     expect(container.querySelector(`[data-slot="${slot}"]`)).toBeInTheDocument();
   }
+
+  const list = container.querySelector('[data-slot="review-queue-list"]');
+  const preview = container.querySelector('[data-slot="review-queue-preview"]');
+  expect(list?.compareDocumentPosition(preview!)).toBe(Node.DOCUMENT_POSITION_PRECEDING);
+  expect(container.querySelector('[data-slot="review-queue-workspace"]')?.className).not.toContain(
+    "xl:grid-cols-"
+  );
 });
 
 it("server-renders every route region under one workspace owner", () => {

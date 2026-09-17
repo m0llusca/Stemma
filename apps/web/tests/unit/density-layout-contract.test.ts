@@ -51,9 +51,16 @@ describe("density layout contract (#166)", () => {
     const page = src("app/self-review/page.tsx");
 
     expect(page).toContain("Accordion");
-    expect(page).toContain("keepMounted={false}");
+    expect(page).toContain("hiddenUntilFound");
     expect(page).toContain("multiple={false}");
     expect(page).toContain("defaultValue={[actionConversations[0].id]}");
+    expect(page).not.toContain("keepMounted={false}");
+    expect(page).toContain("<AccordionTrigger");
+    expect(page).toContain("{conversation.subject}");
+    expect(page).not.toMatch(/CardTitle[\s\S]{0,240}<Link/);
+    expect(page).not.toMatch(/<AccordionTrigger[\s\S]{0,800}<Link/);
+    expect(page).toContain("Открыть");
+    expect(page).toContain("`/reviews/${conversation.id}`");
   });
 
   it("queue SLA/OTRS chrome is collapsed and rows stay compact", () => {
@@ -61,12 +68,37 @@ describe("density layout contract (#166)", () => {
     const filtersHelp = src("components/review/queue-advanced-filters.tsx");
     const table = src("components/review/queue-table.tsx");
     const workspace = src("components/review/queue-workspace.tsx");
+    const day1 = src("components/guidance/queue-day1-tour.tsx");
 
     expect(preview).not.toContain("h-full");
     expect(filtersHelp).toContain('className="sr-only"');
     expect(table).toContain("h-auto py-1.5");
     expect(workspace).toContain("gap-(--section-gap)");
-    expect(workspace).toContain("items-start");
+    expect(workspace).toContain("flex-col");
+    expect(workspace).not.toContain("xl:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)]");
+    expect(workspace).not.toContain("xl:grid-cols-[1fr_22rem]");
+    expect(day1).toContain("SLA и OTRS");
+    expect(day1).toContain("items-center");
+    expect(day1).toContain("py-1.5");
+    expect(day1).toContain("AlertDescription");
+    expect(day1).not.toContain("AlertTitle");
+    expect(day1).toContain("Info");
+  });
+
+  it("review board packs toggle from the title and keep closed copy in the DOM", () => {
+    const disclosure = src("components/review/review-disclosure.tsx");
+
+    expect(disclosure).toContain("aria-expanded={expanded ? \"true\" : \"false\"}");
+    expect(disclosure).toContain("data-slot=\"review-disclosure-trigger\"");
+    expect(disclosure).toContain("data-slot=\"review-disclosure-panel\"");
+    expect(disclosure).toContain("{children}");
+    expect(disclosure).toContain("onClick={(event) => {");
+
+    const panel = src("components/review/review-panel.tsx");
+    expect(panel).toContain("<StepHeader number={number} title={title} detail={detail} />");
+    expect(panel).toContain("<h4 className=\"text-sm font-semibold text-foreground\">{title}</h4>");
+    expect(panel).not.toMatch(/href=\{`\/reviews\//);
+    expect(panel).not.toMatch(/<StepHeader[\s\S]{0,240}<Link/);
   });
 
   it("topbar and admin frame honor density tokens", () => {

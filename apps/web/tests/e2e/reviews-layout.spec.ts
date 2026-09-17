@@ -4,12 +4,7 @@ import { prisma } from "@/lib/db";
 import { findSeededDemoAdmin, signInE2EUser } from "./helpers/auth";
 import { expectNoDocumentOverflow, rect } from "./helpers/layout";
 
-const queueCases = [
-  { width: 390, sideBySide: false },
-  { width: 768, sideBySide: false },
-  { width: 1280, sideBySide: true },
-  { width: 1440, sideBySide: true }
-] as const;
+const queueCases = [390, 768, 1280, 1440] as const;
 
 const seededLongMessageBody =
   "Помогу разобраться. Заказ еще в пути, поэтому сегодня можем предложить бонусный кредит или оформить возврат после подтверждения перевозчика.";
@@ -72,9 +67,9 @@ test.beforeEach(() => {
   execFileSync("npm", ["run", "db:seed"], { cwd: process.cwd(), stdio: "inherit" });
 });
 
-for (const scenario of queueCases) {
-  test(`queue geometry at ${scenario.width}px`, async ({ page, context }) => {
-    await page.setViewportSize({ width: scenario.width, height: 900 });
+for (const width of queueCases) {
+  test(`queue geometry at ${width}px`, async ({ page, context }) => {
+    await page.setViewportSize({ width, height: 900 });
     const admin = await findSeededDemoAdmin();
     await signInE2EUser(context, admin, "reviews-layout");
     await page.goto("/reviews");
@@ -92,8 +87,18 @@ for (const scenario of queueCases) {
       page.locator('[data-slot="queue-next-case-preview"]').getByRole("button", { name: "Взять следующий" })
     ).toHaveCount(0);
     await expect(page.getByLabel("Фильтры и виды очереди")).toBeVisible();
-    const [listBox, previewBox] = await Promise.all([rect(list), rect(preview)]);
-    expect(Math.abs(listBox.y - previewBox.y) < 8).toBe(scenario.sideBySide);
+    const [workspaceBox, listBox, previewBox] = await Promise.all([
+      rect(workspace),
+      rect(list),
+      rect(preview)
+    ]);
+    expect(previewBox.y).toBeLessThan(listBox.y);
+    expect(Math.abs(listBox.x - previewBox.x)).toBeLessThan(8);
+    expect(listBox.width).toBeGreaterThan(workspaceBox.width * 0.85);
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    const [scrolledList, scrolledPreview] = await Promise.all([rect(list), rect(preview)]);
+    expect(Math.abs(scrolledList.x - scrolledPreview.x)).toBeLessThan(8);
+    expect(scrolledList.width).toBeGreaterThan(workspaceBox.width * 0.85);
     await expectNoDocumentOverflow(page);
   });
 }

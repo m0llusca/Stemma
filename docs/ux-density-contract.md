@@ -1,6 +1,6 @@
 # UX-контракт: плотность экранов
 
-Locked. Tip **`dca6c00`** (squash [#167](https://github.com/m0llusca/Stemma/pull/167) / [#166](https://github.com/m0llusca/Stemma/issues/166)). PR tip был `be7776e`. LIVE bailey, login 200.
+Locked density chrome: **`dca6c00`** ([#167](https://github.com/m0llusca/Stemma/pull/167) / [#166](https://github.com/m0llusca/Stemma/issues/166)). Soft residuals + Jamal gate: **`c2d81dc`** ([#169](https://github.com/m0llusca/Stemma/issues/169) / [#170](https://github.com/m0llusca/Stemma/pull/170)). LIVE: https://hospital-studies-width-martha.trycloudflare.com.
 
 Appearance density доходит до page chrome. Пустые слоты не растягивают экран. Менять ритм PageShell / Card / Empty / графиков — только явным продуктовым решением. Тихий дрейф запрещён.
 
@@ -54,35 +54,39 @@ Appearance density доходит до page chrome. Пустые слоты не
 Пакы — accordion.
 
 - Один открытый по умолчанию: `defaultValue={[actionConversations[0].id]}`, `multiple={false}`.
-- `keepMounted={false}`: закрытые паки не красят ~26k px.
-- Гейт: высота вкладки ~3k с одним открытым, не со всеми.
+- `hiddenUntilFound`: закрытые паки остаются в DOM (`hidden="until-found"`) для find-in-page и не красят ~26k px. Не раскрывать все паки.
+- Тема/subject — `AccordionTrigger`. Клик по теме **только** раскрывает/сворачивает (не только шеврон). Не вести на `/reviews/…`. Полный кейс — отдельная кнопка «Открыть» в теле пака. `aria-expanded` совпадает с open.
+- Гейт: высота вкладки ~3k с одним открытым, не со всеми. Не раскрывать все паки.
+
+Доска разбора (`ReviewDisclosure`): клик по заголовку/subject — тот же trigger, что и шеврон. `aria-expanded` = `open`. Закрытая панель остаётся в DOM (визуально скрыта native `details`) — find-in-page без keepMounted/~26k.
 
 История: тот же accordion, без default open.
 
 ## Очередь `/reviews`
 
-- Next-case preview: без `h-full`. Правая колонка не растягивается. **«Взять следующий»** один раз — в шапке страницы, не в preview.
-- SLA/OTRS helper фильтров: `sr-only`.
+- Next-case preview: без `h-full`. Preview над таблицей на всю ширину — без правой колонки и дыры после скролла. Строки не сжимаются в искусственно узкую колонку. **«Взять следующий»** один раз — в шапке страницы, не в preview.
+- SLA/OTRS helper фильтров: `sr-only` на повторных визитах. Первый визит — компактный info-баннер в один ряд: иконка + короткий текст + dismiss. Не `AlertTitle` / не карточка на полэкрана. Условия показа не менять.
 - Строки таблицы: две линии, `h-auto py-1.5`.
-- Workspace: `gap-(--section-gap)`, `items-start`.
+- Workspace: `gap-(--section-gap)`, main — `flex-col`.
 
 ## Chrome / truncate
 
 - Роль в topbar: wrap + `title=`. Не `max-w-36` clip длинных имён («Руководитель контроля качества»).
 - `title=` на truncate: поиск, dashboard, calibration, coaching, reports, system jobs.
+- `/reports` «Факторы изменения»: шире левый gutter (`RANKED_DRIVER_VIEWBOX` left 168 / width 520), `wrapSvgLabel` до 2 строк, SVG `<title>` + `pointer-events: auto`. Нет `Тимофе…` без полного имени (title/tooltip).
 - Admin hub: title + badge truncate с `title=`.
 - **«Нагрузка проверяющих»:** сетка 3 колонки (Проверяющий / Очередь / В работе), без горизонтального скролла Table.
 
 ## Soft — не закрыто
 
-Не блокер `dca6c00`. Не писать PASS / closed.
+Не писать PASS / closed на том, что ещё в столе.
 
 | Остаток | Статус |
 | --- | --- |
-| Day1 Alert **«SLA и OTRS»** на первом визите очереди | Жирный (ДеШон). Helper фильтров уже `sr-only`; сам Alert — follow-up |
-| Accordion a11y | Клик по теме может не раскрыть (trigger — шеврон; тема — ссылка в проверку). Find-in-page пустой на закрытых паках (`keepMounted={false}`) |
-| `/reviews` после скролла | Таблица слева, дыра справа |
-| `/reports` оси | Ellipsis без `title=` |
+| Day1 **«SLA и OTRS»** | Закрыто в #169: компактный Alert один ряд (Info + текст + dismiss); повторные — `sr-only` helper фильтров |
+| Accordion a11y | Закрыто в #169: тема = trigger; `aria-expanded` = open; `hiddenUntilFound` на self-review; доска — `ReviewDisclosure` (title click, панель в DOM) |
+| `/reviews` после скролла | Закрыто в #169: preview над таблицей, без правой колонки / дыры |
+| `/reports` оси | Закрыто в #169: шире gutter + wrap + SVG `<title>` |
 | Критерии / таймлайн | Вертикальный bloat не трогали: `--interactive-min-size` + #164 |
 | Пустые графики | Не изобретать точки |
 

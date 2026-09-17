@@ -444,7 +444,36 @@ describe("Task 6 shared plot geometry", () => {
     );
 
     expect(quality).toMatchObject({ width: 720, height: 280 });
-    expect(ranked).toMatchObject({ width: 440, zeroX: 263 });
+    expect(ranked).toMatchObject({ width: 520, zeroX: 335 });
+  });
+});
+
+describe("wrapSvgLabel", () => {
+  it("keeps operator names that fit the widened ranked-driver gutter", () => {
+    const name = "Тимофей Нестеров";
+    const maxWidth = geometry.RANKED_DRIVER_VIEWBOX.margin.left - 8 - 4;
+    const wrapped = geometry.wrapSvgLabel(name, maxWidth);
+
+    expect(maxWidth).toBe(156);
+    expect(wrapped).toEqual({ lines: [name], truncated: false });
+  });
+
+  it("wraps a long team label onto two lines instead of cutting a name mid-glyph", () => {
+    const label = "ФГИС и государственные сервисы";
+    const wrapped = geometry.wrapSvgLabel(label, 156);
+
+    expect(wrapped.truncated).toBe(false);
+    expect(wrapped.lines).toHaveLength(2);
+    expect(wrapped.lines.join(" ")).toBe(label);
+    expect(wrapped.lines.every((line) => !line.includes("…"))).toBe(true);
+  });
+
+  it("ellipses an unspaced token on the last line and marks it truncated", () => {
+    const wrapped = geometry.wrapSvgLabel("Супердлинноебеспробельноеимяоператора", 92);
+
+    expect(wrapped.truncated).toBe(true);
+    expect(wrapped.lines).toHaveLength(1);
+    expect(wrapped.lines[0]?.endsWith("…")).toBe(true);
   });
 });
 
