@@ -52,7 +52,6 @@ import { createCoachingPlanState, updateCoachingPlanStatusState } from "@/lib/co
 import { filterCoachingPlansForAgent, listCoachingPlans } from "@/lib/coaching-plan";
 import { groupCoachingThemesByAgent } from "@/lib/coaching-themes";
 import {
-  COACHING_PLANS_AGENT_EMPTY_BODY,
   coachingInWorkKpiHint,
   coachingOverdueKpiHint,
   coachingPlansEmptyDescription,
@@ -917,8 +916,8 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
         </div>
       ) : null}
 
-      <Card aria-label="Планы коучинга">
-        <CardHeader className="border-b">
+      <Card aria-label="Планы коучинга" size={operatorHome && coachingPlans.length === 0 ? "sm" : "default"}>
+        <CardHeader className={operatorHome && coachingPlans.length === 0 ? undefined : "border-b"}>
           <CardTitle>Планы коучинга</CardTitle>
           <CardDescription>
             {coachingPlans.length > 0
@@ -927,8 +926,8 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                 : `Ваши планы развития. Активных: ${activePlanCount}.`
               : coachingPlansEmptyDescription(user.role)}
           </CardDescription>
-          <CardAction>
-            {canManageCoachingOps ? (
+          {canManageCoachingOps ? (
+            <CardAction>
               <Button
                 variant={createPlanOpen ? "outline" : "default"}
                 size="sm"
@@ -938,10 +937,11 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                 {createPlanOpen ? <X data-icon="inline-start" aria-hidden="true" /> : <Target data-icon="inline-start" aria-hidden="true" />}
                 {createPlanOpen ? "Скрыть форму" : "Новый план"}
               </Button>
-            ) : null}
-          </CardAction>
+            </CardAction>
+          ) : null}
         </CardHeader>
 
+        {operatorHome && coachingPlans.length === 0 ? null : (
         <CardContent className="flex flex-col gap-4">
           {canManageCoachingOps && createPlanOpen ? (
             <ToastActionForm
@@ -1137,8 +1137,6 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                 );
               })}
             </ul>
-          ) : operatorHome ? (
-            <p className="text-sm text-muted-foreground">{COACHING_PLANS_AGENT_EMPTY_BODY}</p>
           ) : (
             <EmptyState
               size="inline"
@@ -1154,6 +1152,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
             />
           )}
         </CardContent>
+        )}
       </Card>
 
       {canManageCoachingOps && createTaskOpen ? (

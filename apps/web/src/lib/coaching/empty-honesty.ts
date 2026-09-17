@@ -21,9 +21,6 @@ export const COACHING_PLANS_AGENT_EMPTY_DESCRIPTION =
 export const COACHING_PLANS_LEAD_EMPTY_DESCRIPTION =
   "Сгруппируйте разборы оператора под одной темой развития и отслеживайте прогресс.";
 
-export const COACHING_PLANS_AGENT_EMPTY_BODY =
-  "Когда тимлид назначит план развития, он появится здесь.";
-
 export function coachingPlansEmptyDescription(role: RoleName): string {
   return isCoachingOperatorHome(role)
     ? COACHING_PLANS_AGENT_EMPTY_DESCRIPTION

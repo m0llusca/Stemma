@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
-  COACHING_PLANS_AGENT_EMPTY_BODY,
   COACHING_PLANS_AGENT_EMPTY_DESCRIPTION,
   COACHING_PLANS_LEAD_EMPTY_DESCRIPTION,
   coachingInWorkKpiHint,
@@ -40,7 +39,8 @@ describe("coaching operator plans empty", () => {
     expect(coachingPlansEmptyDescription("SUPPORT_AGENT")).not.toContain("Сгруппируйте разборы оператора");
     expect(coachingPlansEmptyDescription("TEAM_LEAD")).toBe(COACHING_PLANS_LEAD_EMPTY_DESCRIPTION);
     expect(coachingPlansEmptyDescription("ADMIN")).toBe(COACHING_PLANS_LEAD_EMPTY_DESCRIPTION);
-    expect(COACHING_PLANS_AGENT_EMPTY_BODY).toContain("тимлид назначит план");
+    expect(COACHING_PLANS_AGENT_EMPTY_DESCRIPTION).toContain("появятся планы");
+    expect(COACHING_PLANS_LEAD_EMPTY_DESCRIPTION).toContain("Сгруппируйте разборы оператора");
   });
 });
 
@@ -56,7 +56,8 @@ describe("coaching empty honesty adversarial", () => {
 
   it("wires operator plans empty through role-aware helper, not a lead-only string", () => {
     expect(page).toContain("coachingPlansEmptyDescription(user.role)");
-    expect(page).toContain("COACHING_PLANS_AGENT_EMPTY_BODY");
+    expect(page).toContain("operatorHome && coachingPlans.length === 0");
+    expect(page).not.toContain("COACHING_PLANS_AGENT_EMPTY_BODY");
     expect(page).not.toMatch(
       /coachingPlans\.length > 0\s*\?[\s\S]{0,200}Сгруппируйте разборы оператора/
     );
