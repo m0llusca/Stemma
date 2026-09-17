@@ -196,8 +196,12 @@ describe("ReviewDisclosure native details", () => {
     expect(trigger.contains(inner)).toBe(true);
     expectOpenAndAria(trigger, true);
 
+    const pathBefore = window.location.pathname;
     fireEvent.click(inner);
     expectOpenAndAria(trigger, false);
+    expect(trigger.closest("a")).toBeNull();
+    expect(window.location.pathname).toBe(pathBefore);
+    expect(window.location.pathname).not.toMatch(/\/reviews\//);
 
     fireEvent.click(screen.getByTestId("inner-chevron"));
     expectOpenAndAria(trigger, true);

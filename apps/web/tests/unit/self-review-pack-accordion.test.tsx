@@ -12,15 +12,21 @@ function PackAccordion() {
   return (
     <Accordion defaultValue={["open-pack"]} multiple={false} hiddenUntilFound className="gap-3">
       <AccordionItem value="open-pack">
-        <AccordionTrigger aria-label="Разбор: Открытый пак">Открытый пак</AccordionTrigger>
+        <AccordionTrigger aria-label="Разбор: Открытый пак">
+          <span title="Открытый пак">Открытый пак</span>
+        </AccordionTrigger>
         <AccordionContent>
           <p>Цитата открытого пака про маршрутизацию</p>
+          <a href="/reviews/open-pack">Открыть</a>
         </AccordionContent>
       </AccordionItem>
       <AccordionItem value="closed-pack">
-        <AccordionTrigger aria-label="Разбор: Закрытый пак">Закрытый пак</AccordionTrigger>
+        <AccordionTrigger aria-label="Разбор: Закрытый пак">
+          <span title="Закрытый пак">Закрытый пак</span>
+        </AccordionTrigger>
         <AccordionContent>
           <p>Цитата закрытого пака про компенсацию</p>
+          <a href="/reviews/closed-pack">Открыть</a>
         </AccordionContent>
       </AccordionItem>
     </Accordion>
@@ -43,12 +49,19 @@ describe("self-review pack accordion a11y", () => {
     expect(closedTrigger).toHaveAttribute("aria-expanded", "false");
     expect(screen.getByText("Цитата открытого пака про маршрутизацию")).toBeVisible();
 
+    expect(screen.queryByRole("link", { name: "Открытый пак" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Закрытый пак" })).not.toBeInTheDocument();
+
+    const pathBefore = window.location.pathname;
     act(() => {
-      fireEvent.click(closedTrigger);
+      fireEvent.click(screen.getByText("Закрытый пак"));
     });
     expect(closedTrigger).toHaveAttribute("aria-expanded", "true");
     expect(openTrigger).toHaveAttribute("aria-expanded", "false");
+    expect(window.location.pathname).toBe(pathBefore);
+    expect(window.location.pathname).not.toMatch(/\/reviews\//);
     expect(screen.getByText("Цитата закрытого пака про компенсацию")).toBeVisible();
+    expect(screen.getByRole("link", { name: "Открыть" })).toHaveAttribute("href", "/reviews/closed-pack");
   });
 
   it("keeps closed pack copy mounted for find-in-page without opening every pack", () => {

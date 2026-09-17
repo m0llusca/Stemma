@@ -93,6 +93,12 @@ describe("density layout contract (#166)", () => {
     expect(disclosure).toContain("data-slot=\"review-disclosure-panel\"");
     expect(disclosure).toContain("{children}");
     expect(disclosure).toContain("onClick={(event) => {");
+
+    const panel = src("components/review/review-panel.tsx");
+    expect(panel).toContain("<StepHeader number={number} title={title} detail={detail} />");
+    expect(panel).toContain("<h4 className=\"text-sm font-semibold text-foreground\">{title}</h4>");
+    expect(panel).not.toMatch(/href=\{`\/reviews\//);
+    expect(panel).not.toMatch(/<StepHeader[\s\S]{0,240}<Link/);
   });
 
   it("topbar and admin frame honor density tokens", () => {
