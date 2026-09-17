@@ -1,6 +1,6 @@
 # UX-контракт: плотность экранов
 
-Locked density chrome: **`dca6c00`** ([#167](https://github.com/m0llusca/Stemma/pull/167) / [#166](https://github.com/m0llusca/Stemma/issues/166)). Soft residuals + Jamal gate: **`c2d81dc`** ([#169](https://github.com/m0llusca/Stemma/issues/169) / [#170](https://github.com/m0llusca/Stemma/pull/170)). LIVE: https://hospital-studies-width-martha.trycloudflare.com.
+Locked density chrome: **`dca6c00`** ([#167](https://github.com/m0llusca/Stemma/pull/167) / [#166](https://github.com/m0llusca/Stemma/issues/166)). Soft package tip **`e325df6`** ([#170](https://github.com/m0llusca/Stemma/pull/170) / [#169](https://github.com/m0llusca/Stemma/issues/169)). LIVE: https://hospital-studies-width-martha.trycloudflare.com.
 
 Appearance density доходит до page chrome. Пустые слоты не растягивают экран. Менять ритм PageShell / Card / Empty / графиков — только явным продуктовым решением. Тихий дрейф запрещён.
 
@@ -77,16 +77,14 @@ Appearance density доходит до page chrome. Пустые слоты не
 - Admin hub: title + badge truncate с `title=`.
 - **«Нагрузка проверяющих»:** сетка 3 колонки (Проверяющий / Очередь / В работе), без горизонтального скролла Table.
 
-## Soft — не закрыто
+## Soft — Закрыто в #169
 
-Не писать PASS / closed на том, что ещё в столе.
+На master **`e325df6`** (#170): Day1 compact; тема = trigger + «Открыть»; preview над таблицей; `/reports` оси/title. Не писать «не закрыто».
+
+Открыто (не блокер):
 
 | Остаток | Статус |
 | --- | --- |
-| Day1 **«SLA и OTRS»** | Закрыто в #169: компактный Alert один ряд (Info + текст + dismiss); повторные — `sr-only` helper фильтров |
-| Accordion a11y | Закрыто в #169: тема = trigger; `aria-expanded` = open; `hiddenUntilFound` на self-review; доска — `ReviewDisclosure` (title click, панель в DOM) |
-| `/reviews` после скролла | Закрыто в #169: preview над таблицей, без правой колонки / дыры |
-| `/reports` оси | Закрыто в #169: шире gutter + wrap + SVG `<title>` |
 | Критерии / таймлайн | Вертикальный bloat не трогали: `--interactive-min-size` + #164 |
 | Пустые графики | Не изобретать точки |
 

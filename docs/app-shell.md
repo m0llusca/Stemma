@@ -2,7 +2,7 @@
 
 Authenticated Stemma routes should render a lightweight shell before expensive page data resolves. The shell owns stable chrome: sidebar navigation, topbar, workspace branding, user identity, theme, density, and locale affordances.
 
-Appearance density reaches PageShell and loading chrome via `--section-gap` / `--page-shell-padding` (topbar: `--app-topbar-inline`). Role label in chrome wraps with `title=` — do not clip long names with `max-w-36`. Lead/Admin **«Нагрузка проверяющих»** is a 3-column grid, no horizontal table scroll. Agent `/self-review` packs are an accordion: one open by default, subject is the trigger, `hiddenUntilFound` for find-in-page. Full rhythm (Card, Empty, charts, queue rows): [ux-density-contract.md](ux-density-contract.md) (tip `2bb8aed`, #166/#167/#169).
+Appearance density reaches PageShell and loading chrome via `--section-gap` / `--page-shell-padding` (topbar: `--app-topbar-inline`). Role label in chrome wraps with `title=` — do not clip long names with `max-w-36`. Lead/Admin **«Нагрузка проверяющих»** is a 3-column grid, no horizontal table scroll. Agent `/self-review` packs are an accordion: one open by default, subject is the trigger, `hiddenUntilFound` for find-in-page. Full rhythm (Card, Empty, charts, queue rows): [ux-density-contract.md](ux-density-contract.md) (tip `e325df6`, #166/#167/#169/#170).
 
 ## Shell Snapshot
 
