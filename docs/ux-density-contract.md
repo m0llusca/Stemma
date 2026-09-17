@@ -1,6 +1,6 @@
 # UX-контракт: плотность экранов
 
-Locked density chrome: **`dca6c00`** ([#167](https://github.com/m0llusca/Stemma/pull/167) / [#166](https://github.com/m0llusca/Stemma/issues/166)). Soft residuals: **`2bb8aed`** ([#169](https://github.com/m0llusca/Stemma/issues/169) / [#170](https://github.com/m0llusca/Stemma/pull/170)). LIVE bailey — team pass.
+Locked density chrome: **`dca6c00`** ([#167](https://github.com/m0llusca/Stemma/pull/167) / [#166](https://github.com/m0llusca/Stemma/issues/166)). Soft residuals: **#169 / #170** (Marques spec [comment](https://github.com/m0llusca/Stemma/issues/169#issuecomment-5708663908)). LIVE: https://hospital-studies-width-martha.trycloudflare.com.
 
 Appearance density доходит до page chrome. Пустые слоты не растягивают экран. Менять ритм PageShell / Card / Empty / графиков — только явным продуктовым решением. Тихий дрейф запрещён.
 
@@ -55,15 +55,17 @@ Appearance density доходит до page chrome. Пустые слоты не
 
 - Один открытый по умолчанию: `defaultValue={[actionConversations[0].id]}`, `multiple={false}`.
 - `hiddenUntilFound`: закрытые паки остаются в DOM (`hidden="until-found"`) для find-in-page и не красят ~26k px. Не раскрывать все паки.
-- Тема/subject — `AccordionTrigger`. Клик по теме раскрывает/сворачивает. Ссылка в проверку — в теле пака («Открыть»), не в заголовке.
-- Гейт: высота вкладки ~3k с одним открытым, не со всеми.
+- Тема/subject — `AccordionTrigger`. Клик по теме раскрывает/сворачивает (не только шеврон). `aria-expanded` совпадает с open.
+- Гейт: высота вкладки ~3k с одним открытым, не со всеми. Не раскрывать все паки.
+
+Доска разбора (`ReviewDisclosure`): клик по заголовку/subject — тот же trigger, что и шеврон. `aria-expanded` = `open`. Закрытая панель остаётся в DOM (визуально скрыта native `details`) — find-in-page без keepMounted/~26k.
 
 История: тот же accordion, без default open.
 
 ## Очередь `/reviews`
 
-- Next-case preview: без `h-full`. Preview над таблицей на всю ширину — без правой колонки и дыры после скролла. **«Взять следующий»** один раз — в шапке страницы, не в preview.
-- SLA/OTRS helper фильтров: `sr-only` на повторных визитах. Первый визит — компактная однострочная chip, не жирный Alert.
+- Next-case preview: без `h-full`. Preview над таблицей на всю ширину — без правой колонки и дыры после скролла. Строки не сжимаются в искусственно узкую колонку. **«Взять следующий»** один раз — в шапке страницы, не в preview.
+- SLA/OTRS helper фильтров: `sr-only` на повторных визитах. Первый визит — компактный info-баннер в один ряд: иконка + короткий текст + dismiss. Не `AlertTitle` / не карточка на полэкрана. Условия показа не менять.
 - Строки таблицы: две линии, `h-auto py-1.5`.
 - Workspace: `gap-(--section-gap)`, main — `flex-col`.
 
@@ -71,7 +73,7 @@ Appearance density доходит до page chrome. Пустые слоты не
 
 - Роль в topbar: wrap + `title=`. Не `max-w-36` clip длинных имён («Руководитель контроля качества»).
 - `title=` на truncate: поиск, dashboard, calibration, coaching, reports, system jobs.
-- `/reports` оси и category labels: `title=` на tick (SVG `<title>` если ellipsis) + `pointer-events: auto`, чтобы hover не блокировался `pointer-events-none` у surface.
+- `/reports` «Факторы изменения»: шире левый gutter (`RANKED_DRIVER_VIEWBOX` left 168 / width 520), `wrapSvgLabel` до 2 строк, SVG `<title>` + `pointer-events: auto`. Нет `Тимофе…` без полного имени (title/tooltip).
 - Admin hub: title + badge truncate с `title=`.
 - **«Нагрузка проверяющих»:** сетка 3 колонки (Проверяющий / Очередь / В работе), без горизонтального скролла Table.
 
@@ -81,10 +83,10 @@ Appearance density доходит до page chrome. Пустые слоты не
 
 | Остаток | Статус |
 | --- | --- |
-| Day1 **«SLA и OTRS»** | Закрыто в #169: однострочный chip на первом визите; повторные — `sr-only` helper фильтров |
-| Accordion a11y | Закрыто в #169: тема = trigger; `hiddenUntilFound` для find-in-page |
-| `/reviews` после скролла | Закрыто в #169: preview над таблицей, без правой колонки |
-| `/reports` оси | Закрыто в #169: `title=` / SVG `<title>` на truncated ticks |
+| Day1 **«SLA и OTRS»** | Закрыто в #169: компактный Alert один ряд (Info + текст + dismiss); повторные — `sr-only` helper фильтров |
+| Accordion a11y | Закрыто в #169: тема = trigger; `aria-expanded` = open; `hiddenUntilFound` на self-review; доска — `ReviewDisclosure` (title click, панель в DOM) |
+| `/reviews` после скролла | Закрыто в #169: preview над таблицей, без правой колонки / дыры |
+| `/reports` оси | Закрыто в #169: шире gutter + wrap + SVG `<title>` |
 | Критерии / таймлайн | Вертикальный bloat не трогали: `--interactive-min-size` + #164 |
 | Пустые графики | Не изобретать точки |
 

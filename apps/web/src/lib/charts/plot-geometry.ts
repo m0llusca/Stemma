@@ -38,8 +38,8 @@ export const QUALITY_TREND_VIEWBOX = Object.freeze({
 export const QUALITY_TREND_VOLUME_HEIGHT_FRACTION = 0.36;
 
 export const RANKED_DRIVER_VIEWBOX = Object.freeze({
-  width: 440,
-  margin: Object.freeze({ top: 10, right: 18, bottom: 28, left: 104 })
+  width: 520,
+  margin: Object.freeze({ top: 10, right: 18, bottom: 28, left: 168 })
 });
 
 export const SVG_CATEGORY_LABEL_FONT_SIZE = 11;
@@ -98,6 +98,81 @@ export function fitSvgLabel(
   }
 
   return { text: `${kept.trimEnd()}…`, truncated: true };
+}
+
+export type WrappedSvgLabel = Readonly<{
+  lines: readonly string[];
+  truncated: boolean;
+}>;
+
+/**
+ * Packs a category label into up to `maxLines` rows that each fit `maxWidth`.
+ * A leftover last line still goes through `fitSvgLabel` so a long unspaced
+ * token (or leftover words) never hard-clips; callers always expose the
+ * full label via SVG `<title>`.
+ */
+export function wrapSvgLabel(
+  label: string,
+  maxWidth: number,
+  fontSize = SVG_CATEGORY_LABEL_FONT_SIZE,
+  maxLines = 2
+): WrappedSvgLabel {
+  if (maxWidth <= 0 || maxLines <= 0) {
+    return { lines: ["…"], truncated: true };
+  }
+
+  if (estimateSvgLabelWidth(label, fontSize) <= maxWidth) {
+    return { lines: [label], truncated: false };
+  }
+
+  const words = label.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) {
+    return { lines: [label], truncated: false };
+  }
+
+  const lines: string[] = [];
+  let index = 0;
+
+  while (index < words.length && lines.length < maxLines) {
+    const remaining = words.slice(index).join(" ");
+    const isLastLine = lines.length === maxLines - 1;
+
+    if (estimateSvgLabelWidth(remaining, fontSize) <= maxWidth) {
+      lines.push(remaining);
+      return { lines, truncated: false };
+    }
+
+    if (isLastLine) {
+      const fitted = fitSvgLabel(remaining, maxWidth, fontSize);
+      lines.push(fitted.text);
+      return { lines, truncated: true };
+    }
+
+    let packed = "";
+    let take = 0;
+    while (index + take < words.length) {
+      const next = packed ? `${packed} ${words[index + take]}` : words[index + take]!;
+      if (estimateSvgLabelWidth(next, fontSize) > maxWidth) {
+        break;
+      }
+      packed = next;
+      take += 1;
+    }
+
+    if (take === 0) {
+      const fitted = fitSvgLabel(words[index]!, maxWidth, fontSize);
+      lines.push(fitted.text);
+      return { lines, truncated: true };
+    }
+
+    lines.push(packed);
+    index += take;
+  }
+
+  return {
+    lines: lines.length > 0 ? lines : ["…"],
+    truncated: index < words.length
+  };
 }
 
 export const SCORE_DISTRIBUTION_VIEWBOX = Object.freeze({

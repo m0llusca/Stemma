@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { Info, X } from "lucide-react";
 
+import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Chip } from "@/components/ui/chip";
 import {
   DAY1_TOUR_DISMISS_STORAGE_KEY,
   isDay1TourDismissed,
@@ -16,7 +16,7 @@ type QueueDay1TourProps = {
   className?: string;
 };
 
-const DAY1_GLOSSARY_LINE = "SLA — контрольный срок проверки. OTRS — типичный helpdesk-источник.";
+const DAY1_GLOSSARY_LINE = "контрольный срок проверки и типичный helpdesk-источник.";
 
 function readDismissed(): boolean {
   try {
@@ -35,7 +35,7 @@ function writeDismissed() {
 }
 
 /**
- * Day-1 SLA/OTRS glossary — one compact dismissible chip, not a fat banner.
+ * Day-1 SLA/OTRS glossary — one compact info row (icon + text + dismiss).
  * After dismiss, later visits keep the filters `sr-only` helper only.
  * Skipped while welcome-back is eligible so returners are not double-nudged.
  */
@@ -60,24 +60,26 @@ export function QueueDay1Tour({ className }: QueueDay1TourProps) {
   }
 
   return (
-    <div
+    <Alert
       role="region"
       aria-label="Подсказки очереди"
       data-slot="queue-day1-glossary"
       className={cn(
-        "flex min-w-0 items-center gap-2 rounded-md border border-border bg-card px-2 py-1 text-xs text-card-foreground",
+        "has-[>svg]:grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 py-1.5 *:[svg]:row-span-1 *:[svg]:translate-y-0 has-data-[slot=alert-action]:pr-2",
         className
       )}
     >
-      <Chip size="xs" tone="neutral">
-        SLA и OTRS
-      </Chip>
-      <p className="min-w-0 flex-1 text-pretty text-muted-foreground" title={DAY1_GLOSSARY_LINE}>
+      <Info aria-hidden="true" />
+      <AlertDescription className="text-xs leading-snug">
+        <span className="font-medium text-foreground">SLA и OTRS</span>
+        {" — "}
         {DAY1_GLOSSARY_LINE}
-      </p>
-      <Button type="button" variant="ghost" size="icon-xs" onClick={dismiss} aria-label="Скрыть подсказки">
-        <X aria-hidden="true" />
-      </Button>
-    </div>
+      </AlertDescription>
+      <AlertAction className="static inset-auto">
+        <Button type="button" variant="ghost" size="icon-xs" onClick={dismiss} aria-label="Скрыть подсказки">
+          <X aria-hidden="true" />
+        </Button>
+      </AlertAction>
+    </Alert>
   );
 }

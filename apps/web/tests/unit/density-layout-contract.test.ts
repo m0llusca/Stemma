@@ -73,9 +73,23 @@ describe("density layout contract (#166)", () => {
     expect(workspace).toContain("gap-(--section-gap)");
     expect(workspace).toContain("flex-col");
     expect(workspace).not.toContain("xl:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)]");
+    expect(workspace).not.toContain("xl:grid-cols-[1fr_22rem]");
     expect(day1).toContain("SLA и OTRS");
     expect(day1).toContain("items-center");
+    expect(day1).toContain("py-1.5");
+    expect(day1).toContain("AlertDescription");
     expect(day1).not.toContain("AlertTitle");
+    expect(day1).toContain("Info");
+  });
+
+  it("review board packs toggle from the title and keep closed copy in the DOM", () => {
+    const disclosure = src("components/review/review-disclosure.tsx");
+
+    expect(disclosure).toContain("aria-expanded={expanded ? \"true\" : \"false\"}");
+    expect(disclosure).toContain("data-slot=\"review-disclosure-trigger\"");
+    expect(disclosure).toContain("data-slot=\"review-disclosure-panel\"");
+    expect(disclosure).toContain("{children}");
+    expect(disclosure).toContain("onClick={(event) => {");
   });
 
   it("topbar and admin frame honor density tokens", () => {

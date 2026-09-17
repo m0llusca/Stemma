@@ -25,7 +25,7 @@ import {
   buildReasonTrendGeometry,
   buildScoreDistributionGeometry,
   buildRankedDriverGeometry,
-  fitSvgLabel,
+  wrapSvgLabel,
   planXAxisTickIndexes
 } from "@/lib/charts/plot-geometry";
 
@@ -131,13 +131,15 @@ function AxisCategoryTick({
   fill?: string;
   slot?: string;
 }) {
-  const fitted =
-    maxWidth == null ? { text: label, truncated: false } : fitSvgLabel(label, maxWidth, fontSize);
+  const wrapped =
+    maxWidth == null ? { lines: [label], truncated: false } : wrapSvgLabel(label, maxWidth, fontSize);
+  const lineHeight = fontSize + 2;
+  const startY = wrapped.lines.length > 1 ? y - ((wrapped.lines.length - 1) * lineHeight) / 2 : y;
 
   return (
     <text
       x={x}
-      y={y}
+      y={startY}
       textAnchor={textAnchor}
       fill={fill}
       fontSize={fontSize}
@@ -145,7 +147,11 @@ function AxisCategoryTick({
       pointerEvents="auto"
     >
       <title>{label}</title>
-      {fitted.text}
+      {wrapped.lines.map((line, index) => (
+        <tspan key={`${index}:${line}`} x={x} dy={index === 0 ? 0 : lineHeight}>
+          {line}
+        </tspan>
+      ))}
     </text>
   );
 }
@@ -408,7 +414,7 @@ export function RankedDriverVisual({
       config={driverConfig}
       className="w-full"
       style={{ height }}
-      initialDimension={{ width: 440, height }}
+      initialDimension={{ width, height }}
     >
       <svg
         aria-hidden="true"

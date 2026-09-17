@@ -30,8 +30,11 @@ describe("QueueDay1Tour", () => {
     expect(screen.getByText(/типичный helpdesk-источник/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Далее" })).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: /Обзор очереди/ })).not.toBeInTheDocument();
-    expect(region.querySelector('[data-slot="alert"]')).toBeNull();
+    expect(region).toHaveAttribute("data-slot", "queue-day1-glossary");
+    expect(region.querySelector('[data-slot="alert-title"]')).toBeNull();
+    expect(region.querySelector('[data-slot="alert-description"]')).not.toBeNull();
     expect(region.className).toContain("items-center");
+    expect(region.className).toContain("py-1.5");
 
     expect(screen.queryByRole("button", { name: "Понятно" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Скрыть подсказки" }));
