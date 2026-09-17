@@ -74,7 +74,7 @@ describe("density layout contract (#166)", () => {
     expect(workspace).toContain("flex-col");
     expect(workspace).not.toContain("xl:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)]");
     expect(day1).toContain("SLA и OTRS");
-    expect(day1).toContain('className="sr-only"');
+    expect(day1).toContain("items-center");
     expect(day1).not.toContain("AlertTitle");
   });
 

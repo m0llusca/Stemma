@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import {
   Accordion,
@@ -29,7 +29,9 @@ function PackAccordion() {
 
 describe("self-review pack accordion a11y", () => {
   it("expands and collapses when the subject is clicked", () => {
-    render(<PackAccordion />);
+    act(() => {
+      render(<PackAccordion />);
+    });
 
     const openTrigger = screen.getByRole("button", { name: "Разбор: Открытый пак" });
     const closedTrigger = screen.getByRole("button", { name: "Разбор: Закрытый пак" });
@@ -38,14 +40,18 @@ describe("self-review pack accordion a11y", () => {
     expect(closedTrigger).toHaveAttribute("aria-expanded", "false");
     expect(screen.getByText("Цитата открытого пака про маршрутизацию")).toBeVisible();
 
-    fireEvent.click(closedTrigger);
+    act(() => {
+      fireEvent.click(closedTrigger);
+    });
     expect(closedTrigger).toHaveAttribute("aria-expanded", "true");
     expect(openTrigger).toHaveAttribute("aria-expanded", "false");
     expect(screen.getByText("Цитата закрытого пака про компенсацию")).toBeVisible();
   });
 
   it("keeps closed pack copy mounted for find-in-page without opening every pack", () => {
-    render(<PackAccordion />);
+    act(() => {
+      render(<PackAccordion />);
+    });
 
     const closedCopy = screen.getByText("Цитата закрытого пака про компенсацию");
     const closedPanel = closedCopy.closest("[hidden]");

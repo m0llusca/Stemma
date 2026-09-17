@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 
-import { QUEUE_GLOSSARY } from "@/components/guidance/queue-glossary";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import {
@@ -75,9 +74,6 @@ export function QueueDay1Tour({ className }: QueueDay1TourProps) {
       </Chip>
       <p className="min-w-0 flex-1 text-pretty text-muted-foreground" title={DAY1_GLOSSARY_LINE}>
         {DAY1_GLOSSARY_LINE}
-      </p>
-      <p className="sr-only">
-        {QUEUE_GLOSSARY.sla.content} {QUEUE_GLOSSARY.otrs.content}
       </p>
       <Button type="button" variant="ghost" size="icon-xs" onClick={dismiss} aria-label="Скрыть подсказки">
         <X aria-hidden="true" />

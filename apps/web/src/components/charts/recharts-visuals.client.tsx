@@ -143,9 +143,8 @@ function AxisCategoryTick({
       fontSize={fontSize}
       data-slot={slot}
       pointerEvents="auto"
-      title={label}
     >
-      {fitted.truncated ? <title>{label}</title> : null}
+      <title>{label}</title>
       {fitted.text}
     </text>
   );

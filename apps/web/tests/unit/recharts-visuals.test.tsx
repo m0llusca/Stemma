@@ -551,7 +551,6 @@ describe("lean Recharts visuals", () => {
     const title = text?.querySelector("title");
 
     expect(title).toHaveTextContent(fullLabel);
-    expect(text).toHaveAttribute("title", fullLabel);
     expect(text).toHaveAttribute("pointer-events", "auto");
     const visible = text?.lastChild?.textContent ?? "";
 
@@ -563,10 +562,12 @@ describe("lean Recharts visuals", () => {
     expect(fullLabel[visible.length - 1]).toBe(" ");
 
     // Labels that fit keep rendering in full, without a redundant title.
-    const fitting = screen.getByText("Retention");
-    expect(fitting.querySelector("title")).not.toBeInTheDocument();
-    expect(fitting).toHaveAttribute("title", "Retention");
-    expect(fitting.textContent).toBe("Retention");
+    const fitting = screen
+      .getAllByText("Retention")
+      .find((element) => element.tagName.toLowerCase() === "text");
+    expect(fitting?.querySelector("title")).toHaveTextContent("Retention");
+    expect(fitting).toHaveAttribute("pointer-events", "auto");
+    expect(fitting?.lastChild?.textContent).toBe("Retention");
   });
 
   it("all Task 6 SVG roots are aria-hidden and unfocusable", () => {
