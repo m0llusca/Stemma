@@ -320,7 +320,7 @@ export function DriverChainCard({ items }: { items: DriverChainItem[] }) {
   }
 
   return (
-    <Card data-slot="report-driver-chain" aria-labelledby="analytics-movement-title" className="h-fit gap-0 py-0">
+    <Card data-slot="report-driver-chain" aria-labelledby="analytics-movement-title" size="sm" className="h-fit gap-0 py-0">
       <CardHeader className="border-b py-3">
         <CardDescription className="text-xs font-semibold uppercase tracking-wider">
           Цепочка драйверов
@@ -330,7 +330,7 @@ export function DriverChainCard({ items }: { items: DriverChainItem[] }) {
           Слабейшие срезы и следующее проверяемое действие.
         </p>
       </CardHeader>
-      <CardContent>
+      <CardContent className="py-3">
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
           {items.map((item) => {
             const content = (
