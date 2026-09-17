@@ -112,6 +112,45 @@ function polylinePoints(points: readonly { x: number; y: number }[]) {
   return points.map((point) => `${point.x},${point.y}`).join(" ");
 }
 
+function AxisCategoryTick({
+  x,
+  y,
+  label,
+  maxWidth,
+  textAnchor = "middle",
+  fontSize = 11,
+  fill = "var(--muted-foreground)",
+  slot
+}: {
+  x: number;
+  y: number;
+  label: string;
+  maxWidth?: number;
+  textAnchor?: "start" | "middle" | "end";
+  fontSize?: number;
+  fill?: string;
+  slot?: string;
+}) {
+  const fitted =
+    maxWidth == null ? { text: label, truncated: false } : fitSvgLabel(label, maxWidth, fontSize);
+
+  return (
+    <text
+      x={x}
+      y={y}
+      textAnchor={textAnchor}
+      fill={fill}
+      fontSize={fontSize}
+      data-slot={slot}
+      pointerEvents="auto"
+      title={label}
+    >
+      {fitted.truncated ? <title>{label}</title> : null}
+      {fitted.text}
+    </text>
+  );
+}
+
 export function QualityTrendVisual({
   model,
   visibleSeries
@@ -209,17 +248,14 @@ export function QualityTrendVisual({
           }
 
           return (
-            <text
+            <AxisCategoryTick
               key={point.id}
-              data-slot="x-axis-tick"
+              slot="x-axis-tick"
               x={xFor(modelIndex)}
               y={height - 12}
-              textAnchor="middle"
-              fill="var(--muted-foreground)"
-              fontSize={11}
-            >
-              {point.label}
-            </text>
+              label={point.label}
+              maxWidth={plotWidth / Math.max(1, xTickIndexes.size) - 8}
+            />
           );
         })}
         {visible.has("volume") ? (
@@ -437,22 +473,16 @@ export function RankedDriverVisual({
             );
           })}
         </g>
-        {model.points.map((point, index) => {
-          const label = fitSvgLabel(point.label, geometry.labelMaxWidth);
-          return (
-            <text
-              key={point.id}
-              x={margin.left - 8}
-              y={geometry.yFor(index) + 4}
-              textAnchor="end"
-              fill="var(--muted-foreground)"
-              fontSize={11}
-            >
-              {label.truncated ? <title>{point.label}</title> : null}
-              {label.text}
-            </text>
-          );
-        })}
+        {model.points.map((point, index) => (
+          <AxisCategoryTick
+            key={point.id}
+            x={margin.left - 8}
+            y={geometry.yFor(index) + 4}
+            label={point.label}
+            maxWidth={geometry.labelMaxWidth}
+            textAnchor="end"
+          />
+        ))}
       </svg>
     </StaticChartContainer>
   );
@@ -540,15 +570,12 @@ export function ScoreDistributionVisual({
               >
                 {bar.value}
               </text>
-              <text
+              <AxisCategoryTick
                 x={bar.x + bar.width / 2}
                 y={height - 14}
-                textAnchor="middle"
-                fill="var(--muted-foreground)"
-                fontSize={11}
-              >
-                {model.points[index].label}
-              </text>
+                label={model.points[index]?.label ?? ""}
+                maxWidth={Math.max(24, bar.width - 4)}
+              />
             </g>
           ))}
         </g>
@@ -696,17 +723,15 @@ export function PairedAiDriftVisual({
             return null;
           }
           return (
-            <text
+            <AxisCategoryTick
               key={point.id}
-              data-slot="x-axis-tick"
+              slot="x-axis-tick"
               x={xFor(index)}
               y={height - 12}
-              textAnchor="middle"
-              fill="var(--muted-foreground)"
+              label={point.label}
+              maxWidth={plotWidth / Math.max(1, xTickIndexes.size) - 8}
               fontSize={10}
-            >
-              {point.label}
-            </text>
+            />
           );
         })}
       </svg>
@@ -840,17 +865,15 @@ export function ReasonTrendVisual({
         </g>
         {model.points.map((point, index) =>
           xTickIndexes.has(index) ? (
-            <text
+            <AxisCategoryTick
               key={point.id}
-              data-slot="x-axis-tick"
+              slot="x-axis-tick"
               x={xFor(index)}
               y={margin.top + plotHeight + 24}
-              textAnchor="middle"
-              fill="var(--muted-foreground)"
+              label={point.label}
+              maxWidth={plotWidth / Math.max(1, xTickIndexes.size) - 8}
               fontSize={10}
-            >
-              {point.label}
-            </text>
+            />
           ) : null
         )}
       </svg>
@@ -898,10 +921,6 @@ export function RankedBreakdownVisual({
         />
         <g data-series="agreement">
           {geometry.bars.map((bar, index) => {
-            const label = fitSvgLabel(
-              model.points[index]?.label ?? "",
-              geometry.labelMaxWidth
-            );
             // Labels that fit stay inside the bar in primary-foreground; the
             // fallback (null or narrow bar) would render white-on-card, so it
             // moves past the bar end in muted-foreground instead.
@@ -917,16 +936,13 @@ export function RankedBreakdownVisual({
                 rx={4}
                 fill="var(--color-agreement)"
               />
-              <text
+              <AxisCategoryTick
                 x={margin.left - 8}
                 y={geometry.yFor(index) + 4}
+                label={model.points[index]?.label ?? ""}
+                maxWidth={geometry.labelMaxWidth}
                 textAnchor="end"
-                fill="var(--muted-foreground)"
-                fontSize={11}
-              >
-                {label.truncated ? <title>{model.points[index]?.label}</title> : null}
-                {label.text}
-              </text>
+              />
               <text
                 x={
                   labelInside

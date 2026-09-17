@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 
 import { QUEUE_GLOSSARY } from "@/components/guidance/queue-glossary";
-import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Chip } from "@/components/ui/chip";
 import {
   DAY1_TOUR_DISMISS_STORAGE_KEY,
   isDay1TourDismissed,
@@ -16,6 +16,8 @@ import { cn } from "@/lib/utils";
 type QueueDay1TourProps = {
   className?: string;
 };
+
+const DAY1_GLOSSARY_LINE = "SLA — контрольный срок проверки. OTRS — типичный helpdesk-источник.";
 
 function readDismissed(): boolean {
   try {
@@ -34,7 +36,8 @@ function writeDismissed() {
 }
 
 /**
- * Day-1 SLA/OTRS glossary — one dismissible hint, not a stepped tour.
+ * Day-1 SLA/OTRS glossary — one compact dismissible chip, not a fat banner.
+ * After dismiss, later visits keep the filters `sr-only` helper only.
  * Skipped while welcome-back is eligible so returners are not double-nudged.
  */
 export function QueueDay1Tour({ className }: QueueDay1TourProps) {
@@ -58,29 +61,27 @@ export function QueueDay1Tour({ className }: QueueDay1TourProps) {
   }
 
   return (
-    <Alert
+    <div
       role="region"
       aria-label="Подсказки очереди"
       data-slot="queue-day1-glossary"
-      className={cn("border-border bg-card text-card-foreground", className)}
+      className={cn(
+        "flex min-w-0 items-center gap-2 rounded-md border border-border bg-card px-2 py-1 text-xs text-card-foreground",
+        className
+      )}
     >
-      <AlertAction>
-        <Button type="button" variant="ghost" size="icon-xs" onClick={dismiss} aria-label="Скрыть подсказки">
-          <X aria-hidden="true" />
-        </Button>
-      </AlertAction>
-      <div className="flex min-w-0 flex-col gap-2">
-        <AlertTitle className="mb-0 text-sm">SLA и OTRS</AlertTitle>
-        <AlertDescription>
-          <span className="block">{QUEUE_GLOSSARY.sla.content}</span>
-          <span className="mt-1 block">{QUEUE_GLOSSARY.otrs.content}</span>
-        </AlertDescription>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" size="sm" onClick={dismiss}>
-            Понятно
-          </Button>
-        </div>
-      </div>
-    </Alert>
+      <Chip size="xs" tone="neutral">
+        SLA и OTRS
+      </Chip>
+      <p className="min-w-0 flex-1 text-pretty text-muted-foreground" title={DAY1_GLOSSARY_LINE}>
+        {DAY1_GLOSSARY_LINE}
+      </p>
+      <p className="sr-only">
+        {QUEUE_GLOSSARY.sla.content} {QUEUE_GLOSSARY.otrs.content}
+      </p>
+      <Button type="button" variant="ghost" size="icon-xs" onClick={dismiss} aria-label="Скрыть подсказки">
+        <X aria-hidden="true" />
+      </Button>
+    </div>
   );
 }

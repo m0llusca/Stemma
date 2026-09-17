@@ -54,35 +54,37 @@ Appearance density доходит до page chrome. Пустые слоты не
 Пакы — accordion.
 
 - Один открытый по умолчанию: `defaultValue={[actionConversations[0].id]}`, `multiple={false}`.
-- `keepMounted={false}`: закрытые паки не красят ~26k px.
+- `hiddenUntilFound`: закрытые паки остаются в DOM (`hidden="until-found"`) для find-in-page и не красят ~26k px. Не раскрывать все паки.
+- Тема/subject — `AccordionTrigger`. Клик по теме раскрывает/сворачивает. Ссылка в проверку — в теле пака («Открыть»), не в заголовке.
 - Гейт: высота вкладки ~3k с одним открытым, не со всеми.
 
 История: тот же accordion, без default open.
 
 ## Очередь `/reviews`
 
-- Next-case preview: без `h-full`. Правая колонка не растягивается. **«Взять следующий»** один раз — в шапке страницы, не в preview.
-- SLA/OTRS helper фильтров: `sr-only`.
+- Next-case preview: без `h-full`. Preview над таблицей на всю ширину — без правой колонки и дыры после скролла. **«Взять следующий»** один раз — в шапке страницы, не в preview.
+- SLA/OTRS helper фильтров: `sr-only` на повторных визитах. Первый визит — компактная однострочная chip, не жирный Alert.
 - Строки таблицы: две линии, `h-auto py-1.5`.
-- Workspace: `gap-(--section-gap)`, `items-start`.
+- Workspace: `gap-(--section-gap)`, main — `flex-col`.
 
 ## Chrome / truncate
 
 - Роль в topbar: wrap + `title=`. Не `max-w-36` clip длинных имён («Руководитель контроля качества»).
 - `title=` на truncate: поиск, dashboard, calibration, coaching, reports, system jobs.
+- `/reports` оси и category labels: `title=` на tick (SVG `<title>` если ellipsis) + `pointer-events: auto`, чтобы hover не блокировался `pointer-events-none` у surface.
 - Admin hub: title + badge truncate с `title=`.
 - **«Нагрузка проверяющих»:** сетка 3 колонки (Проверяющий / Очередь / В работе), без горизонтального скролла Table.
 
 ## Soft — не закрыто
 
-Не блокер `dca6c00`. Не писать PASS / closed.
+Не писать PASS / closed на том, что ещё в столе.
 
 | Остаток | Статус |
 | --- | --- |
-| Day1 Alert **«SLA и OTRS»** на первом визите очереди | Жирный (ДеШон). Helper фильтров уже `sr-only`; сам Alert — follow-up |
-| Accordion a11y | Клик по теме может не раскрыть (trigger — шеврон; тема — ссылка в проверку). Find-in-page пустой на закрытых паках (`keepMounted={false}`) |
-| `/reviews` после скролла | Таблица слева, дыра справа |
-| `/reports` оси | Ellipsis без `title=` |
+| Day1 **«SLA и OTRS»** | Закрыто в #169: однострочный chip на первом визите; повторные — `sr-only` helper фильтров |
+| Accordion a11y | Закрыто в #169: тема = trigger; `hiddenUntilFound` для find-in-page |
+| `/reviews` после скролла | Закрыто в #169: preview над таблицей, без правой колонки |
+| `/reports` оси | Закрыто в #169: `title=` / SVG `<title>` на truncated ticks |
 | Критерии / таймлайн | Вертикальный bloat не трогали: `--interactive-min-size` + #164 |
 | Пустые графики | Не изобретать точки |
 

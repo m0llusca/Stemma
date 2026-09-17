@@ -90,8 +90,8 @@ An operator on a narrow saved view sees case A as preview, presses the page-head
 - Label: **«Следующий кейс»**
 - **Collapsed by default** (adversarial verdict: do not remove — collapse)
 - Collapsed chrome: identity + status chip. No **«Взять следующий»** — that CTA is the page header only. Do not put a second Take-next on the preview
-- Hug content: no `h-full` stretch against the table (`items-start` workspace). Density: [ux-density-contract.md](ux-density-contract.md)
-- SLA/OTRS filter helper is `sr-only`. Soft: first-visit Day1 Alert **«SLA и OTRS»** is still fat — not this contract
+- Hug content: no `h-full` stretch. Preview stacks above the full-width table — no reserved right column after scroll. Density: [ux-density-contract.md](ux-density-contract.md)
+- SLA/OTRS filter helper is `sr-only` on later visits. First-visit Day1 **«SLA и OTRS»** is a one-line chip, not a fat Alert.
 - Expand reveals priority rationale and signal context
 - Page action **«Взять следующий»** remains available regardless of preview expand state
 - Status chip: same `ReviewStatusChip` as the queue row (see below)

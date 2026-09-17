@@ -245,37 +245,31 @@ async function SelfReviewPageContent() {
     return (
       <AccordionItem key={conversation.id} value={conversation.id} className="border-0">
       <Card size="sm" className="gap-0">
-        <CardHeader className="flex flex-row items-start justify-between gap-2 border-b pb-3">
-          <div className="flex min-w-0 flex-1 flex-col gap-2">
-            <div className="flex min-w-0 items-start justify-between gap-3">
-              <CardTitle className="min-w-0 truncate" title={conversation.subject}>
-                <Link
-                  href={`/reviews/${conversation.id}`}
-                  className="text-foreground underline-offset-4 hover:underline"
-                >
-                  {conversation.subject}
-                </Link>
-              </CardTitle>
-              <span className="shrink-0 text-lg font-semibold tabular-nums tracking-tight text-foreground">
-                {clampQualityScore(review.totalScore)}
-              </span>
-            </div>
-            <div className="flex flex-wrap items-center gap-1.5">
-              <Chip tone={feedbackTone(review.feedbackStatus)}>
-                {feedbackStatusLabels[review.feedbackStatus] ?? review.feedbackStatus}
-              </Chip>
-              {review.appealStatus !== "none" ? (
-                <Chip tone={review.appealStatus === "open" ? "warning" : "neutral"}>
-                  {appealStatusLabels[review.appealStatus] ?? review.appealStatus}
-                </Chip>
-              ) : null}
-            </div>
-          </div>
+        <CardHeader className="border-b pb-3">
           <AccordionTrigger
-            className="flex-none shrink-0 px-2 py-1 hover:no-underline"
+            className="w-full items-start gap-3 py-0 hover:no-underline"
             aria-label={`Разбор: ${conversation.subject}`}
           >
-            <span className="sr-only">Разбор</span>
+            <div className="flex min-w-0 flex-1 flex-col gap-2 text-left">
+              <div className="flex min-w-0 items-start justify-between gap-3">
+                <span className="min-w-0 truncate font-heading text-sm font-semibold tracking-tight" title={conversation.subject}>
+                  {conversation.subject}
+                </span>
+                <span className="shrink-0 text-lg font-semibold tabular-nums tracking-tight text-foreground">
+                  {clampQualityScore(review.totalScore)}
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Chip tone={feedbackTone(review.feedbackStatus)}>
+                  {feedbackStatusLabels[review.feedbackStatus] ?? review.feedbackStatus}
+                </Chip>
+                {review.appealStatus !== "none" ? (
+                  <Chip tone={review.appealStatus === "open" ? "warning" : "neutral"}>
+                    {appealStatusLabels[review.appealStatus] ?? review.appealStatus}
+                  </Chip>
+                ) : null}
+              </div>
+            </div>
           </AccordionTrigger>
         </CardHeader>
 
@@ -596,7 +590,7 @@ async function SelfReviewPageContent() {
               <Accordion
                 defaultValue={[actionConversations[0].id]}
                 multiple={false}
-                keepMounted={false}
+                hiddenUntilFound
                 className="gap-3"
               >
                 {actionConversations.map((conversation) => renderFeedbackCard(conversation))}
@@ -623,7 +617,7 @@ async function SelfReviewPageContent() {
           </CardHeader>
           <CardContent className="flex flex-col gap-3 pt-4">
             {historyConversations.length > 0 ? (
-              <Accordion multiple={false} keepMounted={false} className="gap-3">
+              <Accordion multiple={false} hiddenUntilFound className="gap-3">
                 {historyConversations.map((conversation) => renderFeedbackCard(conversation, "history"))}
               </Accordion>
             ) : (

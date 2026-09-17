@@ -30,8 +30,11 @@ describe("QueueDay1Tour", () => {
     expect(screen.getByText(/типичный helpdesk-источник/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Далее" })).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: /Обзор очереди/ })).not.toBeInTheDocument();
+    expect(region.querySelector('[data-slot="alert"]')).toBeNull();
+    expect(region.className).toContain("items-center");
 
-    fireEvent.click(screen.getByRole("button", { name: "Понятно" }));
+    expect(screen.queryByRole("button", { name: "Понятно" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Скрыть подсказки" }));
     expect(screen.queryByRole("region", { name: "Подсказки очереди" })).not.toBeInTheDocument();
     expect(storage.get(DAY1_TOUR_DISMISS_STORAGE_KEY)).toBe("1");
   });

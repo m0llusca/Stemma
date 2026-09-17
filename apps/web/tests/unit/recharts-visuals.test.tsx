@@ -551,6 +551,8 @@ describe("lean Recharts visuals", () => {
     const title = text?.querySelector("title");
 
     expect(title).toHaveTextContent(fullLabel);
+    expect(text).toHaveAttribute("title", fullLabel);
+    expect(text).toHaveAttribute("pointer-events", "auto");
     const visible = text?.lastChild?.textContent ?? "";
 
     expect(visible.endsWith("…")).toBe(true);
@@ -563,6 +565,7 @@ describe("lean Recharts visuals", () => {
     // Labels that fit keep rendering in full, without a redundant title.
     const fitting = screen.getByText("Retention");
     expect(fitting.querySelector("title")).not.toBeInTheDocument();
+    expect(fitting).toHaveAttribute("title", "Retention");
     expect(fitting.textContent).toBe("Retention");
   });
 

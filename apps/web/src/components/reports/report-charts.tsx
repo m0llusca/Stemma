@@ -327,7 +327,7 @@ export function StackedBar({ segments }: { segments: StackedSegment[] }) {
             <>
               <span className="inline-flex min-w-0 items-center gap-2">
                 <span className={cn("size-2.5 shrink-0 rounded-sm", toneClass)} />
-                <span className="truncate text-sm">{segment.label}</span>
+                <span className="truncate text-sm" title={segment.label}>{segment.label}</span>
               </span>
               <strong className="shrink-0 text-sm tabular-nums">{segment.value}</strong>
             </>

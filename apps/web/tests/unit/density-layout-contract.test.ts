@@ -51,9 +51,13 @@ describe("density layout contract (#166)", () => {
     const page = src("app/self-review/page.tsx");
 
     expect(page).toContain("Accordion");
-    expect(page).toContain("keepMounted={false}");
+    expect(page).toContain("hiddenUntilFound");
     expect(page).toContain("multiple={false}");
     expect(page).toContain("defaultValue={[actionConversations[0].id]}");
+    expect(page).not.toContain("keepMounted={false}");
+    expect(page).toContain("<AccordionTrigger");
+    expect(page).toContain("{conversation.subject}");
+    expect(page).not.toMatch(/CardTitle[\s\S]{0,240}<Link/);
   });
 
   it("queue SLA/OTRS chrome is collapsed and rows stay compact", () => {
@@ -61,12 +65,17 @@ describe("density layout contract (#166)", () => {
     const filtersHelp = src("components/review/queue-advanced-filters.tsx");
     const table = src("components/review/queue-table.tsx");
     const workspace = src("components/review/queue-workspace.tsx");
+    const day1 = src("components/guidance/queue-day1-tour.tsx");
 
     expect(preview).not.toContain("h-full");
     expect(filtersHelp).toContain('className="sr-only"');
     expect(table).toContain("h-auto py-1.5");
     expect(workspace).toContain("gap-(--section-gap)");
-    expect(workspace).toContain("items-start");
+    expect(workspace).toContain("flex-col");
+    expect(workspace).not.toContain("xl:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)]");
+    expect(day1).toContain("SLA и OTRS");
+    expect(day1).toContain('className="sr-only"');
+    expect(day1).not.toContain("AlertTitle");
   });
 
   it("topbar and admin frame honor density tokens", () => {
