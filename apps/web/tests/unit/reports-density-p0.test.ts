@@ -132,11 +132,16 @@ describe("Jamal deep-walk FAIL (#172)", () => {
     expect(page).toContain("multiple={false}");
     expect(page).toContain("hiddenUntilFound");
     expect(page).not.toMatch(/<AccordionTrigger[\s\S]{0,800}<Link/);
+    expect(page).toMatch(/<Accordion\s+multiple=\{false\} hiddenUntilFound/);
 
     const accordion = src("components/ui/accordion.tsx");
     expect(accordion).toContain("data-closed:h-0");
     expect(accordion).toContain("data-open:h-(--accordion-panel-height)");
-    expect(src("app/globals.css")).toContain("hidden=\"until-found\"");
+
+    const css = src("app/globals.css");
+    expect(css).toContain('hidden="until-found"');
+    expect(css).toContain("height: 0 !important");
+    expect(css).toContain("min-height: 0 !important");
   });
 
   it("P1 coaching empty copy is role-aware and empty charts do not reserve a hole", () => {

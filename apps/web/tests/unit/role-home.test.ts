@@ -35,13 +35,18 @@ describe("role-home", () => {
   });
 
   it("clears queue filters to bare /reviews for every role, including QA", () => {
-    expect(queueFilterResetHref("QA_ANALYST", { name: "Анна QA" })).toBe("/reviews");
+    const qaReset = queueFilterResetHref("QA_ANALYST", { name: "Анна QA" });
+    expect(qaReset).toBe("/reviews");
+    expect(qaReset).not.toContain("qaAssignee");
+    expect(qaReset).not.toContain("due=");
     expect(queueFilterResetHref("QA_ANALYST")).toBe("/reviews");
     expect(queueFilterResetHref("TEAM_LEAD")).toBe("/reviews");
     expect(queueFilterResetHref("ADMIN")).toBe("/reviews");
     expect(queueFilterResetHref("EXEC")).toBe("/reviews");
     expect(queueFilterResetHref("SUPPORT_AGENT")).toBe("/reviews");
     expect(queueFilterResetHref("VIEWER")).toBe("/reviews");
+    expect(analystMineOverdueHref("Анна QA")).toContain("qaAssignee=");
+    expect(analystMineOverdueHref("Анна QA")).toContain("due=overdue");
   });
 
   it("uses role-home on dashboard and the queue inbox helper on reviews", () => {
