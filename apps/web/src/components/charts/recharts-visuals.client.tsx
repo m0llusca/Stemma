@@ -902,7 +902,7 @@ export function RankedBreakdownVisual({
       id={model.id}
       config={agreementConfig}
       className="w-full min-w-0"
-      style={{ aspectRatio: `${width} / ${height}` }}
+      style={{ height }}
       initialDimension={{ width, height }}
     >
       <svg
@@ -910,7 +910,7 @@ export function RankedBreakdownVisual({
         className="recharts-surface pointer-events-none block h-full w-full"
         tabIndex={-1}
         viewBox={`0 0 ${width} ${height}`}
-        preserveAspectRatio="xMidYMid meet"
+        preserveAspectRatio="none"
         data-animation-active="true"
       >
         <line
@@ -940,13 +940,6 @@ export function RankedBreakdownVisual({
                 height={bar.height}
                 rx={4}
                 fill="var(--color-agreement)"
-              />
-              <AxisCategoryTick
-                x={margin.left - 8}
-                y={geometry.yFor(index) + 4}
-                label={model.points[index]?.label ?? ""}
-                maxWidth={geometry.labelMaxWidth}
-                textAnchor="end"
               />
               <text
                 x={

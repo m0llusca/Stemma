@@ -30,7 +30,7 @@ export function BreakdownTable({
   rows,
   countLabel,
   showAverage = false,
-  actionLabel = "Открыть проверки"
+  actionLabel = "Открыть"
 }: {
   id?: string;
   title: string;
@@ -40,7 +40,7 @@ export function BreakdownTable({
   actionLabel?: string;
 }) {
   return (
-    <Card id={id} size="sm" className="gap-0 overflow-clip scroll-mt-24 py-0">
+    <Card id={id} size="sm" className="h-fit gap-0 overflow-clip scroll-mt-24 py-0">
       <CardHeader className="border-b py-4">
         <CardTitle>{title}</CardTitle>
         <CardDescription>
@@ -54,15 +54,15 @@ export function BreakdownTable({
             aria-label={title}
             tabIndex={0}
             data-slot="report-table-scroll-region"
-            className="min-w-0 overflow-x-auto outline-none focus-visible:ring-3 focus-visible:ring-ring/50 [&>[data-slot=table-container]]:overflow-visible"
+            className="min-w-0 overflow-hidden outline-none focus-visible:ring-3 focus-visible:ring-ring/50 [&>[data-slot=table-container]]:overflow-visible"
           >
-            <Table className="min-w-max">
+            <Table className="w-full table-fixed">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="px-4">Разрез</TableHead>
+                  <TableHead className="w-[42%] px-4">Разрез</TableHead>
                   <TableHead className="px-4 text-right">{countLabel}</TableHead>
                   {showAverage ? <TableHead className="px-4 text-right">Средняя оценка</TableHead> : null}
-                  <TableHead className="w-[1%] px-4 text-right">
+                  <TableHead className="w-24 px-4 text-right">
                     <span className="sr-only">Действие</span>
                   </TableHead>
                 </TableRow>
@@ -70,10 +70,10 @@ export function BreakdownTable({
               <TableBody>
                 {rows.map((row) => (
                   <TableRow key={row.label}>
-                    <TableCell className="max-w-[220px] truncate px-4 font-medium" title={row.label}>{row.label}</TableCell>
+                    <TableCell className="max-w-0 truncate px-4 font-medium" title={row.label}>{row.label}</TableCell>
                     <TableCell className="px-4 text-right">
                       <Chip tone="neutral" size="sm" numeric>
-                        {row.count} {countLabel.toLowerCase()}
+                        {row.count}
                       </Chip>
                     </TableCell>
                     {showAverage ? (
@@ -139,7 +139,7 @@ export function QuotaTable({
   period: ReportPeriod;
 }) {
   return (
-    <Card id={id} size="sm" className="gap-0 overflow-clip scroll-mt-24 py-0">
+    <Card id={id} size="sm" className="h-fit gap-0 overflow-clip scroll-mt-24 py-0">
       <CardHeader className="border-b py-4">
         <CardTitle>Нормы проверок</CardTitle>
         <CardDescription>План, факт и доля негативного CSAT по операторам.</CardDescription>

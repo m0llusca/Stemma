@@ -29,6 +29,7 @@ import { ReportParameterLens } from "@/components/reports/report-parameter-lens"
 import { ReportKpiRow } from "@/components/reports/report-kpi-row";
 import {
   DetailsIndexPanel,
+  DriverChainCard,
   InsightSummary,
   PeriodMovementPanel,
   ProcessSummary,
@@ -226,58 +227,62 @@ export function ReportPageViews(props: ReportPageModel) {
     ) : null}
 
     {reportView === "overview" ? (
-      // Overview stays decision-first: one trend + one triage column.
-      // Distribution / sentiment / CSAT live in deeper views.
+      // Two equal chart columns, then the driver chain full-width — never a
+      // tall stack beside the trend that leaves a white slab under the plot.
       <section
         aria-label="Динамика качества и факторы"
-        className="grid items-start gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]"
+        className="flex min-w-0 flex-col gap-5"
       >
-        <PrimaryScorePanel
-          finalizedCount={finalizedCount}
-          previousCount={previousReviews.length}
-          model={qualityTrendModel}
-          visibleSeries={visibleTrendSeries}
-          view={chartView}
-          currentHref={currentChartHref}
-          periodLabel={formatPeriod(period)}
-        />
-        <PeriodMovementPanel
-          negativeItems={deteriorationItems}
-          positiveItems={improvementItems}
-          driverItems={driverStackItems}
-          view={chartView}
-          currentHref={currentChartHref}
-          periodLabel={formatPeriod(period)}
-        />
+        <div
+          data-slot="report-overview-charts"
+          className="grid items-start gap-5 xl:grid-cols-2"
+        >
+          <PrimaryScorePanel
+            finalizedCount={finalizedCount}
+            previousCount={previousReviews.length}
+            model={qualityTrendModel}
+            visibleSeries={visibleTrendSeries}
+            view={chartView}
+            currentHref={currentChartHref}
+            periodLabel={formatPeriod(period)}
+          />
+          <PeriodMovementPanel
+            negativeItems={deteriorationItems}
+            positiveItems={improvementItems}
+            view={chartView}
+            currentHref={currentChartHref}
+            periodLabel={formatPeriod(period)}
+          />
+        </div>
+        <DriverChainCard items={driverStackItems} />
       </section>
     ) : null}
 
     {reportView === "overview" ? (
       <section
         aria-label="Углубить анализ"
-        className="grid gap-3 rounded-xl border border-border bg-card p-4 md:grid-cols-3"
+        data-slot="report-deepen-analysis"
+        className="flex flex-wrap items-center gap-2"
       >
-        <div className="min-w-0 md:col-span-3">
-          <h2 className="text-sm font-semibold text-foreground">Углубить анализ</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Обзор отвечает «что происходит». Детали — в соседних видах.
-          </p>
-        </div>
+        <h2 className="text-sm font-semibold text-foreground">Углубить анализ</h2>
+        <p className="sr-only">
+          Обзор отвечает «что происходит». Детали — в соседних видах.
+        </p>
         <Link
           href={buildReportAnalysisHref(currentReportHref, { view: "performance" }, filterCatalog)}
-          className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+          className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-fit shrink-0")}
         >
           Исполнение · кого коучить
         </Link>
         <Link
           href={buildReportAnalysisHref(currentReportHref, { view: "process" }, filterCatalog)}
-          className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+          className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-fit shrink-0")}
         >
           Процесс · риски и причины
         </Link>
         <Link
           href={buildReportAnalysisHref(currentReportHref, { view: "details" }, filterCatalog)}
-          className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+          className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-fit shrink-0")}
         >
           Разрезы · таблицы и CSAT
         </Link>
@@ -406,7 +411,7 @@ export function ReportPageViews(props: ReportPageModel) {
 
     {reportView === "process" ? (
       <>
-        <div className="grid min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-3 [&>*]:min-w-0">
+        <div className="grid min-w-0 items-start gap-4 md:grid-cols-2 xl:grid-cols-3 [&>*]:min-w-0">
           <ChartPanel
             title="Профиль рисков"
             description="Доля замечаний по уровню риска."
@@ -442,7 +447,7 @@ export function ReportPageViews(props: ReportPageModel) {
             hint="Финализированные проверки без ответа"
           />
         </div>
-        <div className="grid min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-3 [&>*]:min-w-0">
+        <div className="grid min-w-0 items-start gap-4 md:grid-cols-2 xl:grid-cols-3 [&>*]:min-w-0">
           <BreakdownTable title="Обратная связь" rows={feedbackRows} countLabel="Проверок" />
           <BreakdownTable title="Апелляции" rows={appealRows} countLabel="Проверок" />
           <BreakdownTable title="Переответы" rows={reanswerRows} countLabel="Проверок" />
@@ -461,12 +466,15 @@ export function ReportPageViews(props: ReportPageModel) {
           cellHrefs={qaCsatCellHrefs}
           actionHref={reportReviewHref(period)}
         />
-      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(16rem,0.85fr)_minmax(0,1fr)]">
         <DetailsIndexPanel
           items={detailsIndexItems}
           titleId="details-analysis-title"
         />
-        <div className="grid min-w-0 gap-4 md:grid-cols-2 [&>*]:min-w-0">
+        <section
+          data-slot="report-details-criteria"
+          aria-label="Критерии, норма и источники"
+          className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3 [&>*]:min-w-0"
+        >
           <BreakdownTable
             id="details-blocks"
             title="Блоки критериев"
@@ -499,6 +507,12 @@ export function ReportPageViews(props: ReportPageModel) {
             countLabel="Проверок"
             showAverage
           />
+        </section>
+        <section
+          data-slot="report-details-people"
+          aria-label="Люди"
+          className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3 [&>*]:min-w-0"
+        >
           <BreakdownTable
             id="details-people"
             title="Операторы"
@@ -513,6 +527,12 @@ export function ReportPageViews(props: ReportPageModel) {
             showAverage
           />
           <BreakdownTable title="Проверяющие" rows={reviewerRows} countLabel="Проверок" showAverage />
+        </section>
+        <section
+          data-slot="report-details-statuses"
+          aria-label="Статусы"
+          className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3 [&>*]:min-w-0"
+        >
           <BreakdownTable id="details-statuses" title="Типы выборки" rows={samplingRows} countLabel="Проверок" />
           <BreakdownTable title="CSAT" rows={csatRows} countLabel="Проверок" />
           <BreakdownTable
@@ -522,8 +542,7 @@ export function ReportPageViews(props: ReportPageModel) {
             showAverage
           />
           <BreakdownTable title="Риски" rows={riskRows} countLabel="Замечаний" />
-        </div>
-      </div>
+        </section>
       </div>
     ) : null}
 

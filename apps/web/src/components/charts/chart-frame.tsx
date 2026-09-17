@@ -55,7 +55,8 @@ export function ChartFrame({
   sample,
   comparison = { status: "current" },
   state = { kind: "ready" },
-  graph
+  graph,
+  plotMinHeight = "plot"
 }: {
   model: ChartModel;
   view: ChartView;
@@ -65,6 +66,11 @@ export function ChartFrame({
   comparison?: ChartComparison;
   state?: ChartFrameState;
   graph?: ReactNode;
+  /**
+   * `plot` keeps the #167 min-h-60 ready/loading contract for line charts.
+   * `hug` is for ranked bar rows: height follows the series, no 240px hole.
+   */
+  plotMinHeight?: "plot" | "hug";
 }) {
   const headingId = `chart-${model.id}-title`;
   const units = Array.from(new Set(model.series.map((series) => series.unit)))
@@ -75,6 +81,9 @@ export function ChartFrame({
       ? String(sample.size)
       : `${sample.size} из ${sample.denominator}`;
   const hasLowSample = sample.minimum != null && sample.size < sample.minimum;
+  const reservePlotMinHeight =
+    plotMinHeight === "plot" &&
+    (state.kind === "loading" || state.kind === "ready");
 
   // Avoid h-full: in report overview grids a stretched card would inflate
   // empty white space below the plot when the sibling column is taller.
@@ -96,7 +105,8 @@ export function ChartFrame({
       <CardContent className="py-4">
         <div
           data-slot="chart-frame-content"
-          className={state.kind === "loading" || state.kind === "ready" ? "min-h-60" : undefined}
+          data-plot-min-height={plotMinHeight}
+          className={reservePlotMinHeight ? "min-h-60" : undefined}
         >
           {state.kind === "loading" ? (
             <div
@@ -146,7 +156,7 @@ export function ChartFrame({
           ) : null}
 
           {state.kind === "ready" ? (
-            <div className="flex min-h-60 flex-col gap-3">
+            <div className={reservePlotMinHeight ? "flex min-h-60 flex-col gap-3" : "flex flex-col gap-3"}>
               {hasLowSample ? (
                 <p className="text-sm text-muted-foreground">
                   Недостаточно выборки: {sample.size} из {sample.minimum}

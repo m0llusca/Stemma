@@ -143,34 +143,26 @@ export function DetailsIndexPanel({
   titleId?: string;
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardDescription className="text-xs font-semibold uppercase tracking-wider">
-          Навигация по разрезам
-        </CardDescription>
-        <CardTitle id={titleId}>Быстрый переход</CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Таблицы ниже сгруппированы по задачам разбора: критерии, норма, источники, люди и статусы.
-        </p>
-      </CardHeader>
-      <CardContent>
-        <nav aria-label="Разрезы аналитики" className="grid gap-2">
-          {items.map((item) => (
-            <a
-              key={item.href}
-              href={item.href}
-              className="flex flex-col gap-1 rounded-lg border border-border bg-muted/40 px-3 py-3 transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {item.label}
-              </span>
-              <strong className="text-sm font-semibold text-foreground">{item.value}</strong>
-              <small className="text-xs text-muted-foreground">{item.detail}</small>
-            </a>
-          ))}
-        </nav>
-      </CardContent>
-    </Card>
+    <nav
+      aria-label="Разрезы аналитики"
+      data-slot="report-details-index"
+      className="flex flex-wrap items-center gap-2"
+    >
+      <p id={titleId} className="sr-only">
+        Быстрый переход по разрезам
+      </p>
+      {items.map((item) => (
+        <a
+          key={item.href}
+          href={item.href}
+          title={item.detail}
+          className="inline-flex min-w-0 max-w-full items-center gap-2 rounded-md border border-border bg-muted/40 px-2.5 py-1.5 text-sm transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <span className="text-xs font-medium text-muted-foreground">{item.label}</span>
+          <strong className="truncate font-semibold text-foreground">{item.value}</strong>
+        </a>
+      ))}
+    </nav>
   );
 }
 
@@ -255,14 +247,12 @@ export function ReportFocusPanel({
 export function PeriodMovementPanel({
   negativeItems,
   positiveItems,
-  driverItems,
   view,
   currentHref,
   periodLabel
 }: {
   negativeItems: ImprovementHighlight[];
   positiveItems: ImprovementHighlight[];
-  driverItems: DriverChainItem[];
   view: ChartView;
   currentHref: string;
   periodLabel: string;
@@ -309,66 +299,72 @@ export function PeriodMovementPanel({
   const sampleSize = movementItems.reduce((total, item) => total + item.count, 0);
 
   return (
-    <div className="flex min-w-0 flex-col gap-5">
-      <ChartFrame
-        model={driverModel}
-        view={view}
-        currentHref={currentHref}
-        periodLabel={periodLabel}
-        sample={{ size: sampleSize }}
-        state={movementItems.length > 0 ? { kind: "ready" } : { kind: "empty" }}
-        graph={
-          view === "graph" ? <RankedDriverChart model={driverModel} /> : undefined
-        }
-      />
-      {driverItems.length > 0 ? (
-        <Card aria-labelledby="analytics-movement-title">
-          <CardHeader className="border-b">
-            <CardDescription className="text-xs font-semibold uppercase tracking-wider">
-              Цепочка драйверов
-            </CardDescription>
-            <CardTitle id="analytics-movement-title">Где искать причину</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Слабейшие срезы и следующее проверяемое действие.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-3">
-              {driverItems.map((item) => {
-                const content = (
-                  <>
-                    <span className="text-[0.7rem] font-semibold uppercase tracking-wider text-muted-foreground">
-                      {item.label}
-                    </span>
-                    <strong className="text-sm font-semibold text-foreground">{item.value}</strong>
-                    <small className="text-xs leading-snug text-muted-foreground">{item.evidence}</small>
-                    <em className="mt-0.5 text-xs font-medium not-italic text-primary">{item.action}</em>
-                  </>
-                );
+    <ChartFrame
+      model={driverModel}
+      view={view}
+      currentHref={currentHref}
+      periodLabel={periodLabel}
+      sample={{ size: sampleSize }}
+      state={movementItems.length > 0 ? { kind: "ready" } : { kind: "empty" }}
+      plotMinHeight="hug"
+      graph={
+        view === "graph" ? <RankedDriverChart model={driverModel} /> : undefined
+      }
+    />
+  );
+}
 
-                return item.href ? (
-                  <Link
-                    key={`${item.label}:${item.value}`}
-                    href={item.href}
-                    {...reportPageLocalLinkProps(item.href)}
-                    className="flex min-w-0 flex-col gap-1.5 rounded-lg border border-border bg-muted/40 p-3.5 transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    {content}
-                  </Link>
-                ) : (
-                  <div
-                    key={`${item.label}:${item.value}`}
-                    className="flex min-w-0 flex-col gap-1.5 rounded-lg border border-border bg-muted/40 p-3.5"
-                  >
-                    {content}
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      ) : null}
-    </div>
+export function DriverChainCard({ items }: { items: DriverChainItem[] }) {
+  if (items.length === 0) {
+    return null;
+  }
+
+  return (
+    <Card data-slot="report-driver-chain" aria-labelledby="analytics-movement-title">
+      <CardHeader className="border-b">
+        <CardDescription className="text-xs font-semibold uppercase tracking-wider">
+          Цепочка драйверов
+        </CardDescription>
+        <CardTitle id="analytics-movement-title">Где искать причину</CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Слабейшие срезы и следующее проверяемое действие.
+        </p>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+          {items.map((item) => {
+            const content = (
+              <>
+                <span className="text-[0.7rem] font-semibold uppercase tracking-wider text-muted-foreground">
+                  {item.label}
+                </span>
+                <strong className="text-sm font-semibold text-foreground">{item.value}</strong>
+                <small className="text-xs leading-snug text-muted-foreground">{item.evidence}</small>
+                <em className="mt-0.5 text-xs font-medium not-italic text-primary">{item.action}</em>
+              </>
+            );
+
+            return item.href ? (
+              <Link
+                key={`${item.label}:${item.value}`}
+                href={item.href}
+                {...reportPageLocalLinkProps(item.href)}
+                className="flex min-w-0 flex-col gap-1 rounded-lg border border-border bg-muted/40 p-3 transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {content}
+              </Link>
+            ) : (
+              <div
+                key={`${item.label}:${item.value}`}
+                className="flex min-w-0 flex-col gap-1 rounded-lg border border-border bg-muted/40 p-3"
+              >
+                {content}
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

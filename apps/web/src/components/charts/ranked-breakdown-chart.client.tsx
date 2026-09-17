@@ -110,6 +110,23 @@ export function RankedBreakdownChart({
         и Escape для сброса выбора.
       </p>
       <div
+        data-slot="ranked-breakdown-plot"
+        className="grid grid-cols-[minmax(7rem,11rem)_minmax(0,1fr)] items-stretch gap-x-2"
+      >
+        <ul className="flex min-w-0 flex-col" aria-hidden="true">
+          {model.points.map((point) => (
+            <li
+              key={point.id}
+              className="flex min-h-0 min-w-0 items-center justify-end"
+              style={{ flex: "1 1 0" }}
+            >
+              <span className="block w-full truncate text-right text-xs text-muted-foreground" title={point.label}>
+                {point.label}
+              </span>
+            </li>
+          ))}
+        </ul>
+      <div
         ref={plotRef}
         role="group"
         aria-label={model.title}
@@ -120,7 +137,7 @@ export function RankedBreakdownChart({
         data-accessibility-layer="app-owned"
         data-active-point-id={activePoint?.id}
         data-slot="ranked-breakdown-chart"
-        className="relative overflow-visible rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="relative min-w-0 overflow-visible rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         onFocus={() => {
           if (activeIndex == null && model.points.length > 0) {
             setActiveIndex(0);
@@ -148,7 +165,8 @@ export function RankedBreakdownChart({
             setActiveIndex(null);
           }
         }}
-      >        {activePoint && activePosition ? (
+      >
+        {activePoint && activePosition ? (
           <span
             aria-hidden="true"
             data-slot="ranked-breakdown-selected-marker"
@@ -196,6 +214,7 @@ export function RankedBreakdownChart({
             }
           />
         ) : null}
+      </div>
       </div>
     </div>
   );

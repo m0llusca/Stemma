@@ -15,6 +15,8 @@ import { ChartTooltipStatus } from "@/components/charts/chart-tooltip-status";
 import type { ChartModel } from "@/lib/charts/contracts";
 import {
   buildRankedDriverGeometry,
+  rankedPlotHeight,
+  RANKED_DRIVER_VIEWBOX,
   viewBoxPercent
 } from "@/lib/charts/plot-geometry";
 import { openReportChartPointHref } from "@/lib/reports/report-evidence-links";
@@ -68,7 +70,10 @@ export function RankedDriverChart({
   const describedBy = activePoint
     ? `${descriptionId} ${instructionsId} ${tooltipId}`
     : `${descriptionId} ${instructionsId}`;
-  const height = Math.min(420, Math.max(220, model.points.length * 36));
+  const height = rankedPlotHeight(
+    model.points.length,
+    RANKED_DRIVER_VIEWBOX.margin
+  );
   const geometry = useMemo(
     () => buildRankedDriverGeometry(model, height),
     [height, model]

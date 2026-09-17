@@ -196,8 +196,26 @@ export const REASON_TREND_VIEWBOX = Object.freeze({
 
 export const RANKED_BREAKDOWN_VIEWBOX = Object.freeze({
   width: 560,
-  margin: Object.freeze({ top: 16, right: 28, bottom: 16, left: 176 })
+  // Left gutter is plot padding only — category names live in HTML beside the
+  // SVG so a wide card can fill horizontally without stretching glyphs.
+  margin: Object.freeze({ top: 10, right: 36, bottom: 10, left: 8 })
 });
+
+/** Dense horizontal-bar row. One row = one criterion / driver; no min-220 hole. */
+export const RANKED_ROW_HEIGHT = 28;
+
+export const RANKED_PLOT_MAX_HEIGHT = 360;
+
+export function rankedPlotHeight(
+  rowCount: number,
+  margin: { readonly top: number; readonly bottom: number }
+) {
+  const rows = Math.max(1, rowCount);
+  return Math.min(
+    RANKED_PLOT_MAX_HEIGHT,
+    margin.top + margin.bottom + rows * RANKED_ROW_HEIGHT
+  );
+}
 
 function nearestIndex(
   positions: readonly number[],
@@ -474,7 +492,7 @@ export function buildRankedDriverGeometry(
   const halfWidth = plotWidth / 2;
   const zeroX = margin.left + halfWidth;
   const rowHeight = plotHeight / Math.max(1, model.points.length);
-  const barHeight = Math.max(8, Math.min(22, rowHeight * 0.55));
+  const barHeight = Math.max(8, Math.min(20, rowHeight * 0.72));
   const signedValues = model.points.map((point) =>
     point.values.up ??
     (point.values.down == null ? null : -Math.abs(point.values.down))
@@ -900,14 +918,11 @@ export function buildRankedBreakdownGeometry(
   model: ChartModel<AgreementSeriesKey>
 ) {
   const { width, margin } = RANKED_BREAKDOWN_VIEWBOX;
-  const height = Math.min(
-    420,
-    Math.max(220, model.points.length * 36)
-  );
+  const height = rankedPlotHeight(model.points.length, margin);
   const plotWidth = width - margin.left - margin.right;
   const plotHeight = height - margin.top - margin.bottom;
   const rowHeight = plotHeight / Math.max(1, model.points.length);
-  const barHeight = Math.max(10, Math.min(24, rowHeight * 0.58));
+  const barHeight = Math.max(10, Math.min(20, rowHeight * 0.72));
   const xForValue = (value: number) =>
     margin.left + (Math.max(0, Math.min(100, value)) / 100) * plotWidth;
   const yFor = (index: number) =>

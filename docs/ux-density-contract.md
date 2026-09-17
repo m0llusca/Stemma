@@ -1,6 +1,6 @@
 # UX-контракт: плотность экранов
 
-Locked density chrome: **`dca6c00`** ([#167](https://github.com/m0llusca/Stemma/pull/167) / [#166](https://github.com/m0llusca/Stemma/issues/166)). Soft package tip **`e325df6`** ([#170](https://github.com/m0llusca/Stemma/pull/170) / [#169](https://github.com/m0llusca/Stemma/issues/169)). LIVE: https://hospital-studies-width-martha.trycloudflare.com.
+Locked density chrome: **`dca6c00`** ([#167](https://github.com/m0llusca/Stemma/pull/167) / [#166](https://github.com/m0llusca/Stemma/issues/166)). Soft package tip **`e325df6`** ([#170](https://github.com/m0llusca/Stemma/pull/170) / [#169](https://github.com/m0llusca/Stemma/issues/169)). Reports P0 **#172** (this branch). LIVE: https://hospital-studies-width-martha.trycloudflare.com.
 
 Appearance density доходит до page chrome. Пустые слоты не растягивают экран. Менять ритм PageShell / Card / Empty / графиков — только явным продуктовым решением. Тихий дрейф запрещён.
 
@@ -77,6 +77,19 @@ Appearance density доходит до page chrome. Пустые слоты не
 - Admin hub: title + badge truncate с `title=`.
 - **«Нагрузка проверяющих»:** сетка 3 колонки (Проверяющий / Очередь / В работе), без горизонтального скролла Table.
 
+## `/reports` P0 — #172
+
+Роман: прошлый density-проход был поверхностным. Четыре экрана — обязательно в этом PR. Новые FAIL с полного прохода складываются **сюда же**, не во второй PR.
+
+| Экран | Контракт |
+| --- | --- |
+| «Согласие AI с проверяющими» | `rankedPlotHeight`: ряд = `RANKED_ROW_HEIGHT` (28), без `min(420, max(220, n*36))`. ChartFrame `plotMinHeight="hug"`. SVG `height` в px + `preserveAspectRatio="none"` — не aspect-ratio, который раздувает дыры на широкой карточке. Имена критериев — HTML-колонка, не растянутые SVG-глифы. Не рисовать фейковые точки. |
+| Обзор | Два графика в `xl:grid-cols-2` + `items-start`. «Цепочка драйверов» — отдельная полная ширина (`DriverChainCard`), не колонка справа от тренда. CTA «Углубить анализ» — `flex flex-wrap` + `w-fit`, не `md:grid-cols-3` баннеры. |
+| Люди / Статусы | Секции `report-details-people` / `report-details-statuses`: сетка `items-start` `md:grid-cols-2` `xl:grid-cols-3`. Индекс разрезов — компактные чипы, не левая колонка на полэкрана. |
+| Разрезы (таблицы) | `BreakdownTable`: `table-fixed w-full`, `overflow-hidden`, `h-fit`, `max-w-0 truncate` + `title=`. Не `min-w-max` / не ложный горизонтальный скролл. Длинные имена не ломают карточку. |
+
+Тесты: `apps/web/tests/unit/reports-density-p0.test.ts`. Follow-up FAIL — новый `describe` в том же файле.
+
 ## Soft — Закрыто в #169
 
 На master **`e325df6`** (#170): Day1 compact; тема = trigger + «Открыть»; preview над таблицей; `/reports` оси/title. Не писать «не закрыто».
@@ -100,6 +113,6 @@ Appearance density доходит до page chrome. Пустые слоты не
 | Queue | `queue-workspace.tsx`, `queue-next-case-preview.tsx`, `queue-table.tsx`, `queue-advanced-filters.tsx` |
 | Chrome role / topbar | `app-nav-shell.tsx` |
 | Нагрузка | `apps/web/src/app/dashboard/page.tsx` |
-| Тесты | `density-layout-contract.test.ts` |
+| Тесты | `density-layout-contract.test.ts`, `reports-density-p0.test.ts` |
 
 Related: [app-shell.md](app-shell.md), [ux-queue-hotkeys-contract.md](ux-queue-hotkeys-contract.md), [ux-dialogue-timeline-contract.md](ux-dialogue-timeline-contract.md), [research-kinetics-recharts.md](research-kinetics-recharts.md).
