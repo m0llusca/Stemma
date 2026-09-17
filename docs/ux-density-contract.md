@@ -1,6 +1,6 @@
 # UX-контракт: плотность экранов
 
-Locked density chrome: **`dca6c00`** ([#167](https://github.com/m0llusca/Stemma/pull/167) / [#166](https://github.com/m0llusca/Stemma/issues/166)). Soft package tip **`e325df6`** ([#170](https://github.com/m0llusca/Stemma/pull/170) / [#169](https://github.com/m0llusca/Stemma/issues/169)). LIVE: https://hospital-studies-width-martha.trycloudflare.com.
+Locked density chrome: **`dca6c00`** ([#167](https://github.com/m0llusca/Stemma/pull/167) / [#166](https://github.com/m0llusca/Stemma/issues/166)). Soft package tip **`e325df6`** ([#170](https://github.com/m0llusca/Stemma/pull/170) / [#169](https://github.com/m0llusca/Stemma/issues/169)). Reports P0 **#172** (this branch). LIVE: https://hospital-studies-width-martha.trycloudflare.com.
 
 Appearance density доходит до page chrome. Пустые слоты не растягивают экран. Менять ритм PageShell / Card / Empty / графиков — только явным продуктовым решением. Тихий дрейф запрещён.
 
@@ -45,7 +45,7 @@ Appearance density доходит до page chrome. Пустые слоты не
 
 | Поверхность | Контракт |
 | --- | --- |
-| ChartFrame | `min-h-60` только loading / ready. Empty / error обнимают контент |
+| ChartFrame | Ready / empty / error / loading обнимают контент. Нет `min-h-60` под будущий график. Loading — компактный `h-16` skeleton |
 | Exec empty / error | `EXEC_RISK_CHART_MIN_HEIGHT_CLASS` = `h-[180px]`. Не 200 / 240 |
 | Lead quality | высота plot, не min-h карточки |
 
@@ -54,7 +54,7 @@ Appearance density доходит до page chrome. Пустые слоты не
 Пакы — accordion.
 
 - Один открытый по умолчанию: `defaultValue={[actionConversations[0].id]}`, `multiple={false}`.
-- `hiddenUntilFound`: закрытые паки остаются в DOM (`hidden="until-found"`) для find-in-page и не красят ~26k px. Не раскрывать все паки.
+- `hiddenUntilFound`: закрытые паки остаются в DOM (`hidden="until-found"`) для find-in-page. Closed panel: `height: 0` (не `h-(--accordion-panel-height)` / не content-visibility box). Не красить ~26k px и не ронять вкладку на 1440×900.
 - Тема/subject — `AccordionTrigger`. Клик по теме **только** раскрывает/сворачивает (не только шеврон). Не вести на `/reviews/…`. Полный кейс — отдельная кнопка «Открыть» в теле пака. `aria-expanded` совпадает с open.
 - Гейт: высота вкладки ~3k с одним открытым, не со всеми. Не раскрывать все паки.
 
@@ -72,10 +72,35 @@ Appearance density доходит до page chrome. Пустые слоты не
 ## Chrome / truncate
 
 - Роль в topbar: wrap + `title=`. Не `max-w-36` clip длинных имён («Руководитель контроля качества»).
+- «Сменить роль»: длинный `optionLabel` truncate **с** `title=`. Viewer pending: меню вверх (`side="top"`), не ниже viewport.
 - `title=` на truncate: поиск, dashboard, calibration, coaching, reports, system jobs.
 - `/reports` «Факторы изменения»: шире левый gutter (`RANKED_DRIVER_VIEWBOX` left 168 / width 520), `wrapSvgLabel` до 2 строк, SVG `<title>` + `pointer-events: auto`. Нет `Тимофе…` без полного имени (title/tooltip).
 - Admin hub: title + badge truncate с `title=`.
 - **«Нагрузка проверяющих»:** сетка 3 колонки (Проверяющий / Очередь / В работе), без горизонтального скролла Table.
+
+## `/reports` P0 — #172
+
+Роман: прошлый density-проход был поверхностным. Четыре экрана — обязательно в этом PR. Новые FAIL с полного прохода складываются **сюда же**, не во второй PR.
+
+| Экран | Контракт |
+| --- | --- |
+| «Согласие AI с проверяющими» | `rankedPlotHeight`: ряд = `RANKED_ROW_HEIGHT` (22), `RANKED_BAR_FILL` 0.82. Без `min(420, max(220, n*36))`. ChartFrame без `min-h-60` на ready. SVG `height` в px + `preserveAspectRatio="none"`. Имена критериев — HTML-колонка + `title=`. Не рисовать фейковые точки. |
+| Обзор | Два графика в `xl:grid-cols-2` + `items-start`. «Цепочка драйверов» — отдельная полная ширина (`DriverChainCard`). CTA «Углубить анализ» — одна строка, `secondary`/`xs`, `w-fit`. Нет min-height под будущий график. |
+| Люди / Статусы | Секции `report-details-people` / `report-details-statuses`: сетка `items-start` без stretch на viewport. Мало данных — компактный inline empty внутри карточки, не пустыня. |
+| Разрезы (таблицы) | `BreakdownTable`: `table-fixed w-full`, `overflow-hidden`, `h-fit`, truncate + `title=`. `QuotaTable` — полная ширина (`report-details-quotas`), не колонка 444px: `table-fixed`, sticky первая колонка, wrap, «Открыть». Скролл только если таблица реально широкая. |
+
+Тесты: `apps/web/tests/unit/reports-density-p0.test.ts`. Follow-up FAIL — новый `describe` в том же файле.
+
+Jamal вне `/reports` (тот же PR, tip после `3f3745d`):
+
+| Приоритет | Контракт |
+| --- | --- |
+| P0 `/self-review` | Один открытый пак; closed `height: 0` + `hiddenUntilFound`; subject = trigger; «Открыть» отдельно. `/dashboard` оператора → тот же экран, без crash. |
+| P1 `/coaching` | Оператор: empty не «Сгруппируйте разборы…». Lead/Admin: нет пустых карточек тренда/зон и дыры под графиком. |
+| P1 `/calibration` | «Сигналы по апелляциям» — compact inline empty. |
+| P1 `/reviews/[id]` | Title wrap + `title=`; context grid `sm:grid-cols-3` без воздуха. |
+| P1 chrome | Role menu `title=`; Viewer pending menu `side="top"`. |
+| P1 `/reviews` reset | «Сбросить фильтры» → `/reviews` (clears `qaAssignee` + `due`). Welcome-back «очередь дня» remains QA inbox. |
 
 ## Soft — Закрыто в #169
 
@@ -100,6 +125,6 @@ Appearance density доходит до page chrome. Пустые слоты не
 | Queue | `queue-workspace.tsx`, `queue-next-case-preview.tsx`, `queue-table.tsx`, `queue-advanced-filters.tsx` |
 | Chrome role / topbar | `app-nav-shell.tsx` |
 | Нагрузка | `apps/web/src/app/dashboard/page.tsx` |
-| Тесты | `density-layout-contract.test.ts` |
+| Тесты | `density-layout-contract.test.ts`, `reports-density-p0.test.ts` |
 
 Related: [app-shell.md](app-shell.md), [ux-queue-hotkeys-contract.md](ux-queue-hotkeys-contract.md), [ux-dialogue-timeline-contract.md](ux-dialogue-timeline-contract.md), [research-kinetics-recharts.md](research-kinetics-recharts.md).

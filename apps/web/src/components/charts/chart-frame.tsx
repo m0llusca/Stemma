@@ -55,7 +55,8 @@ export function ChartFrame({
   sample,
   comparison = { status: "current" },
   state = { kind: "ready" },
-  graph
+  graph,
+  plotMinHeight = "plot"
 }: {
   model: ChartModel;
   view: ChartView;
@@ -65,6 +66,13 @@ export function ChartFrame({
   comparison?: ChartComparison;
   state?: ChartFrameState;
   graph?: ReactNode;
+  /**
+   * #172: ready / empty / error hug useful content. Loading is a compact
+   * skeleton — never a reserved 240px hole for a future chart.
+   * `hug` marks ranked bar rows; `plot` is the line-chart default. Neither
+   * reserves a plot min-height on ready.
+   */
+  plotMinHeight?: "plot" | "hug";
 }) {
   const headingId = `chart-${model.id}-title`;
   const units = Array.from(new Set(model.series.map((series) => series.unit)))
@@ -80,8 +88,8 @@ export function ChartFrame({
   // empty white space below the plot when the sibling column is taller.
   // Height follows content; equal-height pairing is opt-in at the call site.
   return (
-    <Card aria-labelledby={headingId} size="sm" className="gap-0 py-0">
-      <CardHeader className="border-b py-4">
+    <Card aria-labelledby={headingId} size="sm" className="h-fit gap-0 py-0">
+      <CardHeader className="border-b py-3">
         <CardTitle id={headingId}>{model.title}</CardTitle>
         {model.description ? <CardDescription>{model.description}</CardDescription> : null}
         <CardAction>
@@ -93,18 +101,18 @@ export function ChartFrame({
           <span>Выборка: {sampleLabel}</span>
         </div>
       </CardHeader>
-      <CardContent className="py-4">
+      <CardContent className="py-3">
         <div
           data-slot="chart-frame-content"
-          className={state.kind === "loading" || state.kind === "ready" ? "min-h-60" : undefined}
+          data-plot-min-height={plotMinHeight}
         >
           {state.kind === "loading" ? (
             <div
               role="status"
               aria-label={state.label ?? "Загрузка данных графика"}
-              className="grid min-h-60 gap-3"
+              className="grid gap-2"
             >
-              <Skeleton aria-hidden="true" className="h-full min-h-60" />
+              <Skeleton aria-hidden="true" className="h-16" />
             </div>
           ) : null}
 
@@ -118,7 +126,7 @@ export function ChartFrame({
                   <Link
                     href={state.action.href}
                     {...reportPageLocalLinkProps(state.action.href)}
-                    className={buttonVariants({ variant: "outline", size: "sm" })}
+                    className={buttonVariants({ variant: "secondary", size: "xs" })}
                   >
                     {state.action.label}
                   </Link>
@@ -146,7 +154,7 @@ export function ChartFrame({
           ) : null}
 
           {state.kind === "ready" ? (
-            <div className="flex min-h-60 flex-col gap-3">
+            <div className="flex flex-col gap-2">
               {hasLowSample ? (
                 <p className="text-sm text-muted-foreground">
                   Недостаточно выборки: {sample.size} из {sample.minimum}

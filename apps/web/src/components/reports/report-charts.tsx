@@ -121,8 +121,8 @@ export function ChartPanel({
   children: ReactNode;
 }) {
   return (
-    <Card size="sm" className="gap-0 overflow-clip py-0">
-      <CardHeader className="border-b py-4">
+    <Card size="sm" className="h-fit gap-0 overflow-clip py-0">
+      <CardHeader className="border-b py-3">
         <CardTitle>{title}</CardTitle>
         {description ? <CardDescription>{description}</CardDescription> : null}
         {actionHref ? (
@@ -137,7 +137,7 @@ export function ChartPanel({
           </CardAction>
         ) : null}
       </CardHeader>
-      <CardContent className="py-4">{children}</CardContent>
+      <CardContent className="py-3">{children}</CardContent>
     </Card>
   );
 }
@@ -172,7 +172,7 @@ export function HorizontalBarChart({
   const computedMax = maxValue ?? Math.max(...rows.map((row) => row.value), 1);
 
   return (
-    <div className="grid gap-3.5">
+    <div className="grid gap-2">
       {rows.map((row) => {
         const percent = clampPercent((row.value / computedMax) * 100);
         const formatted = valueFormatter
@@ -180,7 +180,7 @@ export function HorizontalBarChart({
           : `${Math.round(row.value)}${valueSuffix}`;
 
         return (
-          <div key={row.label} className="grid gap-1.5">
+          <div key={row.label} className="grid gap-1">
             <div className="flex min-w-0 items-baseline justify-between gap-3">
               <p className="min-w-0 truncate text-sm font-medium text-foreground" title={row.label}>{row.label}</p>
               <p className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
@@ -254,7 +254,7 @@ export function RankedList({
       {rows.map((row, index) => (
         <article
           key={`${row.label}:${index}`}
-          className="grid min-w-0 grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-3 border-b border-border py-3 first:pt-0 last:border-b-0 last:pb-0"
+          className="grid min-w-0 grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-2 border-b border-border py-1.5 first:pt-0 last:border-b-0 last:pb-0"
         >
           <div className="inline-flex size-7 items-center justify-center rounded-md bg-muted text-xs font-semibold tabular-nums text-muted-foreground">
             {index + 1}

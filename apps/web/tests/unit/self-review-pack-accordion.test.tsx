@@ -33,6 +33,17 @@ function PackAccordion() {
   );
 }
 
+function expandedTriggers() {
+  return screen.getAllByRole("button", { name: /Разбор:/ }).filter(
+    (button) => button.getAttribute("aria-expanded") === "true"
+  );
+}
+
+function panelForCopy(text: string) {
+  const copy = screen.getByText(text);
+  return copy.closest("[data-slot='accordion-content']") as HTMLElement | null;
+}
+
 describe("self-review pack accordion a11y", () => {
   it("expands and collapses when the subject is clicked", () => {
     act(() => {
@@ -45,6 +56,7 @@ describe("self-review pack accordion a11y", () => {
     expect(openTrigger.tagName).toBe("BUTTON");
     expect(openTrigger.closest("a")).toBeNull();
     expect(closedTrigger.closest("a")).toBeNull();
+    expect(expandedTriggers()).toHaveLength(1);
     expect(openTrigger).toHaveAttribute("aria-expanded", "true");
     expect(closedTrigger).toHaveAttribute("aria-expanded", "false");
     expect(screen.getByText("Цитата открытого пака про маршрутизацию")).toBeVisible();
@@ -56,8 +68,10 @@ describe("self-review pack accordion a11y", () => {
     act(() => {
       fireEvent.click(screen.getByText("Закрытый пак"));
     });
+    expect(expandedTriggers()).toHaveLength(1);
     expect(closedTrigger).toHaveAttribute("aria-expanded", "true");
     expect(openTrigger).toHaveAttribute("aria-expanded", "false");
+    expect(panelForCopy("Цитата открытого пака про маршрутизацию")?.offsetHeight).toBe(0);
     expect(window.location.pathname).toBe(pathBefore);
     expect(window.location.pathname).not.toMatch(/\/reviews\//);
     expect(screen.getByText("Цитата закрытого пака про компенсацию")).toBeVisible();
@@ -72,7 +86,10 @@ describe("self-review pack accordion a11y", () => {
     const closedCopy = screen.getByText("Цитата закрытого пака про компенсацию");
     const closedPanel = closedCopy.closest("[hidden]");
 
+    expect(expandedTriggers()).toHaveLength(1);
     expect(closedPanel).toHaveAttribute("hidden", "until-found");
+    expect(closedPanel).toHaveAttribute("data-slot", "accordion-content");
+    expect((closedPanel as HTMLElement).offsetHeight).toBe(0);
     expect(screen.getByRole("button", { name: "Разбор: Открытый пак" })).toHaveAttribute(
       "aria-expanded",
       "true"
@@ -81,5 +98,6 @@ describe("self-review pack accordion a11y", () => {
       "aria-expanded",
       "false"
     );
+    expect(screen.queryAllByRole("link", { name: "Открыть" })).toHaveLength(1);
   });
 });

@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { coachingInWorkKpiHint, coachingOverdueKpiHint } from "@/lib/coaching/empty-honesty";
+import {
+  COACHING_PLANS_AGENT_EMPTY_DESCRIPTION,
+  COACHING_PLANS_LEAD_EMPTY_DESCRIPTION,
+  COACHING_RULES_AGENT_EMPTY,
+  COACHING_SLICE_AGENT_EMPTY,
+  coachingInWorkKpiHint,
+  coachingOverdueKpiHint,
+  coachingPlansEmptyDescription,
+  isCoachingOperatorHome
+} from "@/lib/coaching/empty-honesty";
 
 describe("coaching KPI empty hints", () => {
   it("UX-ACCEPT: zero week-due hint stays observational, not under-control theater", () => {
@@ -18,6 +27,28 @@ describe("coaching KPI empty hints", () => {
   });
 });
 
+describe("coaching operator plans empty", () => {
+  it("is operator home for SUPPORT_AGENT, not for lead/admin/QA", () => {
+    expect(isCoachingOperatorHome("SUPPORT_AGENT")).toBe(true);
+    expect(isCoachingOperatorHome("TEAM_LEAD")).toBe(false);
+    expect(isCoachingOperatorHome("ADMIN")).toBe(false);
+    expect(isCoachingOperatorHome("QA_ANALYST")).toBe(false);
+    expect(isCoachingOperatorHome("EXEC")).toBe(false);
+  });
+
+  it("gives ivan@ / agent empty copy, never the lead grouping line", () => {
+    expect(coachingPlansEmptyDescription("SUPPORT_AGENT")).toBe(COACHING_PLANS_AGENT_EMPTY_DESCRIPTION);
+    expect(coachingPlansEmptyDescription("SUPPORT_AGENT")).not.toContain("Сгруппируйте разборы оператора");
+    expect(coachingPlansEmptyDescription("TEAM_LEAD")).toBe(COACHING_PLANS_LEAD_EMPTY_DESCRIPTION);
+    expect(coachingPlansEmptyDescription("ADMIN")).toBe(COACHING_PLANS_LEAD_EMPTY_DESCRIPTION);
+    expect(COACHING_PLANS_AGENT_EMPTY_DESCRIPTION).toContain("появятся планы");
+    expect(COACHING_PLANS_LEAD_EMPTY_DESCRIPTION).toContain("Сгруппируйте разборы оператора");
+    expect(COACHING_SLICE_AGENT_EMPTY).toBe("В этом срезе нет задач.");
+    expect(COACHING_SLICE_AGENT_EMPTY).not.toContain("Измените фильтры");
+    expect(COACHING_RULES_AGENT_EMPTY).toContain("Типовые правила появятся здесь");
+  });
+});
+
 describe("coaching empty honesty adversarial", () => {
   const page = readFileSync(join(process.cwd(), "src/app/coaching/page.tsx"), "utf8");
 
@@ -26,5 +57,18 @@ describe("coaching empty honesty adversarial", () => {
     expect(page).toContain("coachingOverdueKpiHint");
     expect(page).not.toContain("Сроки под контролем");
     expect(page).not.toContain("Просроченных разборов нет");
+  });
+
+  it("wires operator plans empty through role-aware helper, not a lead-only string", () => {
+    expect(page).toContain("coachingPlansEmptyDescription(user.role)");
+    expect(page).toContain("operatorHome && coachingPlans.length === 0");
+    expect(page).not.toContain("COACHING_PLANS_AGENT_EMPTY_BODY");
+    expect(page).not.toMatch(
+      /coachingPlans\.length > 0\s*\?[\s\S]{0,200}Сгруппируйте разборы оператора/
+    );
+    expect(page).toContain("COACHING_SLICE_AGENT_EMPTY");
+    expect(page).toContain("operatorHome && filteredAssignments.length === 0");
+    expect(page).toContain('size={operatorSliceEmpty ? "sm" : "default"}');
+    expect(page).toContain("COACHING_RULES_AGENT_EMPTY");
   });
 });

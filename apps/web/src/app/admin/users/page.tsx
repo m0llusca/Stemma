@@ -37,7 +37,6 @@ import { PageShell } from "@/components/ui/page-shell";
 import { AdminFrame } from "@/components/admin/admin-frame";
 import { AdminSectionTabs } from "@/components/admin/admin-section-tabs";
 import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
-import { statusSurfaceClass } from "@/lib/ui/status-tone";
 import { cn } from "@/lib/utils";
 import { requirePagePermission } from "@/lib/page-permission";
 
@@ -157,14 +156,6 @@ function formatDate(value: Date | null | undefined) {
 
 function loginLabel(value: string | null | undefined) {
   return value || "SSO";
-}
-
-function roleBadgeClass(role: RoleName) {
-  if (role === "ADMIN") {
-    return cn("border-transparent", statusSurfaceClass("warning"));
-  }
-
-  return undefined;
 }
 
 function RoleSelect({
@@ -448,7 +439,7 @@ async function AdminUsersPageContent({ searchParams }: AdminUsersPageProps) {
 
                         return (
                           <TableRow key={managedUser.id}>
-                            <TableCell className="min-w-48 whitespace-normal align-top">
+                            <TableCell className="h-auto min-w-48 whitespace-normal align-top py-2">
                               <div className="flex flex-col gap-1">
                                 <span className="flex flex-wrap items-center gap-2">
                                   <span className="font-medium text-foreground">{managedUser.name}</span>
@@ -459,18 +450,10 @@ async function AdminUsersPageContent({ searchParams }: AdminUsersPageProps) {
                                 <span className="text-xs text-muted-foreground">{managedUser.email}</span>
                               </div>
                             </TableCell>
-                            <TableCell className="min-w-44 whitespace-normal align-top">
-                              <div className="flex flex-col gap-2">
-                                <RoleSelect defaultValue={managedUser.role} form={formId} />
-                                <Badge
-                                  variant={managedUser.role === "ADMIN" ? "outline" : "secondary"}
-                                  className={cn("w-fit", roleBadgeClass(managedUser.role))}
-                                >
-                                  {roleLabels[managedUser.role]}
-                                </Badge>
-                              </div>
+                            <TableCell className="h-auto min-w-44 whitespace-normal align-top py-2">
+                              <RoleSelect defaultValue={managedUser.role} form={formId} />
                             </TableCell>
-                            <TableCell className="min-w-52 whitespace-normal align-top">
+                            <TableCell className="h-auto min-w-52 whitespace-normal align-top py-2">
                               <FieldGroup className="gap-2">
                                 <Field>
                                   <FieldLabel
@@ -504,7 +487,7 @@ async function AdminUsersPageContent({ searchParams }: AdminUsersPageProps) {
                                 </Field>
                               </FieldGroup>
                             </TableCell>
-                            <TableCell className="min-w-56 whitespace-normal align-top">
+                            <TableCell className="h-auto min-w-56 whitespace-normal align-top py-2">
                               <div className="flex flex-col gap-1">
                                 <span className="font-medium text-foreground">
                                   {loginLabel(managedUser.localCredential?.login)}
@@ -520,7 +503,7 @@ async function AdminUsersPageContent({ searchParams }: AdminUsersPageProps) {
                                 </span>
                               </div>
                             </TableCell>
-                            <TableCell className="whitespace-nowrap align-top text-right">
+                            <TableCell className="h-auto whitespace-nowrap align-top py-2 text-right">
                               <Button type="submit" form={formId} size="sm">
                                 Сохранить
                               </Button>

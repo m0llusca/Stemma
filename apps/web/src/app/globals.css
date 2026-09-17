@@ -797,6 +797,19 @@ svg[data-animation-active="true"] g[data-series="agreement"] rect {
   animation-timing-function: var(--motion-ease-spring-panel);
 }
 
+/*
+ * hidden="until-found" keeps closed packs in the DOM for find-in-page
+ * (content-visibility: hidden) but still sizes from children. Force height 0
+ * so a self-review inbox cannot paint ~26k px / crash a 1440×900 tab.
+ */
+[data-slot="accordion-content"]:not([data-open]),
+[data-slot="accordion-content"][hidden="until-found"] {
+  height: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  padding-block: 0;
+}
+
 [data-slot="spinner"][data-qc-motion="static-loop"] {
   animation: qc-spinner-spin 0.8s linear infinite;
 }

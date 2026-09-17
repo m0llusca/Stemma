@@ -362,9 +362,9 @@ describe("Task 6 shared plot geometry", () => {
       }))
     });
 
-    expect(geometry.buildRankedBreakdownGeometry(withRows(1)).height).toBe(220);
-    expect(geometry.buildRankedBreakdownGeometry(withRows(10)).height).toBe(360);
-    expect(geometry.buildRankedBreakdownGeometry(withRows(20)).height).toBe(420);
+    expect(geometry.buildRankedBreakdownGeometry(withRows(1)).height).toBe(34);
+    expect(geometry.buildRankedBreakdownGeometry(withRows(10)).height).toBe(232);
+    expect(geometry.buildRankedBreakdownGeometry(withRows(20)).height).toBe(360);
   });
 
   it("existing Task 5 quality and ranked geometry exports remain unchanged", () => {

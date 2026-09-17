@@ -235,7 +235,7 @@ export function QueueFilters({
           preserveValues={exactFilterPreserveValues(filters)}
           formId={queueFiltersFormId}
           actions={
-            <Field className="min-w-0 sm:col-span-2 sm:justify-self-end xl:col-span-1">
+            <Field className="w-fit min-w-0 sm:col-span-2 sm:justify-self-end xl:col-span-1">
               <FieldLabel className="invisible select-none" aria-hidden="true">
                 &nbsp;
               </FieldLabel>
@@ -243,6 +243,7 @@ export function QueueFilters({
                 render={<Link href={resetHref} title="Вернуть очередь к исходному виду" />}
                 nativeButton={false}
                 variant="outline"
+                className="w-auto"
               >
                 Сбросить фильтры
               </Button>

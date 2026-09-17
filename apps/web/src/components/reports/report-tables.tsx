@@ -30,7 +30,7 @@ export function BreakdownTable({
   rows,
   countLabel,
   showAverage = false,
-  actionLabel = "Открыть проверки"
+  actionLabel = "Открыть"
 }: {
   id?: string;
   title: string;
@@ -40,8 +40,8 @@ export function BreakdownTable({
   actionLabel?: string;
 }) {
   return (
-    <Card id={id} size="sm" className="gap-0 overflow-clip scroll-mt-24 py-0">
-      <CardHeader className="border-b py-4">
+    <Card id={id} size="sm" className="h-fit gap-0 overflow-clip scroll-mt-24 py-0">
+      <CardHeader className="border-b py-3">
         <CardTitle>{title}</CardTitle>
         <CardDescription>
           {rows.length > 0 ? `${rows.length} строк в разрезе` : "Нет данных для выбранного периода"}
@@ -54,15 +54,15 @@ export function BreakdownTable({
             aria-label={title}
             tabIndex={0}
             data-slot="report-table-scroll-region"
-            className="min-w-0 overflow-x-auto outline-none focus-visible:ring-3 focus-visible:ring-ring/50 [&>[data-slot=table-container]]:overflow-visible"
+            className="min-w-0 overflow-hidden outline-none focus-visible:ring-3 focus-visible:ring-ring/50 [&>[data-slot=table-container]]:overflow-visible"
           >
-            <Table className="min-w-max">
+            <Table className="w-full table-fixed">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="px-4">Разрез</TableHead>
+                  <TableHead className="w-[42%] px-4">Разрез</TableHead>
                   <TableHead className="px-4 text-right">{countLabel}</TableHead>
                   {showAverage ? <TableHead className="px-4 text-right">Средняя оценка</TableHead> : null}
-                  <TableHead className="w-[1%] px-4 text-right">
+                  <TableHead className="w-24 px-4 text-right">
                     <span className="sr-only">Действие</span>
                   </TableHead>
                 </TableRow>
@@ -70,10 +70,10 @@ export function BreakdownTable({
               <TableBody>
                 {rows.map((row) => (
                   <TableRow key={row.label}>
-                    <TableCell className="max-w-[220px] truncate px-4 font-medium" title={row.label}>{row.label}</TableCell>
+                    <TableCell className="max-w-0 truncate px-4 font-medium" title={row.label}>{row.label}</TableCell>
                     <TableCell className="px-4 text-right">
                       <Chip tone="neutral" size="sm" numeric>
-                        {row.count} {countLabel.toLowerCase()}
+                        {row.count}
                       </Chip>
                     </TableCell>
                     {showAverage ? (
@@ -139,8 +139,8 @@ export function QuotaTable({
   period: ReportPeriod;
 }) {
   return (
-    <Card id={id} size="sm" className="gap-0 overflow-clip scroll-mt-24 py-0">
-      <CardHeader className="border-b py-4">
+    <Card id={id} size="sm" className="h-fit gap-0 overflow-clip scroll-mt-24 py-0">
+      <CardHeader className="border-b py-3">
         <CardTitle>Нормы проверок</CardTitle>
         <CardDescription>План, факт и доля негативного CSAT по операторам.</CardDescription>
       </CardHeader>
@@ -153,17 +153,17 @@ export function QuotaTable({
             data-slot="report-table-scroll-region"
             className="min-w-0 overflow-x-auto outline-none focus-visible:ring-3 focus-visible:ring-ring/50 [&>[data-slot=table-container]]:overflow-visible"
           >
-            <Table className="min-w-max">
+            <Table className="w-full table-fixed">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="px-4">Оператор</TableHead>
-                  <TableHead className="px-4">Линия</TableHead>
-                  <TableHead className="px-4 text-right">План</TableHead>
-                  <TableHead className="px-4 text-right">Факт</TableHead>
-                  <TableHead className="px-4 text-right">Осталось</TableHead>
-                  <TableHead className="px-4 text-right">DSAT</TableHead>
-                  <TableHead className="px-4">Статус</TableHead>
-                  <TableHead className="w-[1%] px-4 text-right">
+                  <TableHead className="sticky left-0 z-10 w-[22%] bg-card px-4">Оператор</TableHead>
+                  <TableHead className="w-[10%] px-4 whitespace-normal">Линия</TableHead>
+                  <TableHead className="w-[8%] px-4 text-right">План</TableHead>
+                  <TableHead className="w-[8%] px-4 text-right">Факт</TableHead>
+                  <TableHead className="w-[10%] px-4 text-right whitespace-normal">Осталось</TableHead>
+                  <TableHead className="w-[14%] px-4 text-right">DSAT</TableHead>
+                  <TableHead className="w-[20%] px-4 whitespace-normal">Статус</TableHead>
+                  <TableHead className="w-24 px-4 text-right">
                     <span className="sr-only">Действие</span>
                   </TableHead>
                 </TableRow>
@@ -196,29 +196,29 @@ export function QuotaTable({
 
                   return (
                     <TableRow key={`${quota.assigneeName}:${quota.supportLine ?? ""}`}>
-                      <TableCell className="max-w-[180px] px-4">
+                      <TableCell className="sticky left-0 z-10 max-w-0 bg-card px-4 whitespace-normal">
                         <div className="min-w-0">
-                          <p className="truncate font-medium text-foreground">{quota.assigneeName}</p>
+                          <p className="truncate font-medium text-foreground" title={quota.assigneeName}>{quota.assigneeName}</p>
                           {noteParts.length > 0 ? (
-                            <p className="mt-0.5 truncate text-xs text-muted-foreground">{noteParts.join(". ")}</p>
+                            <p className="mt-0.5 truncate text-xs text-muted-foreground" title={noteParts.join(". ")}>{noteParts.join(". ")}</p>
                           ) : null}
                         </div>
                       </TableCell>
-                      <TableCell className="px-4 text-muted-foreground">{quota.supportLine ?? "Не указана"}</TableCell>
+                      <TableCell className="px-4 text-muted-foreground whitespace-normal">{quota.supportLine ?? "Не указана"}</TableCell>
                       <TableCell className="px-4 text-right tabular-nums">{quota.plannedCount}</TableCell>
                       <TableCell className="px-4 text-right tabular-nums">{actualReviews.length}</TableCell>
                       <TableCell className="px-4 text-right tabular-nums">{remaining}</TableCell>
-                      <TableCell className="px-4 text-right tabular-nums">
+                      <TableCell className="px-4 text-right tabular-nums whitespace-normal">
                         {dsatCount} ({dsatPercent}%) / {quota.dsatTargetPercent}%
                       </TableCell>
-                      <TableCell className="px-4">
+                      <TableCell className="px-4 whitespace-normal">
                         <Chip tone={statusTone} size="sm">
                           {quotaStatus}
                         </Chip>
                       </TableCell>
                       <TableCell className="px-4 text-right">
                         <Link href={href} className={buttonVariants({ variant: "outline", size: "xs" })}>
-                          Открыть проверки оператора
+                          Открыть
                         </Link>
                       </TableCell>
                     </TableRow>

@@ -140,7 +140,7 @@ export function QueueAdvancedFilters({
                   <SheetHeader className="border-b border-border">
                     <SheetTitle id={titleId}>Точные фильтры</SheetTitle>
                     <SheetDescription>
-                      Дополнительные параметры очереди. На узком экране лист закрывает список — один слой фокуса.
+                      Источник, SLA, риск и другие редкие срезы — здесь, чтобы не мешать «Взять следующий».
                     </SheetDescription>
                   </SheetHeader>
                   <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">

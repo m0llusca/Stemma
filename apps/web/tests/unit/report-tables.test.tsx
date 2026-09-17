@@ -18,10 +18,19 @@ function expectNamedScrollRegion(regionName: string, slot: string) {
   expect(region).toHaveAttribute("data-slot", slot);
   expect(region).toHaveAttribute("tabindex", "0");
   expect(region).toHaveClass(
-    "overflow-x-auto",
     "[&>[data-slot=table-container]]:overflow-visible"
   );
-  expect(table).toHaveClass("min-w-max");
+  expect(table).toHaveClass("w-full", "table-fixed");
+  expect(table).not.toHaveClass("min-w-max");
+  if (regionName === "Нормы проверок") {
+    expect(region).toHaveClass("overflow-x-auto");
+    expect(within(table).getByRole("columnheader", { name: "Оператор" })).toHaveClass(
+      "sticky"
+    );
+    return;
+  }
+
+  expect(region).toHaveClass("overflow-hidden");
 }
 
 describe("report table scroll regions", () => {

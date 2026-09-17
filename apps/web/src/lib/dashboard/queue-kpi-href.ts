@@ -1,5 +1,5 @@
 import type { RoleName } from "@prisma/client";
-import { queueFilterResetHref } from "@/lib/auth/role-home";
+import { queueFilterResetHref, roleHomePath } from "@/lib/auth/role-home";
 
 /**
  * Take-next / role-home filter vocabulary for KPI → queue drills.
@@ -31,7 +31,7 @@ export function opsQueueKpiHref(input: OpsQueueKpiHrefInput): string {
     return QUEUED_STATUS_HREF;
   }
 
-  return queueFilterResetHref(input.role, { name: input.name });
+  return zeroOpsQueueHref(input);
 }
 
 /**
@@ -46,10 +46,18 @@ export function opsQueueKpiMetricHref(
   if (metric === "overdue") {
     return input.overdueReviewCount > 0
       ? OVERDUE_SLA_HREF
-      : queueFilterResetHref(input.role, { name: input.name });
+      : zeroOpsQueueHref(input);
   }
 
   return input.queuedCount > 0
     ? QUEUED_STATUS_HREF
-    : queueFilterResetHref(input.role, { name: input.name });
+    : zeroOpsQueueHref(input);
+}
+
+function zeroOpsQueueHref(input: OpsQueueKpiHrefInput) {
+  if (input.role === "QA_ANALYST") {
+    return roleHomePath(input.role, { name: input.name });
+  }
+
+  return queueFilterResetHref(input.role, { name: input.name });
 }

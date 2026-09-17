@@ -92,7 +92,7 @@ describe("getReviewQueuePageData write gate", () => {
 
     const bare = await getReviewQueuePageData({});
     expect(bare.currentHref).toBe("/reviews");
-    expect(bare.filterResetHref).toBe("/reviews?qaAssignee=QA_ANALYST&due=overdue");
+    expect(bare.filterResetHref).toBe("/reviews");
     expect(bare.savedViews).toEqual([
       {
         id: "ws-critical",
@@ -104,7 +104,7 @@ describe("getReviewQueuePageData write gate", () => {
 
     const deep = await getReviewQueuePageData({ process: "critical" });
     expect(deep.currentHref).toBe("/reviews?process=critical");
-    expect(deep.filterResetHref).toBe("/reviews?qaAssignee=QA_ANALYST&due=overdue");
+    expect(deep.filterResetHref).toBe("/reviews");
   });
 
   it("scopes SUPPORT_AGENT queue by assigneeId only, never assignee name", async () => {

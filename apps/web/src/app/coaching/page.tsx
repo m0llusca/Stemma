@@ -51,7 +51,15 @@ import { coachingActionStatusLabels } from "@/lib/coaching-action";
 import { createCoachingPlanState, updateCoachingPlanStatusState } from "@/lib/coaching-plan-actions";
 import { filterCoachingPlansForAgent, listCoachingPlans } from "@/lib/coaching-plan";
 import { groupCoachingThemesByAgent } from "@/lib/coaching-themes";
-import { coachingInWorkKpiHint, coachingOverdueKpiHint } from "@/lib/coaching/empty-honesty";
+import {
+  COACHING_OPERATOR_EMPTY_LINE_CLASS,
+  COACHING_RULES_AGENT_EMPTY,
+  COACHING_SLICE_AGENT_EMPTY,
+  coachingInWorkKpiHint,
+  coachingOverdueKpiHint,
+  coachingPlansEmptyDescription,
+  isCoachingOperatorHome
+} from "@/lib/coaching/empty-honesty";
 import {
   openCoachingActionsPageHref,
   paginateOpenCoachingActions,
@@ -231,6 +239,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
   const focusPlanId = cleanParam(rawSearchParams.planId);
   const requestedActionsPage = parseOpenCoachingActionsPage(rawSearchParams.actionsPage);
   const isSupportAgent = user.role === "SUPPORT_AGENT";
+  const operatorHome = isCoachingOperatorHome(user.role);
   // Agents may view their own training tasks; team scoring, create forms, and
   // other operators' reviews stay manager-only.
   const canManageCoachingOps = !isSupportAgent;
@@ -554,6 +563,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
     return matchesQuery && matchesAssignee && matchesCategory && matchesView;
   });
   const selectedViewOption = viewOptions.find((option) => option.id === view) ?? viewOptions[0];
+  const operatorSliceEmpty = operatorHome && filteredAssignments.length === 0;
   const nextAssignment = overdueAssignments[0] ?? openAssignments[0];
   const nextConversation = nextAssignment?.review?.conversation;
   const nextFinding = nextAssignment?.review?.findings[0];
@@ -840,16 +850,16 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
         </Card>
       ) : null}
 
-      {canShowScoreTrend || topCategories.length > 0 ? (
+      {trendPoints.length >= 2 || topCategories.length > 0 ? (
         <div
           className={
-            canShowScoreTrend
-              ? "grid gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(280px,0.95fr)]"
-              : "grid gap-4"
+            trendPoints.length >= 2 && topCategories.length > 0
+              ? "grid items-start gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(280px,0.95fr)]"
+              : "grid items-start gap-4"
           }
           aria-label="Динамика качества и зоны роста"
         >
-          {canShowScoreTrend ? (
+          {trendPoints.length >= 2 ? (
             <Card>
               <CardHeader>
                 <CardDescription>Качество во времени</CardDescription>
@@ -863,81 +873,65 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {trendPoints.length >= 2 ? (
-                  <SparklineChart points={trendPoints} target={90} />
-                ) : (
-                  <EmptyState
-                    size="inline"
-                    icon={<BookOpenCheck size={20} aria-hidden="true" />}
-                    title="Недостаточно данных для тренда"
-                    description="Линия появится после финальных проверок за несколько месяцев."
-                  />
-                )}
+                <SparklineChart points={trendPoints} target={90} />
               </CardContent>
             </Card>
           ) : null}
 
-          {topCategories.length > 0 || canShowScoreTrend ? (
+          {topCategories.length > 0 ? (
             <Card size="sm">
               <CardHeader>
                 <CardTitle>Зоны роста</CardTitle>
                 <CardDescription>Категории с наибольшим числом активных разборов.</CardDescription>
               </CardHeader>
               <CardContent>
-                {topCategories.length > 0 ? (
-                  <ol className="flex flex-col gap-2">
-                    {topCategories.map(([categoryName, count], index) => (
-                      <li
-                        key={categoryName}
-                        className="flex min-w-0 items-center gap-2.5 rounded-lg border border-border bg-card px-2.5 py-2"
+                <ol className="flex flex-col gap-2">
+                  {topCategories.map(([categoryName, count], index) => (
+                    <li
+                      key={categoryName}
+                      className="flex min-w-0 items-center gap-2.5 rounded-lg border border-border bg-card px-2.5 py-2"
+                    >
+                      <span
+                        className="inline-flex size-5 shrink-0 items-center justify-center rounded-md bg-primary/10 text-xs font-semibold tabular-nums text-primary"
+                        aria-hidden="true"
                       >
-                        <span
-                          className="inline-flex size-5 shrink-0 items-center justify-center rounded-md bg-primary/10 text-xs font-semibold tabular-nums text-primary"
-                          aria-hidden="true"
-                        >
-                          {index + 1}
-                        </span>
-                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground" title={categoryName}>{categoryName}</span>
-                        <Chip tone="neutral" className="tabular-nums">
-                          {count}
-                        </Chip>
-                        <Button
-                          variant="link"
-                          size="xs"
-                          className="h-auto px-0"
-                          render={<Link href={viewHref(view, { q, assigneeId, category: categoryName })} />}
-                          nativeButton={false}
-                        >
-                          <PlusCircle data-icon="inline-start" aria-hidden="true" />
-                          В обучение
-                        </Button>
-                      </li>
-                    ))}
-                  </ol>
-                ) : (
-                  <EmptyState
-                    size="inline"
-                    icon={<ClipboardList size={20} aria-hidden="true" />}
-                    title="Зон роста пока нет"
-                    description="Категории появятся после привязки разборов к проверкам."
-                  />
-                )}
+                        {index + 1}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground" title={categoryName}>{categoryName}</span>
+                      <Chip tone="neutral" className="tabular-nums">
+                        {count}
+                      </Chip>
+                      <Button
+                        variant="link"
+                        size="xs"
+                        className="h-auto px-0"
+                        render={<Link href={viewHref(view, { q, assigneeId, category: categoryName })} />}
+                        nativeButton={false}
+                      >
+                        <PlusCircle data-icon="inline-start" aria-hidden="true" />
+                        В обучение
+                      </Button>
+                    </li>
+                  ))}
+                </ol>
               </CardContent>
             </Card>
           ) : null}
         </div>
       ) : null}
 
-      <Card aria-label="Планы коучинга">
-        <CardHeader className="border-b">
+      <Card aria-label="Планы коучинга" size={operatorHome && coachingPlans.length === 0 ? "sm" : "default"}>
+        <CardHeader className={operatorHome && coachingPlans.length === 0 ? undefined : "border-b"}>
           <CardTitle>Планы коучинга</CardTitle>
           <CardDescription>
             {coachingPlans.length > 0
-              ? `Развитие операторов по фокус-темам. Активных планов: ${activePlanCount}.`
-              : "Сгруппируйте разборы оператора под одной темой развития и отслеживайте прогресс."}
+              ? canManageCoachingOps
+                ? `Развитие операторов по фокус-темам. Активных планов: ${activePlanCount}.`
+                : `Ваши планы развития. Активных: ${activePlanCount}.`
+              : coachingPlansEmptyDescription(user.role)}
           </CardDescription>
-          <CardAction>
-            {canManageCoachingOps ? (
+          {canManageCoachingOps ? (
+            <CardAction>
               <Button
                 variant={createPlanOpen ? "outline" : "default"}
                 size="sm"
@@ -947,10 +941,11 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                 {createPlanOpen ? <X data-icon="inline-start" aria-hidden="true" /> : <Target data-icon="inline-start" aria-hidden="true" />}
                 {createPlanOpen ? "Скрыть форму" : "Новый план"}
               </Button>
-            ) : null}
-          </CardAction>
+            </CardAction>
+          ) : null}
         </CardHeader>
 
+        {operatorHome && coachingPlans.length === 0 ? null : (
         <CardContent className="flex flex-col gap-4">
           {canManageCoachingOps && createPlanOpen ? (
             <ToastActionForm
@@ -1151,22 +1146,17 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
               size="inline"
               icon={<Target size={20} aria-hidden="true" />}
               title="Планов коучинга пока нет"
-              description={
-                canManageCoachingOps
-                  ? "Создайте план, чтобы вести развитие оператора по конкретной теме и видеть эффект до и после."
-                  : "Когда тимлид назначит план развития, он появится здесь."
-              }
+              description="Создайте план, чтобы вести развитие оператора по конкретной теме и видеть эффект до и после."
               action={
-                canManageCoachingOps ? (
-                  <Button render={<Link href={createPlanHref} />} nativeButton={false}>
-                    <Target data-icon="inline-start" aria-hidden="true" />
-                    Новый план
-                  </Button>
-                ) : undefined
+                <Button render={<Link href={createPlanHref} />} nativeButton={false}>
+                  <Target data-icon="inline-start" aria-hidden="true" />
+                  Новый план
+                </Button>
               }
             />
           )}
         </CardContent>
+        )}
       </Card>
 
       {canManageCoachingOps && createTaskOpen ? (
@@ -1363,32 +1353,35 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                 );
               })}
             </div>
+          ) : operatorHome ? (
+            <p className={COACHING_OPERATOR_EMPTY_LINE_CLASS}>{COACHING_RULES_AGENT_EMPTY}</p>
           ) : (
             <EmptyState
               size="inline"
               icon={<BookOpenCheck size={20} aria-hidden="true" />}
               title="Нет правила для текущего фокуса"
-              description={
-                canManageCoachingOps
-                  ? "Добавьте типовую ошибку кнопкой выше — она будет показываться здесь для похожих разборов."
-                  : "Типовые правила появятся здесь, когда их добавит тимлид."
-              }
+              description="Добавьте типовую ошибку кнопкой выше — она будет показываться здесь для похожих разборов."
             />
           )}
         </CardContent>
       </Card>
 
-      <Card aria-label="Рабочая область обучения">
-        <CardHeader className="border-b">
+      <Card aria-label="Рабочая область обучения" size={operatorSliceEmpty ? "sm" : "default"}>
+        <CardHeader className={operatorSliceEmpty ? undefined : "border-b"}>
           <CardTitle>{selectedViewOption.label}</CardTitle>
-          <CardDescription>{selectedViewOption.helper}.</CardDescription>
-          <CardAction>
-            <Chip tone="neutral" className="tabular-nums">
-              {filteredAssignments.length}
-            </Chip>
-          </CardAction>
+          <CardDescription>
+            {operatorSliceEmpty ? COACHING_SLICE_AGENT_EMPTY : `${selectedViewOption.helper}.`}
+          </CardDescription>
+          {operatorSliceEmpty ? null : (
+            <CardAction>
+              <Chip tone="neutral" className="tabular-nums">
+                {filteredAssignments.length}
+              </Chip>
+            </CardAction>
+          )}
         </CardHeader>
 
+        {operatorSliceEmpty ? null : (
         <CardContent className="flex flex-col gap-4">
           <nav
             aria-label="Виды разборов"
@@ -1595,22 +1588,17 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
             <EmptyState
               icon={<ClipboardList size={24} aria-hidden="true" />}
               title="В этом срезе нет задач"
-              description={
-                canManageCoachingOps
-                  ? "Измените фильтры или создайте учебную задачу из проверки с замечанием."
-                  : "Измените фильтры или дождитесь новой задачи от тимлида."
-              }
+              description="Измените фильтры или создайте учебную задачу из проверки с замечанием."
               action={
-                canManageCoachingOps ? (
-                  <Button render={<Link href={createTaskHref} />} nativeButton={false}>
-                    <PlusCircle data-icon="inline-start" aria-hidden="true" />
-                    Новая задача
-                  </Button>
-                ) : undefined
+                <Button render={<Link href={createTaskHref} />} nativeButton={false}>
+                  <PlusCircle data-icon="inline-start" aria-hidden="true" />
+                  Новая задача
+                </Button>
               }
             />
           )}
         </CardContent>
+        )}
       </Card>
     </PageShell>
   );

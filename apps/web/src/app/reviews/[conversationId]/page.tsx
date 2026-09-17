@@ -156,7 +156,7 @@ function StatusChip({
 
 function DetailItem({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex min-w-0 flex-col gap-1">
+    <div className="flex min-w-0 flex-col gap-0.5">
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className="text-sm font-medium text-foreground">{children}</p>
     </div>
@@ -1208,7 +1208,7 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
             ) : null}
           </div>
         </CardHeader>
-        <CardContent className="grid gap-3 px-4 py-3.5 sm:grid-cols-2 lg:grid-cols-3">
+        <CardContent className="grid items-start gap-x-3 gap-y-2 px-4 py-3 sm:grid-cols-3">
           <DetailItem label="Канал">{channelLabels[conversation.channel]}</DetailItem>
           <DetailItem label="Тикет">{conversationStatusLabel(conversation.status)}</DetailItem>
           <DetailItem label="Сообщения">{formatMessageCount(conversation.messages.length)}</DetailItem>

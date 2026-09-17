@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import type { ComponentProps } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RankedDriverChart } from "@/components/charts/ranked-driver-chart.client";
-import { PeriodMovementPanel } from "@/components/reports/report-panels";
+import { DriverChainCard, PeriodMovementPanel } from "@/components/reports/report-panels";
 import { HorizontalBarChart, QuotaProgressBars, RankedList, SparklineChart } from "@/components/reports/report-charts";
 import { formatQualityScore } from "@/lib/score-display";
 import type { ChartModel } from "@/lib/charts/contracts";
@@ -577,7 +577,7 @@ describe("RankedDriverChart", () => {
       container.querySelector('[data-slot="ranked-selected-marker"]')
     ).toHaveStyle({
       left: `${(168 / 520) * 100}%`,
-      top: `${(55.5 / 220) * 100}%`
+      top: `${(21 / 82) * 100}%`
     });
 
     fireEvent.keyDown(plot, { key: "ArrowDown" });
@@ -594,7 +594,7 @@ describe("RankedDriverChart", () => {
       container.querySelector('[data-slot="ranked-selected-marker"]')
     ).toHaveStyle({
       left: `${((335 + (4 / 6) * 167) / 520) * 100}%`,
-      top: `${(146.5 / 220) * 100}%`
+      top: `${(43 / 82) * 100}%`
     });
 
     fireEvent.keyDown(plot, { key: "Escape" });
@@ -693,42 +693,46 @@ describe("RankedDriverChart", () => {
 
   it("uses the shared Graph/Table frame for factors without removing the action chain", () => {
     render(
-      <PeriodMovementPanel
-        negativeItems={[
-          {
-            scope: "Источники",
-            label: "Freshdesk",
-            count: 12,
-            currentScore: 74,
-            previousScore: 80,
-            delta: -6,
-            href: "/reviews?source=freshdesk"
-          }
-        ]}
-        positiveItems={[
-          {
-            scope: "Команды",
-            label: "Retention",
-            count: 9,
-            currentScore: 91,
-            previousScore: 87,
-            delta: 4,
-            href: "/reviews?teamName=Retention"
-          }
-        ]}
-        driverItems={[
-          {
-            label: "Источник",
-            value: "Freshdesk",
-            evidence: "74 балла · 12 проверок",
-            action: "Сравнить канал с общей выборкой",
-            href: "/reviews?source=freshdesk"
-          }
-        ]}
-        view="graph"
-        currentHref="/reports?view=overview&chartView=graph&series=score"
-        periodLabel="1–31 июля 2026"
-      />
+      <>
+        <PeriodMovementPanel
+          negativeItems={[
+            {
+              scope: "Источники",
+              label: "Freshdesk",
+              count: 12,
+              currentScore: 74,
+              previousScore: 80,
+              delta: -6,
+              href: "/reviews?source=freshdesk"
+            }
+          ]}
+          positiveItems={[
+            {
+              scope: "Команды",
+              label: "Retention",
+              count: 9,
+              currentScore: 91,
+              previousScore: 87,
+              delta: 4,
+              href: "/reviews?teamName=Retention"
+            }
+          ]}
+          view="graph"
+          currentHref="/reports?view=overview&chartView=graph&series=score"
+          periodLabel="1–31 июля 2026"
+        />
+        <DriverChainCard
+          items={[
+            {
+              label: "Источник",
+              value: "Freshdesk",
+              evidence: "74 балла · 12 проверок",
+              action: "Сравнить канал с общей выборкой",
+              href: "/reviews?source=freshdesk"
+            }
+          ]}
+        />
+      </>
     );
 
     expect(
@@ -769,7 +773,6 @@ describe("RankedDriverChart", () => {
             href: "/reviews?teamName=Retention"
           }
         ]}
-        driverItems={[]}
         view="table"
         currentHref="/reports?view=overview&chartView=table&series=score"
         periodLabel="1–31 июля 2026"

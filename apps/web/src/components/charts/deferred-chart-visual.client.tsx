@@ -54,7 +54,7 @@ class ChartRenderBoundary extends Component<
 
 function ChartLoadError({ onRetry }: { onRetry: () => void }) {
   return (
-    <Alert role="alert" className="min-h-60 content-center">
+    <Alert role="alert">
       <AlertTitle>Не удалось загрузить график</AlertTitle>
       <AlertDescription>
         Табличное представление остаётся доступным. Попробуйте загрузить график ещё раз.

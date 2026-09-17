@@ -441,6 +441,7 @@ export function AiAgreementPanel({
             : { status: "current" }
         }
         state={bundle.isEmpty ? { kind: "empty" } : { kind: "ready" }}
+        plotMinHeight="hug"
         graph={
           view === "graph" && !bundle.isEmpty ? (
             <RankedBreakdownChart model={bundle.model} />
