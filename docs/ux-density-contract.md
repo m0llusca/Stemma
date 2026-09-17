@@ -54,7 +54,7 @@ Appearance density доходит до page chrome. Пустые слоты не
 Пакы — accordion.
 
 - Один открытый по умолчанию: `defaultValue={[actionConversations[0].id]}`, `multiple={false}`.
-- `hiddenUntilFound`: закрытые паки остаются в DOM (`hidden="until-found"`) для find-in-page и не красят ~26k px. Не раскрывать все паки.
+- `hiddenUntilFound`: закрытые паки остаются в DOM (`hidden="until-found"`) для find-in-page. Closed panel: `height: 0` (не `h-(--accordion-panel-height)` / не content-visibility box). Не красить ~26k px и не ронять вкладку на 1440×900.
 - Тема/subject — `AccordionTrigger`. Клик по теме **только** раскрывает/сворачивает (не только шеврон). Не вести на `/reviews/…`. Полный кейс — отдельная кнопка «Открыть» в теле пака. `aria-expanded` совпадает с open.
 - Гейт: высота вкладки ~3k с одним открытым, не со всеми. Не раскрывать все паки.
 
@@ -72,6 +72,7 @@ Appearance density доходит до page chrome. Пустые слоты не
 ## Chrome / truncate
 
 - Роль в topbar: wrap + `title=`. Не `max-w-36` clip длинных имён («Руководитель контроля качества»).
+- «Сменить роль»: длинный `optionLabel` truncate **с** `title=`. Viewer pending: меню вверх (`side="top"`), не ниже viewport.
 - `title=` на truncate: поиск, dashboard, calibration, coaching, reports, system jobs.
 - `/reports` «Факторы изменения»: шире левый gutter (`RANKED_DRIVER_VIEWBOX` left 168 / width 520), `wrapSvgLabel` до 2 строк, SVG `<title>` + `pointer-events: auto`. Нет `Тимофе…` без полного имени (title/tooltip).
 - Admin hub: title + badge truncate с `title=`.
@@ -89,6 +90,16 @@ Appearance density доходит до page chrome. Пустые слоты не
 | Разрезы (таблицы) | `BreakdownTable`: `table-fixed w-full`, `overflow-hidden`, `h-fit`, truncate + `title=`. `QuotaTable` — полная ширина (`report-details-quotas`), не колонка 444px: `table-fixed`, sticky первая колонка, wrap, «Открыть». Скролл только если таблица реально широкая. |
 
 Тесты: `apps/web/tests/unit/reports-density-p0.test.ts`. Follow-up FAIL — новый `describe` в том же файле.
+
+Jamal вне `/reports` (тот же PR, tip после `3f3745d`):
+
+| Приоритет | Контракт |
+| --- | --- |
+| P0 `/self-review` | Один открытый пак; closed `height: 0` + `hiddenUntilFound`; subject = trigger; «Открыть» отдельно. `/dashboard` оператора → тот же экран, без crash. |
+| P1 `/coaching` | Оператор: empty не «Сгруппируйте разборы…». Lead/Admin: нет пустых карточек тренда/зон и дыры под графиком. |
+| P1 `/calibration` | «Сигналы по апелляциям» — compact inline empty. |
+| P1 `/reviews/[id]` | Title wrap + `title=`; context grid `sm:grid-cols-3` без воздуха. |
+| P1 chrome | Role menu `title=`; Viewer pending menu `side="top"`. |
 
 ## Soft — Закрыто в #169
 

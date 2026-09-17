@@ -73,6 +73,8 @@ describe("self-review pack accordion a11y", () => {
     const closedPanel = closedCopy.closest("[hidden]");
 
     expect(closedPanel).toHaveAttribute("hidden", "until-found");
+    expect(closedPanel).toHaveAttribute("data-slot", "accordion-content");
+    expect((closedPanel as HTMLElement).offsetHeight).toBe(0);
     expect(screen.getByRole("button", { name: "Разбор: Открытый пак" })).toHaveAttribute(
       "aria-expanded",
       "true"

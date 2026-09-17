@@ -124,3 +124,51 @@ describe("reports density follow-up FAIL (#172)", () => {
     );
   });
 });
+
+describe("Jamal deep-walk FAIL (#172)", () => {
+  it("P0 self-review packs stay collapsed: one open, closed height 0, subject is not a link", () => {
+    const page = src("app/self-review/page.tsx");
+    expect(page).toContain("defaultValue={[actionConversations[0].id]}");
+    expect(page).toContain("multiple={false}");
+    expect(page).toContain("hiddenUntilFound");
+    expect(page).not.toMatch(/<AccordionTrigger[\s\S]{0,800}<Link/);
+
+    const accordion = src("components/ui/accordion.tsx");
+    expect(accordion).toContain("data-closed:h-0");
+    expect(accordion).toContain("data-open:h-(--accordion-panel-height)");
+    expect(src("app/globals.css")).toContain("hidden=\"until-found\"");
+  });
+
+  it("P1 coaching empty copy is role-aware and empty charts do not reserve a hole", () => {
+    const coaching = src("app/coaching/page.tsx");
+    expect(coaching).toContain("Здесь появятся планы развития, которые назначит руководитель.");
+    expect(coaching).toContain("trendPoints.length >= 2 || topCategories.length > 0");
+    expect(coaching).not.toContain("canShowScoreTrend || topCategories.length > 0");
+  });
+
+  it("P1 calibration appeal empty stays compact", () => {
+    const calibration = src("app/calibration/page.tsx");
+    expect(calibration).toContain("Подтверждённые и скорректированные апелляции появятся здесь.");
+    expect(calibration).toContain('size="inline"');
+    expect(calibration).not.toContain("Исходы апелляций (подтверждена / скорректирована)");
+  });
+
+  it("P1 chrome role switcher exposes title= and pending menu opens upward", () => {
+    const switcher = src("components/auth/demo-role-switch.tsx");
+    expect(switcher).toContain("title={user.optionLabel}");
+    expect(switcher).toContain('side="top"');
+    expect(switcher).toContain("bottom-full mb-2");
+    expect(switcher).toContain("max-h-[min(24rem,calc(100dvh-1rem))]");
+  });
+
+  it("P1 review title wraps with title= and context grid stays dense", () => {
+    const shell = src("components/ui/page-shell.tsx");
+    expect(shell).toContain("text-pretty");
+    expect(shell).toContain("break-words");
+    expect(shell).toContain('title={typeof title === "string" ? title : undefined}');
+
+    const review = src("app/reviews/[conversationId]/page.tsx");
+    expect(review).toContain("sm:grid-cols-3");
+    expect(review).toContain("items-start gap-x-3 gap-y-2");
+  });
+});

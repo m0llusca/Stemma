@@ -547,8 +547,9 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
         <CardHeader className="border-b">
           <CardTitle>Сигналы по апелляциям</CardTitle>
           <CardDescription>
-            Исходы апелляций (подтверждена / скорректирована) для фокуса калибровки и проверки формы оценки. Критерии
-            scorecard не меняются автоматически.
+            {appealCalibrationSignals.length > 0
+              ? "Исходы апелляций для фокуса калибровки. Критерии scorecard не меняются автоматически."
+              : "Подтверждённые и скорректированные апелляции появятся здесь."}
           </CardDescription>
           <CardAction>
             <Badge variant="secondary">{appealSignalCount}</Badge>
@@ -591,9 +592,8 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
           ) : (
             <EmptyState
               size="inline"
-              icon={<TriangleAlert size={20} aria-hidden="true" />}
               title="Пока нет сигналов"
-              description="Когда менеджер подтвердит или скорректирует апелляцию, здесь появится ссылка на проверку."
+              description="Когда апелляцию подтвердят или скорректируют, здесь появится ссылка на проверку."
             />
           )}
           <div>

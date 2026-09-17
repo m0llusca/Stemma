@@ -50,6 +50,8 @@ type AccountMenuDisclosureProps = {
   triggerClassName?: string;
   panelClassName?: string;
   align?: "start" | "end";
+  /** Open the panel above the trigger when it would overflow the viewport. */
+  side?: "top" | "bottom";
   /** Parent sets this to the current route so navigation dismisses the panel. */
   dismissKey?: string;
   children: ReactNode;
@@ -68,6 +70,7 @@ export function AccountMenuDisclosure({
   triggerClassName,
   panelClassName,
   align = "end",
+  side = "bottom",
   dismissKey,
   children,
   panel
@@ -154,8 +157,9 @@ export function AccountMenuDisclosure({
         aria-label={triggerAriaLabel}
         data-slot="account-menu-panel"
         className={cn(
-          "absolute z-50 mt-2 min-w-32 rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10",
+          "absolute z-50 max-h-[min(24rem,calc(100dvh-1rem))] min-w-32 overflow-y-auto rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10",
           align === "end" ? "right-0" : "left-0",
+          side === "top" ? "bottom-full mb-2" : "top-full mt-2",
           panelClassName
         )}
       >
@@ -186,6 +190,7 @@ export function DemoRoleSwitchMenu({ switcher }: { switcher: DemoRoleSwitcher })
                 role="menuitem"
                 aria-current="true"
                 aria-disabled="true"
+                title={user.optionLabel}
                 className={itemClassName}
               >
                 <span className="min-w-0 truncate">{user.optionLabel}</span>
@@ -194,9 +199,20 @@ export function DemoRoleSwitchMenu({ switcher }: { switcher: DemoRoleSwitcher })
           }
 
           return (
-            <form key={user.id} action={switchCurrentUser} className="w-full">
+            <form
+              key={user.id}
+              action={switchCurrentUser}
+              className="w-full"
+              onSubmit={(event) => {
+                accountMenuExpanded = false;
+                const details = event.currentTarget.closest("details");
+                if (details instanceof HTMLDetailsElement) {
+                  details.open = false;
+                }
+              }}
+            >
               <input type="hidden" name="userId" value={user.id} />
-              <button type="submit" role="menuitem" className={itemClassName}>
+              <button type="submit" role="menuitem" title={user.optionLabel} className={itemClassName}>
                 <span className="min-w-0 truncate">{user.optionLabel}</span>
               </button>
             </form>
@@ -220,8 +236,10 @@ export function DemoAccountMenu({ switcher, logout }: DemoAccountMenuProps) {
   return (
     <AccountMenuDisclosure
       triggerAriaLabel={`Профиль: ${switcher.roleLabel}, ${currentName}`}
+      triggerTitle={`${switcher.roleLabel} · ${currentName}`}
       triggerClassName={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full min-h-11 gap-1.5")}
       align="start"
+      side="top"
       panelClassName="w-72"
       panel={
         <>
@@ -231,8 +249,14 @@ export function DemoAccountMenu({ switcher, logout }: DemoAccountMenuProps) {
         </>
       }
     >
-      <span className="min-w-0 truncate">{switcher.roleLabel}</span>
-      <span className="min-w-0 truncate text-muted-foreground">{currentName}</span>
+      <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left">
+        <span className="min-w-0 truncate" title={switcher.roleLabel}>
+          {switcher.roleLabel}
+        </span>
+        <span className="min-w-0 truncate text-muted-foreground" title={currentName}>
+          {currentName}
+        </span>
+      </span>
       <DisclosureMorphChevron data-icon="inline-end" />
     </AccountMenuDisclosure>
   );

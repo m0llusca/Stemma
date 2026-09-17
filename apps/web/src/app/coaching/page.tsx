@@ -840,16 +840,16 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
         </Card>
       ) : null}
 
-      {canShowScoreTrend || topCategories.length > 0 ? (
+      {trendPoints.length >= 2 || topCategories.length > 0 ? (
         <div
           className={
-            canShowScoreTrend
-              ? "grid gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(280px,0.95fr)]"
-              : "grid gap-4"
+            trendPoints.length >= 2 && topCategories.length > 0
+              ? "grid items-start gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(280px,0.95fr)]"
+              : "grid items-start gap-4"
           }
           aria-label="Динамика качества и зоны роста"
         >
-          {canShowScoreTrend ? (
+          {trendPoints.length >= 2 ? (
             <Card>
               <CardHeader>
                 <CardDescription>Качество во времени</CardDescription>
@@ -863,65 +863,47 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {trendPoints.length >= 2 ? (
-                  <SparklineChart points={trendPoints} target={90} />
-                ) : (
-                  <EmptyState
-                    size="inline"
-                    icon={<BookOpenCheck size={20} aria-hidden="true" />}
-                    title="Недостаточно данных для тренда"
-                    description="Линия появится после финальных проверок за несколько месяцев."
-                  />
-                )}
+                <SparklineChart points={trendPoints} target={90} />
               </CardContent>
             </Card>
           ) : null}
 
-          {topCategories.length > 0 || canShowScoreTrend ? (
+          {topCategories.length > 0 ? (
             <Card size="sm">
               <CardHeader>
                 <CardTitle>Зоны роста</CardTitle>
                 <CardDescription>Категории с наибольшим числом активных разборов.</CardDescription>
               </CardHeader>
               <CardContent>
-                {topCategories.length > 0 ? (
-                  <ol className="flex flex-col gap-2">
-                    {topCategories.map(([categoryName, count], index) => (
-                      <li
-                        key={categoryName}
-                        className="flex min-w-0 items-center gap-2.5 rounded-lg border border-border bg-card px-2.5 py-2"
+                <ol className="flex flex-col gap-2">
+                  {topCategories.map(([categoryName, count], index) => (
+                    <li
+                      key={categoryName}
+                      className="flex min-w-0 items-center gap-2.5 rounded-lg border border-border bg-card px-2.5 py-2"
+                    >
+                      <span
+                        className="inline-flex size-5 shrink-0 items-center justify-center rounded-md bg-primary/10 text-xs font-semibold tabular-nums text-primary"
+                        aria-hidden="true"
                       >
-                        <span
-                          className="inline-flex size-5 shrink-0 items-center justify-center rounded-md bg-primary/10 text-xs font-semibold tabular-nums text-primary"
-                          aria-hidden="true"
-                        >
-                          {index + 1}
-                        </span>
-                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground" title={categoryName}>{categoryName}</span>
-                        <Chip tone="neutral" className="tabular-nums">
-                          {count}
-                        </Chip>
-                        <Button
-                          variant="link"
-                          size="xs"
-                          className="h-auto px-0"
-                          render={<Link href={viewHref(view, { q, assigneeId, category: categoryName })} />}
-                          nativeButton={false}
-                        >
-                          <PlusCircle data-icon="inline-start" aria-hidden="true" />
-                          В обучение
-                        </Button>
-                      </li>
-                    ))}
-                  </ol>
-                ) : (
-                  <EmptyState
-                    size="inline"
-                    icon={<ClipboardList size={20} aria-hidden="true" />}
-                    title="Зон роста пока нет"
-                    description="Категории появятся после привязки разборов к проверкам."
-                  />
-                )}
+                        {index + 1}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground" title={categoryName}>{categoryName}</span>
+                      <Chip tone="neutral" className="tabular-nums">
+                        {count}
+                      </Chip>
+                      <Button
+                        variant="link"
+                        size="xs"
+                        className="h-auto px-0"
+                        render={<Link href={viewHref(view, { q, assigneeId, category: categoryName })} />}
+                        nativeButton={false}
+                      >
+                        <PlusCircle data-icon="inline-start" aria-hidden="true" />
+                        В обучение
+                      </Button>
+                    </li>
+                  ))}
+                </ol>
               </CardContent>
             </Card>
           ) : null}
@@ -933,8 +915,12 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
           <CardTitle>Планы коучинга</CardTitle>
           <CardDescription>
             {coachingPlans.length > 0
-              ? `Развитие операторов по фокус-темам. Активных планов: ${activePlanCount}.`
-              : "Сгруппируйте разборы оператора под одной темой развития и отслеживайте прогресс."}
+              ? canManageCoachingOps
+                ? `Развитие операторов по фокус-темам. Активных планов: ${activePlanCount}.`
+                : `Ваши планы развития. Активных: ${activePlanCount}.`
+              : canManageCoachingOps
+                ? "Сгруппируйте разборы оператора под одной темой развития и отслеживайте прогресс."
+                : "Здесь появятся планы развития, которые назначит руководитель."}
           </CardDescription>
           <CardAction>
             {canManageCoachingOps ? (

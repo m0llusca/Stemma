@@ -54,6 +54,10 @@ describe("density layout contract (#166)", () => {
     expect(page).toContain("hiddenUntilFound");
     expect(page).toContain("multiple={false}");
     expect(page).toContain("defaultValue={[actionConversations[0].id]}");
+    const accordion = src("components/ui/accordion.tsx");
+    expect(accordion).toContain("data-closed:h-0");
+    expect(accordion).not.toContain("h-(--accordion-panel-height) pt-0");
+    expect(src("app/globals.css")).toContain('[data-slot="accordion-content"][hidden="until-found"]');
     expect(page).not.toContain("keepMounted={false}");
     expect(page).toContain("<AccordionTrigger");
     expect(page).toContain("{conversation.subject}");

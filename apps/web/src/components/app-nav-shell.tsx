@@ -403,7 +403,7 @@ function AppNavShellChrome({
           type="button"
           variant="outline"
           size="sm"
-          className="min-w-0 gap-2 text-muted-foreground md:w-9 md:flex-none md:px-0 xl:w-48 xl:px-3 xl:justify-start"
+          className="min-w-0 gap-2 text-muted-foreground md:w-9 md:flex-none md:px-0 xl:w-56 xl:px-3 xl:justify-start"
           aria-label="Поиск или команда"
           aria-haspopup="dialog"
           aria-expanded={commandOpen}

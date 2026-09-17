@@ -49,7 +49,12 @@ export function PageShell({
           {eyebrow != null ? (
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{eyebrow}</p>
           ) : null}
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
+          <h1
+            className="min-w-0 text-pretty text-2xl font-semibold tracking-tight break-words text-foreground"
+            title={typeof title === "string" ? title : undefined}
+          >
+            {title}
+          </h1>
           {description != null ? (
             <p className="max-w-3xl text-sm text-muted-foreground">{description}</p>
           ) : null}

@@ -89,8 +89,14 @@ describe("AccountMenuDisclosure", () => {
     const details = openViaUa(trigger);
     expect(details?.open).toBe(true);
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
-    expect(screen.getByRole("menuitem", { name: "Иван Петров · Оператор · Демо" })).not.toBeNull();
-    expect(screen.getByRole("menuitem", { name: "Анна QA · Проверяющий · Демо" })).not.toBeNull();
+    expect(screen.getByRole("menuitem", { name: "Иван Петров · Оператор · Демо" })).toHaveAttribute(
+      "title",
+      "Иван Петров · Оператор · Демо"
+    );
+    expect(screen.getByRole("menuitem", { name: "Анна QA · Проверяющий · Демо" })).toHaveAttribute(
+      "title",
+      "Анна QA · Проверяющий · Демо"
+    );
     expect(screen.queryByRole("button", { name: "Сменить роль" })).toBeNull();
   });
 

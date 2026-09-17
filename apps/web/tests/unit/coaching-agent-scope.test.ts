@@ -31,6 +31,15 @@ describe("coaching page agent score scope", () => {
     expect(source).not.toMatch(/const themesByAgent = canManageCoachingOps/);
   });
 
+  it("does not sell lead empty copy to operators", () => {
+    expect(source).toContain("Здесь появятся планы развития, которые назначит руководитель.");
+    expect(source).toContain("canManageCoachingOps");
+    const emptyLead = source.indexOf("Сгруппируйте разборы оператора под одной темой развития");
+    const emptyAgent = source.indexOf("Здесь появятся планы развития, которые назначит руководитель.");
+    expect(emptyLead).toBeGreaterThan(-1);
+    expect(emptyAgent).toBeGreaterThan(emptyLead);
+  });
+
   it("hides create CTAs and empty assignee filter when agents cannot manage coaching ops", () => {
     expect(source).toContain("canManageCoachingOps");
     expect(source).toContain("Добавить правило");
