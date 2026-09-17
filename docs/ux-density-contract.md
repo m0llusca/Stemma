@@ -86,7 +86,7 @@ Appearance density доходит до page chrome. Пустые слоты не
 | «Согласие AI с проверяющими» | `rankedPlotHeight`: ряд = `RANKED_ROW_HEIGHT` (22), `RANKED_BAR_FILL` 0.82. Без `min(420, max(220, n*36))`. ChartFrame без `min-h-60` на ready. SVG `height` в px + `preserveAspectRatio="none"`. Имена критериев — HTML-колонка + `title=`. Не рисовать фейковые точки. |
 | Обзор | Два графика в `xl:grid-cols-2` + `items-start`. «Цепочка драйверов» — отдельная полная ширина (`DriverChainCard`). CTA «Углубить анализ» — одна строка, `secondary`/`xs`, `w-fit`. Нет min-height под будущий график. |
 | Люди / Статусы | Секции `report-details-people` / `report-details-statuses`: сетка `items-start` без stretch на viewport. Мало данных — компактный inline empty внутри карточки, не пустыня. |
-| Разрезы (таблицы) | `BreakdownTable`: `table-fixed w-full`, `overflow-hidden`, `h-fit`, truncate + `title=`. `QuotaTable`: `table-fixed`, sticky первая колонка, wrap, действие «Открыть». Горизонтальный скролл только если таблица реально широкая — не пустая полоса. |
+| Разрезы (таблицы) | `BreakdownTable`: `table-fixed w-full`, `overflow-hidden`, `h-fit`, truncate + `title=`. `QuotaTable` — полная ширина (`report-details-quotas`), не колонка 444px: `table-fixed`, sticky первая колонка, wrap, «Открыть». Скролл только если таблица реально широкая. |
 
 Тесты: `apps/web/tests/unit/reports-density-p0.test.ts`. Follow-up FAIL — новый `describe` в том же файле.
 
