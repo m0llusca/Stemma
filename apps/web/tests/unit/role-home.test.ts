@@ -34,11 +34,9 @@ describe("role-home", () => {
     expect(roleHomePath("VIEWER")).toBe("/auth/pending-access");
   });
 
-  it("resets analyst inbox filters to mine+overdue home, not a bare /reviews", () => {
-    expect(queueFilterResetHref("QA_ANALYST", { name: "Анна QA" })).toBe(
-      "/reviews?qaAssignee=%D0%90%D0%BD%D0%BD%D0%B0%20QA&due=overdue"
-    );
-    expect(queueFilterResetHref("QA_ANALYST")).toBe("/reviews?due=overdue");
+  it("clears queue filters to bare /reviews for every role, including QA", () => {
+    expect(queueFilterResetHref("QA_ANALYST", { name: "Анна QA" })).toBe("/reviews");
+    expect(queueFilterResetHref("QA_ANALYST")).toBe("/reviews");
     expect(queueFilterResetHref("TEAM_LEAD")).toBe("/reviews");
     expect(queueFilterResetHref("ADMIN")).toBe("/reviews");
     expect(queueFilterResetHref("EXEC")).toBe("/reviews");
@@ -51,7 +49,7 @@ describe("role-home", () => {
     expect(welcomeBackResetHref("dashboard", "ADMIN")).toBe("/dashboard");
     expect(welcomeBackResetHref("dashboard", "EXEC")).toBe("/dashboard");
     expect(welcomeBackResetHref("dashboard", "QA_ANALYST", { name: "Анна QA" })).toBe(
-      queueFilterResetHref("QA_ANALYST", { name: "Анна QA" })
+      roleHomePath("QA_ANALYST", { name: "Анна QA" })
     );
     expect(welcomeBackResetHref("reviews", "TEAM_LEAD")).toBe("/reviews");
     expect(welcomeBackResetHref("reviews", "ADMIN")).toBe("/reviews");

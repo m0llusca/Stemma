@@ -161,6 +161,12 @@ describe("Jamal deep-walk FAIL (#172)", () => {
     expect(switcher).toContain("max-h-[min(24rem,calc(100dvh-1rem))]");
   });
 
+  it("P1 QA filter reset clears qaAssignee and due, not role-home inbox", () => {
+    const home = src("lib/auth/role-home.ts");
+    expect(home).toContain("Always the unfiltered queue — including QA.");
+    expect(home).toContain("return \"/reviews\"");
+  });
+
   it("P1 review title wraps with title= and context grid stays dense", () => {
     const shell = src("components/ui/page-shell.tsx");
     expect(shell).toContain("text-pretty");

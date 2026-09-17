@@ -41,7 +41,7 @@ test("first paint of /reviews does not silently apply a workspace saved view", a
 
   const reset = page.getByRole("button", { name: "Сбросить фильтры" });
   await expect(reset).toBeVisible();
-  await expect(reset).toHaveAttribute("href", analystResetHref(analyst.name));
+  await expect(reset).toHaveAttribute("href", "/reviews");
 });
 
 test("day-1 glossary is a single SLA/OTRS hint, not a tour", async ({ page, context }) => {

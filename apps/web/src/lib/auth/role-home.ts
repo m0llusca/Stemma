@@ -173,34 +173,30 @@ export function roleHomePath(role: RoleName, options?: { name?: string }) {
 }
 
 /**
- * Inbox «Сбросить фильтры» target. Analyst home is mine+overdue — a bare
- * `/reviews` reset would wipe that inbox. Other roles reset to the unfiltered queue.
+ * Inbox «Сбросить фильтры» target. Always the unfiltered queue — including QA.
+ * Role home (login / «Сегодня») stays mine+overdue via `roleHomePath`.
  */
-export function queueFilterResetHref(role: RoleName, options?: { name?: string }) {
-  if (role === "QA_ANALYST") {
-    return roleHomePath(role, options);
-  }
-
+export function queueFilterResetHref(_role?: RoleName, _options?: { name?: string }) {
   return "/reviews";
 }
 
 export type WelcomeBackSurface = "reviews" | "dashboard";
 
 /**
- * Welcome-back reset target. Reviews uses the queue inbox helper (Analyst
- * mine+overdue, others `/reviews`). Dashboard uses role-home so Lead/Admin/Exec
- * return to `/dashboard`, not the unfiltered queue.
+ * Welcome-back «очередь дня». Dashboard → role home. Reviews → Analyst
+ * mine+overdue inbox; others `/reviews`. Distinct from «Сбросить фильтры»,
+ * which always clears to `/reviews`.
  */
 export function welcomeBackResetHref(
   surface: WelcomeBackSurface,
   role: RoleName,
   options?: { name?: string }
 ) {
-  if (surface === "dashboard") {
+  if (surface === "dashboard" || role === "QA_ANALYST") {
     return roleHomePath(role, options);
   }
 
-  return queueFilterResetHref(role, options);
+  return "/reviews";
 }
 
 export function resolvePostLoginPath(returnTo: string | null | undefined, user: { role: RoleName; name: string }) {

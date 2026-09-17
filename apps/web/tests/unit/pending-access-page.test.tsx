@@ -104,7 +104,7 @@ describe("pending-access holding state", () => {
     expect(screen.queryByRole("button", { name: "Сменить роль" })).toBeNull();
     const profile = screen.getByRole("button", { name: /Профиль: Без доступа/ });
     expect(profile.getAttribute("data-slot")).toBe("account-menu");
-    expect(profile).toHaveAttribute("title", "Без доступа · Гость");
+    expect(profile.getAttribute("title")).toBe("Без доступа · Гость");
     const panel = document.querySelector("[data-slot=account-menu-panel]");
     expect(panel?.className).toMatch(/bottom-full/);
     fireEvent.click(profile);
