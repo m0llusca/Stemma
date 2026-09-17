@@ -89,7 +89,8 @@ describe("reports density P0 (#172)", () => {
 describe("reports density follow-up FAIL (#172)", () => {
   it("Marques: ChartFrame ready/loading never reserve a 240px hole", () => {
     const frame = src("components/charts/chart-frame.tsx");
-    expect(frame).not.toContain("min-h-60");
+    expect(frame).not.toMatch(/className=\{[^}]*min-h-60/);
+    expect(frame).not.toMatch(/className="[^"]*min-h-60/);
     expect(frame).toContain('className="h-16"');
     expect(frame).toContain("h-fit gap-0 py-0");
   });
@@ -101,7 +102,7 @@ describe("reports density follow-up FAIL (#172)", () => {
     expect(quota).toContain("sticky left-0");
     expect(quota).toContain("whitespace-normal");
     expect(quota).not.toContain("min-w-max");
-    expect(quota).toContain(">Открыть<");
+    expect(quota).toMatch(/>\s*Открыть\s*</);
     expect(quota).not.toContain("Открыть проверки оператора");
   });
 

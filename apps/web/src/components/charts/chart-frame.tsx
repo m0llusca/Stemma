@@ -70,7 +70,7 @@ export function ChartFrame({
    * #172: ready / empty / error hug useful content. Loading is a compact
    * skeleton — never a reserved 240px hole for a future chart.
    * `hug` marks ranked bar rows; `plot` is the line-chart default. Neither
-   * applies min-h-60 on ready.
+   * reserves a plot min-height on ready.
    */
   plotMinHeight?: "plot" | "hug";
 }) {
