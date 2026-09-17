@@ -1,6 +1,6 @@
 # UX-контракт: плотность экранов
 
-Locked. Tip **`dca6c00`** (squash [#167](https://github.com/m0llusca/Stemma/pull/167) / [#166](https://github.com/m0llusca/Stemma/issues/166)). PR tip был `be7776e`. LIVE bailey, login 200.
+Locked density chrome: **`dca6c00`** ([#167](https://github.com/m0llusca/Stemma/pull/167) / [#166](https://github.com/m0llusca/Stemma/issues/166)). Soft residuals: **`2bb8aed`** ([#169](https://github.com/m0llusca/Stemma/issues/169) / [#170](https://github.com/m0llusca/Stemma/pull/170)). LIVE bailey — team pass.
 
 Appearance density доходит до page chrome. Пустые слоты не растягивают экран. Менять ритм PageShell / Card / Empty / графиков — только явным продуктовым решением. Тихий дрейф запрещён.
 
