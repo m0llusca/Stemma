@@ -100,6 +100,7 @@ Jamal вне `/reports` (тот же PR, tip после `3f3745d`):
 | P1 `/calibration` | «Сигналы по апелляциям» — compact inline empty. |
 | P1 `/reviews/[id]` | Title wrap + `title=`; context grid `sm:grid-cols-3` без воздуха. |
 | P1 chrome | Role menu `title=`; Viewer pending menu `side="top"`. |
+| P1 `/reviews` reset | «Сбросить фильтры» → `/reviews` (clears `qaAssignee` + `due`). Welcome-back «очередь дня» remains QA inbox. |
 
 ## Soft — Закрыто в #169
 
