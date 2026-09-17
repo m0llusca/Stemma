@@ -7,8 +7,8 @@
 | [jobs-scheduling.md](jobs-scheduling.md) | Background jobs |
 | [integration-install-contracts.md](integration-install-contracts.md) | Install / capability contracts |
 | [app-shell.md](app-shell.md) | App shell; role homes; take-next / SavedViews write-gate; empty-triage + KPI drill honesty; page permission / forbidden UX; density pointer |
-| [ux-density-contract.md](ux-density-contract.md) | Screen density: PageShell tokens, Card/Empty/charts, self-review accordion, queue (chrome `dca6c00`; soft #169 tip `e325df6`) |
-| [hardening-screen-matrix.md](hardening-screen-matrix.md) | UX/hardening #116: role × route walk checklist (dead clicks #118, charts #119, Morphicons #117); LIVE tip `e325df6` |
+| [ux-density-contract.md](ux-density-contract.md) | Screen density: PageShell tokens, Card/Empty/charts, self-review accordion, queue, reports P0, coaching empty (chrome `dca6c00`; soft #169 tip `e325df6`; #172/#173 tip `67635ab`) |
+| [hardening-screen-matrix.md](hardening-screen-matrix.md) | UX/hardening #116: role × route walk checklist (dead clicks #118, charts #119, Morphicons #117); LIVE tip `67635ab` |
 | [i18n.md](i18n.md) | Localization |
 | [semantic-status-colors.md](semantic-status-colors.md) | Status color semantics; connection / hub / pipeline green = `live_certified` or full coverage; appearance «Применено»; cert ≠ step; probe-before-save |
 | [ux-queue-hotkeys-contract.md](ux-queue-hotkeys-contract.md) | Review hotkeys + Take next / SavedViews write-gate + status chip (locked) |

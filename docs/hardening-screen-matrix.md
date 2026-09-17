@@ -2,7 +2,7 @@
 
 Walk checklist for epic [#116](https://github.com/m0llusca/Stemma/issues/116) (**closed**). ACCEPT for #116 = this matrix all green + Marques UX-ACCEPT + ДеШон PASS.
 
-LIVE stand: https://hospital-studies-width-martha.trycloudflare.com (ephemeral; tip **`e325df6`**, squash [#170](https://github.com/m0llusca/Stemma/pull/170) / [#169](https://github.com/m0llusca/Stemma/issues/169); login 200). Dead: `bailey-pat-freedom-solutions…`, `two-estimate-jury-experiences…`, `fairfield-bestsellers…`. #116 walk package stayed on `dc5de92` / walk `4f2ba3a` — cells below are that walk, not a new epic pass. Density SoT: [ux-density-contract.md](ux-density-contract.md).
+LIVE stand: https://hospital-studies-width-martha.trycloudflare.com (ephemeral; tip **`67635ab`**, squash [#173](https://github.com/m0llusca/Stemma/pull/173) / [#172](https://github.com/m0llusca/Stemma/issues/172); login 200). Dead: `bailey-pat-freedom-solutions…`, `two-estimate-jury-experiences…`, `fairfield-bestsellers…`. #116 walk package stayed on `dc5de92` / walk `4f2ba3a` — cells below are that walk, not a new epic pass. Density SoT: [ux-density-contract.md](ux-density-contract.md).
 
 Master tip **`dc5de92`** (squash of [#148](https://github.com/m0llusca/Stemma/issues/148); PR tip was `1a12803`). [#148](https://github.com/m0llusca/Stemma/issues/148) is **merged**. LIVE walk **PASS** on `4f2ba3a` (Джамал, 0 FAIL): QA / Exec / Admin / Lead / Agent / Viewer + role-switch Admin→Exec. Matthew ACK: cells PASS with walk tip SHA. Role headers stay walk PASS on `4f2ba3a`; package is master `dc5de92`. [#116](https://github.com/m0llusca/Stemma/issues/116) **closed**. Chart SoT = Recharts (LIVE + #148). #152 docs≠code closed. Login/tokens Next 0 Issues LIVE PASS (Джамал + André probe). Soft `/reports` «1 Issue» NACK (ДеШон / Джамал) — not a blocker. Do not invent PASS for the master epic re-walk.
 
@@ -24,13 +24,13 @@ Exact-filters Sheet stays closed until the user opens it (no auto-open overlay o
 
 Login / tokens Next Issues **0** LIVE PASS (Джамал + André probe). Soft `/reports` «1 Issue» NACK (ДеШон / Джамал) — not a blocker. Walk PASS on `/auth/login` is DEMO picker / land / logout.
 
-LIVE: https://hospital-studies-width-martha.trycloudflare.com (ephemeral; current stand tip `e325df6`, #170 / #169). #116 walk package stayed on `dc5de92`. Dead: `bailey-pat-freedom-solutions…`, `two-estimate-jury-experiences…`, `fairfield-bestsellers…`.
+LIVE: https://hospital-studies-width-martha.trycloudflare.com (ephemeral; current stand tip `67635ab`, #173 / #172). #116 walk package stayed on `dc5de92`. Dead: `bailey-pat-freedom-solutions…`, `two-estimate-jury-experiences…`, `fairfield-bestsellers…`.
 
 Demo seed emails, no password, all `@example.com`: `admin@`, `qa@`, `lead@`, `maria.qa@`, `exec@`, `ivan@`, `olga.agent@`, `denis.agent@`, `elena.agent@`, `viewer@`.
 
 **PASS** = control works **and** BE is honest (no silent no-op, no fake-green, no impostor `/reviews?status=unreviewed`). Soft smoke (login / bars / role-switch) is **not** enough.
 
-Cells below: `PASS` = Jamal LIVE on tip `4f2ba3a`. Not a master-`dc5de92` epic re-walk; #116 closed. Current stand tip `e325df6`. `n/a` = stream has no surface on that row.
+Cells below: `PASS` = Jamal LIVE on tip `4f2ba3a`. Not a master-`dc5de92` epic re-walk; #116 closed. Current stand tip `67635ab`. `n/a` = stream has no surface on that row.
 
 SoT: [`role-home.ts`](../apps/web/src/lib/auth/role-home.ts), [`navigation.ts`](../apps/web/src/lib/shell/navigation.ts) `visibleTopNavAreas`, [app-shell.md](app-shell.md).
 
@@ -249,14 +249,14 @@ Home `/auth/pending-access`. `AppNav` null — no empty areas, no ⌘K.
 
 ДеШон: adversarial notes from the `dc5de92` package stay historical. Try the no-op, the impostor filter, leaked Take next on Exec/Agent, VIEWER deep-link.
 
-[#116](https://github.com/m0llusca/Stemma/issues/116) **closed**. Historical walk PASS stays on tip `4f2ba3a` / package `dc5de92`. Current stand tip `e325df6` (hospital LIVE, density #170). Do not invent a new PASS table for later tips.
+[#116](https://github.com/m0llusca/Stemma/issues/116) **closed**. Historical walk PASS stays on tip `4f2ba3a` / package `dc5de92`. Current stand tip `67635ab` (hospital LIVE, density #173/#172). Do not invent a new PASS table for later tips.
 
 ---
 
 ## Related
 
 - [app-shell.md](app-shell.md) — role homes, pulse/Take-next gates, forbidden UX
-- [ux-density-contract.md](ux-density-contract.md) — chrome **`dca6c00`** (#166/#167); soft package **`e325df6`** (#170/#169). Day1 / a11y / queue-hole / reports closed. Open: criteria/timeline bloat; no fake empty chart points
+- [ux-density-contract.md](ux-density-contract.md) — chrome **`dca6c00`** (#166/#167); soft package **`e325df6`** (#170/#169); **#172/#173** tip **`67635ab`**. Reports P0 + coaching empty. Open: criteria/timeline bloat; no fake empty chart points
 - [ux-queue-hotkeys-contract.md](ux-queue-hotkeys-contract.md) — j/k, Enter toggles module, finalize_next, Take next = one path
 - [#125](https://github.com/m0llusca/Stemma/issues/125) — P1 `aria-expanded` sync on review disclosure (split from #118)
 - [#148](https://github.com/m0llusca/Stemma/issues/148) — **merged** at master `dc5de92` (PR tip `1a12803`). Recharts SoT, OTRS webhook, Playwright demo-data-current, login/tokens hydrate. Soft `/reports` «1 Issue» NACK — not a residual
