@@ -40,7 +40,10 @@ describe("coaching page agent score scope", () => {
     expect(source).not.toMatch(/operatorHome && coachingPlans.length === 0 \? null : \([\s\S]{0,80}<EmptyState/);
     expect(source).toContain("COACHING_SLICE_AGENT_EMPTY");
     expect(source).toContain("COACHING_RULES_AGENT_EMPTY");
-    expect(source).toMatch(/operatorHome \? \(\s*<p className=\{COACHING_OPERATOR_EMPTY_LINE_CLASS\}>\{COACHING_SLICE_AGENT_EMPTY\}/);
+    expect(source).toContain("operatorHome && filteredAssignments.length === 0");
+    expect(source).toContain('size={operatorSliceEmpty ? "sm" : "default"}');
+    expect(source).toContain("{operatorSliceEmpty ? null : (");
+    expect(source).toContain("operatorSliceEmpty ? COACHING_SLICE_AGENT_EMPTY");
     expect(source).not.toMatch(/operatorHome \? \(\s*<EmptyState/);
   });
 

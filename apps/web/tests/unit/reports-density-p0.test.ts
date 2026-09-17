@@ -149,6 +149,8 @@ describe("Jamal deep-walk FAIL (#172)", () => {
     expect(coaching).toContain("coachingPlansEmptyDescription(user.role)");
     expect(coaching).toContain("operatorHome && coachingPlans.length === 0");
     expect(coaching).toContain("COACHING_SLICE_AGENT_EMPTY");
+    expect(coaching).toContain("operatorHome && filteredAssignments.length === 0");
+    expect(coaching).toContain('size={operatorSliceEmpty ? "sm" : "default"}');
     expect(coaching).toContain("trendPoints.length >= 2 || topCategories.length > 0");
     expect(coaching).not.toContain("canShowScoreTrend || topCategories.length > 0");
   });

@@ -67,6 +67,8 @@ describe("coaching empty honesty adversarial", () => {
       /coachingPlans\.length > 0\s*\?[\s\S]{0,200}Сгруппируйте разборы оператора/
     );
     expect(page).toContain("COACHING_SLICE_AGENT_EMPTY");
+    expect(page).toContain("operatorHome && filteredAssignments.length === 0");
+    expect(page).toContain('size={operatorSliceEmpty ? "sm" : "default"}');
     expect(page).toContain("COACHING_RULES_AGENT_EMPTY");
   });
 });

@@ -563,6 +563,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
     return matchesQuery && matchesAssignee && matchesCategory && matchesView;
   });
   const selectedViewOption = viewOptions.find((option) => option.id === view) ?? viewOptions[0];
+  const operatorSliceEmpty = operatorHome && filteredAssignments.length === 0;
   const nextAssignment = overdueAssignments[0] ?? openAssignments[0];
   const nextConversation = nextAssignment?.review?.conversation;
   const nextFinding = nextAssignment?.review?.findings[0];
@@ -1365,17 +1366,22 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
         </CardContent>
       </Card>
 
-      <Card aria-label="Рабочая область обучения">
-        <CardHeader className="border-b">
+      <Card aria-label="Рабочая область обучения" size={operatorSliceEmpty ? "sm" : "default"}>
+        <CardHeader className={operatorSliceEmpty ? undefined : "border-b"}>
           <CardTitle>{selectedViewOption.label}</CardTitle>
-          <CardDescription>{selectedViewOption.helper}.</CardDescription>
-          <CardAction>
-            <Chip tone="neutral" className="tabular-nums">
-              {filteredAssignments.length}
-            </Chip>
-          </CardAction>
+          <CardDescription>
+            {operatorSliceEmpty ? COACHING_SLICE_AGENT_EMPTY : `${selectedViewOption.helper}.`}
+          </CardDescription>
+          {operatorSliceEmpty ? null : (
+            <CardAction>
+              <Chip tone="neutral" className="tabular-nums">
+                {filteredAssignments.length}
+              </Chip>
+            </CardAction>
+          )}
         </CardHeader>
 
+        {operatorSliceEmpty ? null : (
         <CardContent className="flex flex-col gap-4">
           <nav
             aria-label="Виды разборов"
@@ -1578,8 +1584,6 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                 })}
               </TableBody>
             </Table>
-          ) : operatorHome ? (
-            <p className={COACHING_OPERATOR_EMPTY_LINE_CLASS}>{COACHING_SLICE_AGENT_EMPTY}</p>
           ) : (
             <EmptyState
               icon={<ClipboardList size={24} aria-hidden="true" />}
@@ -1594,6 +1598,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
             />
           )}
         </CardContent>
+        )}
       </Card>
     </PageShell>
   );
