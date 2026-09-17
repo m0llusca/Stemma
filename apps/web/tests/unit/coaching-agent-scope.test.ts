@@ -38,6 +38,10 @@ describe("coaching page agent score scope", () => {
     expect(source).toContain('size={operatorHome && coachingPlans.length === 0 ? "sm" : "default"}');
     expect(source).not.toContain("COACHING_PLANS_AGENT_EMPTY_BODY");
     expect(source).not.toMatch(/operatorHome && coachingPlans.length === 0 \? null : \([\s\S]{0,80}<EmptyState/);
+    expect(source).toContain("COACHING_SLICE_AGENT_EMPTY");
+    expect(source).toContain("COACHING_RULES_AGENT_EMPTY");
+    expect(source).toMatch(/operatorHome \? \(\s*<p className=\{COACHING_OPERATOR_EMPTY_LINE_CLASS\}>\{COACHING_SLICE_AGENT_EMPTY\}/);
+    expect(source).not.toMatch(/operatorHome \? \(\s*<EmptyState/);
   });
 
   it("hides create CTAs and empty assignee filter when agents cannot manage coaching ops", () => {

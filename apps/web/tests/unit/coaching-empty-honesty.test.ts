@@ -4,6 +4,8 @@ import { join } from "node:path";
 import {
   COACHING_PLANS_AGENT_EMPTY_DESCRIPTION,
   COACHING_PLANS_LEAD_EMPTY_DESCRIPTION,
+  COACHING_RULES_AGENT_EMPTY,
+  COACHING_SLICE_AGENT_EMPTY,
   coachingInWorkKpiHint,
   coachingOverdueKpiHint,
   coachingPlansEmptyDescription,
@@ -41,6 +43,9 @@ describe("coaching operator plans empty", () => {
     expect(coachingPlansEmptyDescription("ADMIN")).toBe(COACHING_PLANS_LEAD_EMPTY_DESCRIPTION);
     expect(COACHING_PLANS_AGENT_EMPTY_DESCRIPTION).toContain("появятся планы");
     expect(COACHING_PLANS_LEAD_EMPTY_DESCRIPTION).toContain("Сгруппируйте разборы оператора");
+    expect(COACHING_SLICE_AGENT_EMPTY).toBe("В этом срезе нет задач.");
+    expect(COACHING_SLICE_AGENT_EMPTY).not.toContain("Измените фильтры");
+    expect(COACHING_RULES_AGENT_EMPTY).toContain("Типовые правила появятся здесь");
   });
 });
 
@@ -61,5 +66,7 @@ describe("coaching empty honesty adversarial", () => {
     expect(page).not.toMatch(
       /coachingPlans\.length > 0\s*\?[\s\S]{0,200}Сгруппируйте разборы оператора/
     );
+    expect(page).toContain("COACHING_SLICE_AGENT_EMPTY");
+    expect(page).toContain("COACHING_RULES_AGENT_EMPTY");
   });
 });

@@ -52,6 +52,9 @@ import { createCoachingPlanState, updateCoachingPlanStatusState } from "@/lib/co
 import { filterCoachingPlansForAgent, listCoachingPlans } from "@/lib/coaching-plan";
 import { groupCoachingThemesByAgent } from "@/lib/coaching-themes";
 import {
+  COACHING_OPERATOR_EMPTY_LINE_CLASS,
+  COACHING_RULES_AGENT_EMPTY,
+  COACHING_SLICE_AGENT_EMPTY,
   coachingInWorkKpiHint,
   coachingOverdueKpiHint,
   coachingPlansEmptyDescription,
@@ -1349,16 +1352,14 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                 );
               })}
             </div>
+          ) : operatorHome ? (
+            <p className={COACHING_OPERATOR_EMPTY_LINE_CLASS}>{COACHING_RULES_AGENT_EMPTY}</p>
           ) : (
             <EmptyState
               size="inline"
               icon={<BookOpenCheck size={20} aria-hidden="true" />}
               title="Нет правила для текущего фокуса"
-              description={
-                canManageCoachingOps
-                  ? "Добавьте типовую ошибку кнопкой выше — она будет показываться здесь для похожих разборов."
-                  : "Типовые правила появятся здесь, когда их добавит тимлид."
-              }
+              description="Добавьте типовую ошибку кнопкой выше — она будет показываться здесь для похожих разборов."
             />
           )}
         </CardContent>
@@ -1577,22 +1578,18 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                 })}
               </TableBody>
             </Table>
+          ) : operatorHome ? (
+            <p className={COACHING_OPERATOR_EMPTY_LINE_CLASS}>{COACHING_SLICE_AGENT_EMPTY}</p>
           ) : (
             <EmptyState
               icon={<ClipboardList size={24} aria-hidden="true" />}
               title="В этом срезе нет задач"
-              description={
-                canManageCoachingOps
-                  ? "Измените фильтры или создайте учебную задачу из проверки с замечанием."
-                  : "Измените фильтры или дождитесь новой задачи от тимлида."
-              }
+              description="Измените фильтры или создайте учебную задачу из проверки с замечанием."
               action={
-                canManageCoachingOps ? (
-                  <Button render={<Link href={createTaskHref} />} nativeButton={false}>
-                    <PlusCircle data-icon="inline-start" aria-hidden="true" />
-                    Новая задача
-                  </Button>
-                ) : undefined
+                <Button render={<Link href={createTaskHref} />} nativeButton={false}>
+                  <PlusCircle data-icon="inline-start" aria-hidden="true" />
+                  Новая задача
+                </Button>
               }
             />
           )}

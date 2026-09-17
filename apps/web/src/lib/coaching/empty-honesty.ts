@@ -27,6 +27,13 @@ export function coachingPlansEmptyDescription(role: RoleName): string {
     : COACHING_PLANS_LEAD_EMPTY_DESCRIPTION;
 }
 
+/** One-line operator empties — no EmptyState icon / block padding. */
+export const COACHING_SLICE_AGENT_EMPTY = "В этом срезе нет задач.";
+
+export const COACHING_RULES_AGENT_EMPTY = "Типовые правила появятся здесь, когда их добавит тимлид.";
+
+export const COACHING_OPERATOR_EMPTY_LINE_CLASS = "py-1 text-sm text-muted-foreground";
+
 export function coachingInWorkKpiHint(weekDueCount: number): string {
   if (weekDueCount > 0) {
     return `${weekDueCount} со сроком на неделе`;
