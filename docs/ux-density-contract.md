@@ -1,6 +1,6 @@
 # UX-контракт: плотность экранов
 
-Locked density chrome: **`dca6c00`** ([#167](https://github.com/m0llusca/Stemma/pull/167) / [#166](https://github.com/m0llusca/Stemma/issues/166)). Soft package tip **`e325df6`** ([#170](https://github.com/m0llusca/Stemma/pull/170) / [#169](https://github.com/m0llusca/Stemma/issues/169)). Reports P0 **#172** (this branch). LIVE: https://hospital-studies-width-martha.trycloudflare.com.
+Locked density chrome: **`dca6c00`** ([#167](https://github.com/m0llusca/Stemma/pull/167) / [#166](https://github.com/m0llusca/Stemma/issues/166)). Soft package tip **`e325df6`** ([#170](https://github.com/m0llusca/Stemma/pull/170) / [#169](https://github.com/m0llusca/Stemma/issues/169)). **#172/#173** tip **`67635ab`**. LIVE: https://hospital-studies-width-martha.trycloudflare.com.
 
 Appearance density доходит до page chrome. Пустые слоты не растягивают экран. Менять ритм PageShell / Card / Empty / графиков — только явным продуктовым решением. Тихий дрейф запрещён.
 
@@ -80,7 +80,7 @@ Appearance density доходит до page chrome. Пустые слоты не
 
 ## `/reports` P0 — #172
 
-Роман: прошлый density-проход был поверхностным. Четыре экрана — обязательно в этом PR. Новые FAIL с полного прохода складываются **сюда же**, не во второй PR.
+Роман: прошлый density-проход был поверхностным. Четыре экрана — закрыты в #173. Новые FAIL с полного прохода складываются **сюда же**, не во второй PR.
 
 | Экран | Контракт |
 | --- | --- |
@@ -91,16 +91,27 @@ Appearance density доходит до page chrome. Пустые слоты не
 
 Тесты: `apps/web/tests/unit/reports-density-p0.test.ts`. Follow-up FAIL — новый `describe` в том же файле.
 
-Jamal вне `/reports` (тот же PR, tip после `3f3745d`):
+## `/coaching` — пустые оболочки оператора
+
+Гейт Marques / ДеШон / Джамал. Мерить **всю карточку**, не один текст.
+
+| Срез | Контракт |
+| --- | --- |
+| Cold `/coaching` | Карточка «Планы коучинга»: header-only `sm`, ~67px. Copy «Здесь появятся планы развития, которые назначит руководитель.» Нет lead «Сгруппируйте разборы…». Нет `CardContent`. |
+| Filtered, напр. `?view=week` | Карточка «На неделе»: вся ≤120px. Принято ~67px header-only `sm`. Нет `CardContent`, нет nav + filters shell. Текст «В этом срезе нет задач.» |
+
+Lead/Admin: EmptyState и CTA остаются. Нет пустых карточек тренда/зон и дыры под графиком.
+
+Jamal / ДеШон вне `/reports` (пакет `#173`, tip **`67635ab`**):
 
 | Приоритет | Контракт |
 | --- | --- |
-| P0 `/self-review` | Один открытый пак; closed `height: 0` + `hiddenUntilFound`; subject = trigger; «Открыть» отдельно. `/dashboard` оператора → тот же экран, без crash. |
-| P1 `/coaching` | Оператор: empty не «Сгруппируйте разборы…». Lead/Admin: нет пустых карточек тренда/зон и дыры под графиком. |
+| P0 `/self-review` | Один открытый пак; closed `height: 0` + `hiddenUntilFound`; subject = trigger; «Открыть» отдельно. Crash с walk `b2fbcc1` — **NACK** на `3f3745d`+: один открытый ~3k, уже в density accordion. Soft HTML ~3MB — не блокер. |
+| P1 `/coaching` | Cold vs filtered — таблица выше. Мерить всю карточку. |
 | P1 `/calibration` | «Сигналы по апелляциям» — compact inline empty. |
 | P1 `/reviews/[id]` | Title wrap + `title=`; context grid `sm:grid-cols-3` без воздуха. |
 | P1 chrome | Role menu `title=`; Viewer pending menu `side="top"`. |
-| P1 `/reviews` reset | «Сбросить фильтры» → `/reviews` (clears `qaAssignee` + `due`). Welcome-back «очередь дня» remains QA inbox. |
+| P1 `/reviews` reset | «Сбросить фильтры» снимает overdue + assignee → `/reviews`. Welcome-back «очередь дня» — QA inbox. |
 
 ## Soft — Закрыто в #169
 
@@ -122,6 +133,7 @@ Jamal вне `/reports` (тот же PR, tip после `3f3745d`):
 | Card / Empty | `card.tsx`, `empty.tsx`, `empty-state.tsx` |
 | ChartFrame / Exec | `chart-frame.tsx`, `chart-visual-preset.tsx`, `exec-risk-empty.tsx` |
 | Self-review | `apps/web/src/app/self-review/page.tsx` |
+| Coaching empty | `apps/web/src/app/coaching/page.tsx`, `empty-honesty.ts` |
 | Queue | `queue-workspace.tsx`, `queue-next-case-preview.tsx`, `queue-table.tsx`, `queue-advanced-filters.tsx` |
 | Chrome role / topbar | `app-nav-shell.tsx` |
 | Нагрузка | `apps/web/src/app/dashboard/page.tsx` |
