@@ -198,13 +198,20 @@ export const RANKED_BREAKDOWN_VIEWBOX = Object.freeze({
   width: 560,
   // Left gutter is plot padding only — category names live in HTML beside the
   // SVG so a wide card can fill horizontally without stretching glyphs.
-  margin: Object.freeze({ top: 10, right: 36, bottom: 10, left: 8 })
+  margin: Object.freeze({ top: 6, right: 28, bottom: 6, left: 8 })
 });
 
 /** Dense horizontal-bar row. One row = one criterion / driver; no min-220 hole. */
-export const RANKED_ROW_HEIGHT = 28;
+export const RANKED_ROW_HEIGHT = 22;
+
+/** Bar fill inside a ranked row — leftover is the category gap, not air. */
+export const RANKED_BAR_FILL = 0.82;
 
 export const RANKED_PLOT_MAX_HEIGHT = 360;
+
+export function rankedBarHeight(rowHeight: number) {
+  return Math.max(10, Math.min(18, rowHeight * RANKED_BAR_FILL));
+}
 
 export function rankedPlotHeight(
   rowCount: number,
@@ -492,7 +499,7 @@ export function buildRankedDriverGeometry(
   const halfWidth = plotWidth / 2;
   const zeroX = margin.left + halfWidth;
   const rowHeight = plotHeight / Math.max(1, model.points.length);
-  const barHeight = Math.max(8, Math.min(20, rowHeight * 0.72));
+  const barHeight = rankedBarHeight(rowHeight);
   const signedValues = model.points.map((point) =>
     point.values.up ??
     (point.values.down == null ? null : -Math.abs(point.values.down))
@@ -922,7 +929,7 @@ export function buildRankedBreakdownGeometry(
   const plotWidth = width - margin.left - margin.right;
   const plotHeight = height - margin.top - margin.bottom;
   const rowHeight = plotHeight / Math.max(1, model.points.length);
-  const barHeight = Math.max(10, Math.min(20, rowHeight * 0.72));
+  const barHeight = rankedBarHeight(rowHeight);
   const xForValue = (value: number) =>
     margin.left + (Math.max(0, Math.min(100, value)) / 100) * plotWidth;
   const yFor = (index: number) =>

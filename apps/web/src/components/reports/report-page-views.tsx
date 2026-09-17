@@ -270,19 +270,19 @@ export function ReportPageViews(props: ReportPageModel) {
         </p>
         <Link
           href={buildReportAnalysisHref(currentReportHref, { view: "performance" }, filterCatalog)}
-          className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-fit shrink-0")}
+          className={cn(buttonVariants({ variant: "secondary", size: "xs" }), "w-fit shrink-0")}
         >
           Исполнение · кого коучить
         </Link>
         <Link
           href={buildReportAnalysisHref(currentReportHref, { view: "process" }, filterCatalog)}
-          className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-fit shrink-0")}
+          className={cn(buttonVariants({ variant: "secondary", size: "xs" }), "w-fit shrink-0")}
         >
           Процесс · риски и причины
         </Link>
         <Link
           href={buildReportAnalysisHref(currentReportHref, { view: "details" }, filterCatalog)}
-          className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-fit shrink-0")}
+          className={cn(buttonVariants({ variant: "secondary", size: "xs" }), "w-fit shrink-0")}
         >
           Разрезы · таблицы и CSAT
         </Link>
@@ -377,7 +377,7 @@ export function ReportPageViews(props: ReportPageModel) {
     ) : null}
 
     {reportView === "performance" ? (
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
         <ChartPanel title="По операторам" description="Нижние средние оценки первыми." actionHref={reportReviewHref(period)} actionLabel="Разобрать">
           <RankedList rows={operatorRankRows} valueFormatter={formatQualityScore} actionLabel="Открыть" />
         </ChartPanel>
@@ -483,8 +483,8 @@ export function ReportPageViews(props: ReportPageModel) {
             showAverage
           />
           {hasEntityFilters ? (
-            <Card id="details-quotas" size="sm">
-              <CardHeader>
+            <Card id="details-quotas" size="sm" className="h-fit gap-0 py-0">
+              <CardHeader className="py-3">
                 <CardTitle>Нормы проверок недоступны</CardTitle>
                 <CardDescription>
                   Нормы рассчитаны для полной выборки. Сбросьте фильтры

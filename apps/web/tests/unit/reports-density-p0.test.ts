@@ -2,9 +2,11 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  RANKED_BAR_FILL,
   RANKED_BREAKDOWN_VIEWBOX,
   RANKED_PLOT_MAX_HEIGHT,
   RANKED_ROW_HEIGHT,
+  rankedBarHeight,
   rankedPlotHeight
 } from "@/lib/charts/plot-geometry";
 
@@ -16,9 +18,11 @@ const src = (rel: string) => readFileSync(join(process.cwd(), "src", rel), "utf8
  */
 describe("reports density P0 (#172)", () => {
   it("agreement plot height hugs rows instead of a 220px clamp", () => {
-    expect(RANKED_ROW_HEIGHT).toBe(28);
+    expect(RANKED_ROW_HEIGHT).toBe(22);
+    expect(RANKED_BAR_FILL).toBe(0.82);
+    expect(rankedBarHeight(22)).toBeGreaterThan(RANKED_ROW_HEIGHT * 0.7);
     expect(RANKED_PLOT_MAX_HEIGHT).toBe(360);
-    expect(rankedPlotHeight(1, RANKED_BREAKDOWN_VIEWBOX.margin)).toBe(48);
+    expect(rankedPlotHeight(1, RANKED_BREAKDOWN_VIEWBOX.margin)).toBe(34);
     expect(rankedPlotHeight(5, RANKED_BREAKDOWN_VIEWBOX.margin)).toBeLessThan(220);
     expect(rankedPlotHeight(20, RANKED_BREAKDOWN_VIEWBOX.margin)).toBe(360);
 
@@ -43,7 +47,7 @@ describe("reports density P0 (#172)", () => {
     expect(views).toContain('data-slot="report-deepen-analysis"');
     expect(views).toContain("flex flex-wrap items-center gap-2");
     expect(views).not.toContain("md:grid-cols-3");
-    expect(views).toContain('className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-fit shrink-0")}');
+    expect(views).toContain('className={cn(buttonVariants({ variant: "secondary", size: "xs" }), "w-fit shrink-0")}');
 
     const panels = src("components/reports/report-panels.tsx");
     expect(panels).toContain('data-slot="report-driver-chain"');
@@ -83,7 +87,30 @@ describe("reports density P0 (#172)", () => {
 });
 
 describe("reports density follow-up FAIL (#172)", () => {
-  it("keeps this suite as the fold-in point for later walk findings", () => {
-    expect(src("components/reports/report-page-views.tsx")).toContain("ReportPageViews");
+  it("Marques: ChartFrame ready/loading never reserve a 240px hole", () => {
+    const frame = src("components/charts/chart-frame.tsx");
+    expect(frame).not.toContain("min-h-60");
+    expect(frame).toContain('className="h-16"');
+    expect(frame).toContain("h-fit gap-0 py-0");
+  });
+
+  it("Marques: quota table is content-sized with sticky first column, not min-w-max", () => {
+    const tables = src("components/reports/report-tables.tsx");
+    const quota = tables.slice(tables.indexOf("export function QuotaTable"));
+    expect(quota).toContain("w-full table-fixed");
+    expect(quota).toContain("sticky left-0");
+    expect(quota).toContain("whitespace-normal");
+    expect(quota).not.toContain("min-w-max");
+    expect(quota).toContain(">Открыть<");
+    expect(quota).not.toContain("Открыть проверки оператора");
+  });
+
+  it("Marques: ranked list and performance cards stay compact", () => {
+    const charts = src("components/reports/report-charts.tsx");
+    expect(charts).toContain("h-fit gap-0 overflow-clip py-0");
+    expect(charts).toContain("py-1.5 first:pt-0");
+    expect(src("components/reports/report-page-views.tsx")).toContain(
+      "grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3"
+    );
   });
 });

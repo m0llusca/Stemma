@@ -320,8 +320,8 @@ export function DriverChainCard({ items }: { items: DriverChainItem[] }) {
   }
 
   return (
-    <Card data-slot="report-driver-chain" aria-labelledby="analytics-movement-title">
-      <CardHeader className="border-b">
+    <Card data-slot="report-driver-chain" aria-labelledby="analytics-movement-title" className="h-fit gap-0 py-0">
+      <CardHeader className="border-b py-3">
         <CardDescription className="text-xs font-semibold uppercase tracking-wider">
           Цепочка драйверов
         </CardDescription>

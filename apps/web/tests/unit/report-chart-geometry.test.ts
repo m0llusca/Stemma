@@ -362,8 +362,8 @@ describe("Task 6 shared plot geometry", () => {
       }))
     });
 
-    expect(geometry.buildRankedBreakdownGeometry(withRows(1)).height).toBe(48);
-    expect(geometry.buildRankedBreakdownGeometry(withRows(10)).height).toBe(300);
+    expect(geometry.buildRankedBreakdownGeometry(withRows(1)).height).toBe(34);
+    expect(geometry.buildRankedBreakdownGeometry(withRows(10)).height).toBe(232);
     expect(geometry.buildRankedBreakdownGeometry(withRows(20)).height).toBe(360);
   });
 

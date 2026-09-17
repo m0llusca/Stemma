@@ -45,7 +45,7 @@ Appearance density доходит до page chrome. Пустые слоты не
 
 | Поверхность | Контракт |
 | --- | --- |
-| ChartFrame | `min-h-60` только loading / ready. Empty / error обнимают контент |
+| ChartFrame | Ready / empty / error / loading обнимают контент. Нет `min-h-60` под будущий график. Loading — компактный `h-16` skeleton |
 | Exec empty / error | `EXEC_RISK_CHART_MIN_HEIGHT_CLASS` = `h-[180px]`. Не 200 / 240 |
 | Lead quality | высота plot, не min-h карточки |
 
@@ -83,10 +83,10 @@ Appearance density доходит до page chrome. Пустые слоты не
 
 | Экран | Контракт |
 | --- | --- |
-| «Согласие AI с проверяющими» | `rankedPlotHeight`: ряд = `RANKED_ROW_HEIGHT` (28), без `min(420, max(220, n*36))`. ChartFrame `plotMinHeight="hug"`. SVG `height` в px + `preserveAspectRatio="none"` — не aspect-ratio, который раздувает дыры на широкой карточке. Имена критериев — HTML-колонка, не растянутые SVG-глифы. Не рисовать фейковые точки. |
-| Обзор | Два графика в `xl:grid-cols-2` + `items-start`. «Цепочка драйверов» — отдельная полная ширина (`DriverChainCard`), не колонка справа от тренда. CTA «Углубить анализ» — `flex flex-wrap` + `w-fit`, не `md:grid-cols-3` баннеры. |
-| Люди / Статусы | Секции `report-details-people` / `report-details-statuses`: сетка `items-start` `md:grid-cols-2` `xl:grid-cols-3`. Индекс разрезов — компактные чипы, не левая колонка на полэкрана. |
-| Разрезы (таблицы) | `BreakdownTable`: `table-fixed w-full`, `overflow-hidden`, `h-fit`, `max-w-0 truncate` + `title=`. Не `min-w-max` / не ложный горизонтальный скролл. Длинные имена не ломают карточку. |
+| «Согласие AI с проверяющими» | `rankedPlotHeight`: ряд = `RANKED_ROW_HEIGHT` (22), `RANKED_BAR_FILL` 0.82. Без `min(420, max(220, n*36))`. ChartFrame без `min-h-60` на ready. SVG `height` в px + `preserveAspectRatio="none"`. Имена критериев — HTML-колонка + `title=`. Не рисовать фейковые точки. |
+| Обзор | Два графика в `xl:grid-cols-2` + `items-start`. «Цепочка драйверов» — отдельная полная ширина (`DriverChainCard`). CTA «Углубить анализ» — одна строка, `secondary`/`xs`, `w-fit`. Нет min-height под будущий график. |
+| Люди / Статусы | Секции `report-details-people` / `report-details-statuses`: сетка `items-start` без stretch на viewport. Мало данных — компактный inline empty внутри карточки, не пустыня. |
+| Разрезы (таблицы) | `BreakdownTable`: `table-fixed w-full`, `overflow-hidden`, `h-fit`, truncate + `title=`. `QuotaTable`: `table-fixed`, sticky первая колонка, wrap, действие «Открыть». Горизонтальный скролл только если таблица реально широкая — не пустая полоса. |
 
 Тесты: `apps/web/tests/unit/reports-density-p0.test.ts`. Follow-up FAIL — новый `describe` в том же файле.
 

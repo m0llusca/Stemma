@@ -412,16 +412,7 @@ describe("ChartFrame", () => {
 
   it.each([
     ["loading", { kind: "loading" } as const],
-    ["ready", { kind: "ready" } as const]
-  ])("keeps plot geometry in the %s state", (_label, state) => {
-    const { container } = renderFrame({ state });
-
-    expect(container.querySelector('[data-slot="chart-frame-content"]')).toHaveClass(
-      "min-h-60"
-    );
-  });
-
-  it.each([
+    ["ready", { kind: "ready" } as const],
     ["empty", { kind: "empty" } as const],
     [
       "error",
@@ -433,6 +424,15 @@ describe("ChartFrame", () => {
   ])("does not reserve a plot hole in the %s state", (_label, state) => {
     const { container } = renderFrame({ state });
 
+    expect(container.querySelector('[data-slot="chart-frame-content"]')).not.toHaveClass(
+      "min-h-60"
+    );
+  });
+
+  it("keeps loading as a compact skeleton, not a reserved 240px hole", () => {
+    const { container } = renderFrame({ state: { kind: "loading" } });
+
+    expect(container.querySelector('[role="status"] .h-16, [role="status"] [class*="h-16"]')).not.toBeNull();
     expect(container.querySelector('[data-slot="chart-frame-content"]')).not.toHaveClass(
       "min-h-60"
     );
