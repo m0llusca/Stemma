@@ -103,8 +103,13 @@ Scheduled smoke was red on
 [`2556e9e`](https://github.com/m0llusca/Stemma/commit/2556e9ed453547c6e9bb1c251f0d2bd1566bd487)
 (squash [#176](https://github.com/m0llusca/Stemma/pull/176)). Green:
 [run 36115273705](https://github.com/m0llusca/Stemma/actions/runs/36115273705).
-[#175](https://github.com/m0llusca/Stemma/issues/175) stays open: Admin
-`/reviews/queue` → 404; working path is `/reviews?qaStatus=QUEUED`.
+
+Soft Admin `/reviews/queue` **closed** on master
+[`005ab49`](https://github.com/m0llusca/Stemma/commit/005ab49c8af61bf90bb3883989c90d597b36319c)
+(squash [#178](https://github.com/m0llusca/Stemma/pull/178)): **307** with relative
+`Location: /reviews?qaStatus=QUEUED` (same queue as the menu; no separate page).
+Not an absolute `0.0.0.0` / bind-host Location. Issue #175 closes after this docs
+package.
 
 1. Reports «0-50». The range is drawn twice: a visible `tspan` and an SVG
    `<title>` with the same text. `getByText('0-50')` matched both nodes; strict
