@@ -1,6 +1,6 @@
 # UX-контракт: плотность экранов
 
-Locked density chrome: **`dca6c00`** ([#167](https://github.com/m0llusca/Stemma/pull/167) / [#166](https://github.com/m0llusca/Stemma/issues/166)). Soft package tip **`e325df6`** ([#170](https://github.com/m0llusca/Stemma/pull/170) / [#169](https://github.com/m0llusca/Stemma/issues/169)). **#172/#173** tip **`67635ab`**. LIVE: https://hospital-studies-width-martha.trycloudflare.com.
+Locked density chrome: **`dca6c00`** ([#167](https://github.com/m0llusca/Stemma/pull/167) / [#166](https://github.com/m0llusca/Stemma/issues/166)). Soft package tip **`e325df6`** ([#170](https://github.com/m0llusca/Stemma/pull/170) / [#169](https://github.com/m0llusca/Stemma/issues/169)). **#172/#173** tip **`67635ab`**. LIVE: https://nvqawe-ip-184-193-214-193.tunnelmole.net. Verify-DB smoke tip **`2556e9e`** ([#176](https://github.com/m0llusca/Stemma/pull/176) / [#175](https://github.com/m0llusca/Stemma/issues/175)).
 
 Appearance density доходит до page chrome. Пустые слоты не растягивают экран. Менять ритм PageShell / Card / Empty / графиков — только явным продуктовым решением. Тихий дрейф запрещён.
 

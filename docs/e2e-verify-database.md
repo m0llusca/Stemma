@@ -23,8 +23,10 @@ Compose (`compose.yaml`) only starts `qc_app` on `127.0.0.1:55432`. Creating
 `qc_app_demo_verify` is outside that file. Playwright will not start without an
 explicit `TEST_DATABASE_URL` pointing at it.
 
-CI (`.github/workflows/ci.yml`) runs typecheck and unit/API tests only. It does
-not run Playwright.
+Ordinary CI (`.github/workflows/ci.yml`) runs typecheck and unit/API tests only.
+It does not run Playwright. A daily «run failed» on master is
+`.github/workflows/playwright-verify-smoke.yml`: cron `0 3 * * *`,
+`workflow_dispatch`, or a PR label `playwright-verify`.
 
 ## Demo seed freshness (PR #5, `c558b61`)
 
@@ -93,6 +95,27 @@ Playwright harness still sets both env vars to the same validated URL.
 `QC_PLAYWRIGHT_DATABASE_NAME` can whitelist another local DB name; both URLs
 must still share that name on the same identity.
 
+## Verify-DB smoke [#175](https://github.com/m0llusca/Stemma/issues/175) / [#176](https://github.com/m0llusca/Stemma/pull/176) (master `2556e9e`)
+
+Scheduled smoke was red on
+[run 36111855668](https://github.com/m0llusca/Stemma/actions/runs/36111855668):
+3 failed / 5 passed in `tests/e2e/demo-data-current.spec.ts`. Fixed on master
+[`2556e9e`](https://github.com/m0llusca/Stemma/commit/2556e9ed453547c6e9bb1c251f0d2bd1566bd487)
+(squash [#176](https://github.com/m0llusca/Stemma/pull/176)). Green:
+[run 36115273705](https://github.com/m0llusca/Stemma/actions/runs/36115273705).
+[#175](https://github.com/m0llusca/Stemma/issues/175) stays open: Admin
+`/reviews/queue` → 404; working path is `/reviews?qaStatus=QUEUED`.
+
+1. Reports «0-50». The range is drawn twice: a visible `tspan` and an SVG
+   `<title>` with the same text. `getByText('0-50')` matched both nodes; strict
+   mode failed. The spec asserts the visible `tspan`. Chart UI is unchanged.
+2. `#queue-filter-qaStatus` exists only inside the open Sheet «Точные фильтры».
+   A closed Sheet unmounts, so the id is absent from the DOM. The spec opens
+   the Sheet, checks the value, then closes it.
+3. Calibration «Завершена». The completed session was honestly «Закрыта · ждут
+   оценки»: ZD-7001 had no scores. Seed now writes ZD-7001 scores for both
+   participants. The chip is «Завершена».
+
 ## What did not change
 
 - Developer `DATABASE_URL` / `qc_app` for `npm run dev`.
@@ -122,3 +145,7 @@ Playwright (needs the verify DB, a production build, and `TEST_DATABASE_URL`):
 TEST_DATABASE_URL='postgresql://qc_app:qc_app@localhost:55432/qc_app_demo_verify?schema=public' \
   npx playwright test --project=chromium tests/e2e/demo-data-current.spec.ts
 ```
+
+The same spec on a schedule, by hand, or from a PR:
+`.github/workflows/playwright-verify-smoke.yml` (`workflow_dispatch`, or label
+`playwright-verify`). Ordinary `ci.yml` does not run it.
