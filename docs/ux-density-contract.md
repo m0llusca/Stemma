@@ -1,6 +1,6 @@
 # UX-контракт: плотность экранов
 
-Locked density chrome: **`dca6c00`** ([#167](https://github.com/m0llusca/Stemma/pull/167) / [#166](https://github.com/m0llusca/Stemma/issues/166)). Soft package tip **`e325df6`** ([#170](https://github.com/m0llusca/Stemma/pull/170) / [#169](https://github.com/m0llusca/Stemma/issues/169)). **#172/#173** tip **`67635ab`**. LIVE: https://nvqawe-ip-184-193-214-193.tunnelmole.net. Verify-DB smoke tip **`2556e9e`** ([#176](https://github.com/m0llusca/Stemma/pull/176) / [#175](https://github.com/m0llusca/Stemma/issues/175)).
+Locked density chrome: **`dca6c00`** ([#167](https://github.com/m0llusca/Stemma/pull/167) / [#166](https://github.com/m0llusca/Stemma/issues/166)). Soft package tip **`e325df6`** ([#170](https://github.com/m0llusca/Stemma/pull/170) / [#169](https://github.com/m0llusca/Stemma/issues/169)). **#172/#173** tip **`67635ab`**. LIVE: https://nvqawe-ip-184-193-214-193.tunnelmole.net (tip **`005ab49`**, [#178](https://github.com/m0llusca/Stemma/pull/178) / soft [#175](https://github.com/m0llusca/Stemma/issues/175) closed). Verify-DB smoke tip **`2556e9e`** ([#176](https://github.com/m0llusca/Stemma/pull/176)).
 
 Appearance density доходит до page chrome. Пустые слоты не растягивают экран. Менять ритм PageShell / Card / Empty / графиков — только явным продуктовым решением. Тихий дрейф запрещён.
 
@@ -51,7 +51,7 @@ Appearance density доходит до page chrome. Пустые слоты не
 
 ## `/self-review`
 
-Пакы — accordion.
+Паки — accordion.
 
 - Один открытый по умолчанию: `defaultValue={[actionConversations[0].id]}`, `multiple={false}`.
 - `hiddenUntilFound`: закрытые паки остаются в DOM (`hidden="until-found"`) для find-in-page. Closed panel: `height: 0` (не `h-(--accordion-panel-height)` / не content-visibility box). Не красить ~26k px и не ронять вкладку на 1440×900.
