@@ -75,7 +75,12 @@ test("current and previous 22-21 reports render populated charts", async ({ page
     ).toHaveAttribute("data-deferred-state", "ready");
     const scoreRanges = ["0-50", "51-70", "71-85", "86-100"] as const;
     for (const range of scoreRanges) {
-      await expect(distribution.getByText(range, { exact: true })).toBeVisible();
+      // Axis ticks also put the full label in SVG <title> (hover, even when the
+      // tick is not truncated). getByText matches both and strict mode fails.
+      // The visible label is the tspan.
+      await expect(
+        distribution.locator("tspan", { hasText: new RegExp(`^${range}$`) })
+      ).toBeVisible();
     }
     // The counts render as SVG <text> nodes (aria-hidden rich visual); SVG
     // elements have no innerText (undefined → NaN), so read textContent.
@@ -123,9 +128,13 @@ test("review queue exposes every active state and mixed SLA dates", async ({ pag
     await expect(page.locator('[data-slot="page-shell"] h1')).toHaveText("Очередь проверок", {
       timeout: 15_000
     });
-    // «Статус проверки» is an advanced ("Точные фильтры") control; target by id so
-    // portaled panel markup outside the command-bar region still matches.
-    await expect(page.locator("#queue-filter-qaStatus")).toHaveValue(queueCase.status);
+    // «Статус проверки» lives in the exact-filters sheet. The sheet unmounts
+    // while closed (so the queue stays clickable); the select id is stable once open.
+    await page.getByRole("button", { name: /Точные фильтры/ }).click();
+    const exactFilters = page.getByRole("dialog", { name: "Точные фильтры" });
+    await expect(exactFilters.locator("#queue-filter-qaStatus")).toHaveValue(queueCase.status);
+    await exactFilters.getByRole("button", { name: "Закрыть" }).click();
+    await expect(exactFilters).toBeHidden();
 
     // Prefer table-row slot: cold Chromium a11y trees sometimes omit name/text on role=row.
     const scenarioRow = page.locator('[data-slot="table-row"]', { hasText: queueCase.subject });

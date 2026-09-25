@@ -244,6 +244,10 @@ describe("operational demo dataset", () => {
     expect(timeline.calibrations.active.dueAt > calendar.startOfToday).toBe(true);
     expect(timeline.calibrations.completed.dueAt < calendar.startOfToday).toBe(true);
     expect(timeline.calibrations.archived.dueAt < timeline.calibrations.completed.dueAt).toBe(true);
+    expect(timeline.calibrations.completed.reviewFinalizedAt).toHaveLength(
+      timeline.calibrations.completed.itemCreatedAt.length *
+        timeline.calibrations.completed.participants.length
+    );
 
     for (const calibration of [
       timeline.calibrations.active,

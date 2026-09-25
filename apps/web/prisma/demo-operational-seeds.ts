@@ -225,7 +225,9 @@ export function buildDemoOperationalTimeline(calendar: DemoCalendar) {
         updatedAt: at(-3, { hour: 11, minute: 21 }),
         reviewFinalizedAt: [
           at(-3, { hour: 9, minute: 45 }),
-          at(-3, { hour: 10, minute: 20 })
+          at(-3, { hour: 10, minute: 20 }),
+          at(-3, { hour: 10, minute: 30 }),
+          at(-3, { hour: 10, minute: 48 })
         ],
         participants: [
           {

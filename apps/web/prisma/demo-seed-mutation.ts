@@ -2486,6 +2486,26 @@ export async function mutateDemoSeed(
     notes: "Расхождение внутри допустимого диапазона."
   });
 
+  // Both items × both participants. A missing grade makes the chip say
+  // «Закрыта · ждут оценки» instead of «Завершена».
+  await createCalibrationReview({
+    conversationId: conversationIdFor("ZD-7001"),
+    reviewerId: analyst.id,
+    totalScore: 71,
+    summary: "Калибровка: второе обращение закрыто по тому же правилу фактического статуса документов.",
+    finalizedAt: timeline.calibrations.completed.reviewFinalizedAt[2],
+    notes: "Оценка зафиксирована, сессия закрыта без хвоста."
+  });
+
+  await createCalibrationReview({
+    conversationId: conversationIdFor("ZD-7001"),
+    reviewerId: seniorAnalyst.id,
+    totalScore: 74,
+    summary: "Калибровка: согласовано то же правило на втором обращении.",
+    finalizedAt: timeline.calibrations.completed.reviewFinalizedAt[3],
+    notes: "Расхождение внутри допустимого диапазона."
+  });
+
   await prisma.calibrationSession.create({
     data: {
       workspaceId: workspace.id,
