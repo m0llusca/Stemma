@@ -2,7 +2,7 @@
 
 Walk checklist for epic [#116](https://github.com/m0llusca/Stemma/issues/116) (**closed**). ACCEPT for #116 = this matrix all green + Marques UX-ACCEPT + ДеШон PASS.
 
-LIVE stand: https://nvqawe-ip-184-193-214-193.tunnelmole.net (ephemeral; tip **`2556e9e`**, squash [#176](https://github.com/m0llusca/Stemma/pull/176) / [#175](https://github.com/m0llusca/Stemma/issues/175); login 200). Dead: `hospital-studies…`, `therapeutic-pond…`, `numerous-housewares…`, `bailey-pat…`. #116 walk package stayed on `dc5de92` / walk `4f2ba3a` — cells below are that walk, not a new epic pass. Density SoT: [ux-density-contract.md](ux-density-contract.md). Smoke P0 closed on `2556e9e`. Soft open [#175](https://github.com/m0llusca/Stemma/issues/175): Admin `/reviews/queue` → 404; working `/reviews?qaStatus=QUEUED`.
+LIVE stand: https://nvqawe-ip-184-193-214-193.tunnelmole.net (ephemeral; tip **`005ab49`**, squash [#178](https://github.com/m0llusca/Stemma/pull/178) / [#175](https://github.com/m0llusca/Stemma/issues/175); login 200). Dead: `hospital-studies…`, `therapeutic-pond…`, `numerous-housewares…`, `bailey-pat…`. #116 walk package stayed on `dc5de92` / walk `4f2ba3a` — cells below are that walk, not a new epic pass. Density SoT: [ux-density-contract.md](ux-density-contract.md). Smoke P0 closed on `2556e9e`. Soft [#175](https://github.com/m0llusca/Stemma/issues/175) Admin `/reviews/queue` **closed** on `005ab49`: relative **307** → `/reviews?qaStatus=QUEUED` (no separate page; not `0.0.0.0`).
 
 Master tip **`dc5de92`** (squash of [#148](https://github.com/m0llusca/Stemma/issues/148); PR tip was `1a12803`). [#148](https://github.com/m0llusca/Stemma/issues/148) is **merged**. LIVE walk **PASS** on `4f2ba3a` (Джамал, 0 FAIL): QA / Exec / Admin / Lead / Agent / Viewer + role-switch Admin→Exec. Matthew ACK: cells PASS with walk tip SHA. Role headers stay walk PASS on `4f2ba3a`; package is master `dc5de92`. [#116](https://github.com/m0llusca/Stemma/issues/116) **closed**. Chart SoT = Recharts (LIVE + #148). #152 docs≠code closed. Login/tokens Next 0 Issues LIVE PASS (Джамал + André probe). Soft `/reports` «1 Issue» NACK (ДеШон / Джамал) — not a blocker. Do not invent PASS for the master epic re-walk.
 
@@ -24,13 +24,13 @@ Exact-filters Sheet stays closed until the user opens it (no auto-open overlay o
 
 Login / tokens Next Issues **0** LIVE PASS (Джамал + André probe). Soft `/reports` «1 Issue» NACK (ДеШон / Джамал) — not a blocker. Walk PASS on `/auth/login` is DEMO picker / land / logout.
 
-LIVE: https://nvqawe-ip-184-193-214-193.tunnelmole.net (ephemeral; current stand tip `2556e9e`, #176 / #175). #116 walk package stayed on `dc5de92`. Dead: `hospital-studies…`, `therapeutic-pond…`, `numerous-housewares…`, `bailey-pat…`.
+LIVE: https://nvqawe-ip-184-193-214-193.tunnelmole.net (ephemeral; current stand tip `005ab49`, #178 / #175 soft closed). #116 walk package stayed on `dc5de92`. Dead: `hospital-studies…`, `therapeutic-pond…`, `numerous-housewares…`, `bailey-pat…`.
 
 Demo seed emails, no password, all `@example.com`: `admin@`, `qa@`, `lead@`, `maria.qa@`, `exec@`, `ivan@`, `olga.agent@`, `denis.agent@`, `elena.agent@`, `viewer@`.
 
 **PASS** = control works **and** BE is honest (no silent no-op, no fake-green, no impostor `/reviews?status=unreviewed`). Soft smoke (login / bars / role-switch) is **not** enough.
 
-Cells below: `PASS` = Jamal LIVE on tip `4f2ba3a`. Not a master-`dc5de92` epic re-walk; #116 closed. Current stand tip `2556e9e`. `n/a` = stream has no surface on that row.
+Cells below: `PASS` = Jamal LIVE on tip `4f2ba3a`. Not a master-`dc5de92` epic re-walk; #116 closed. Current stand tip `005ab49`. `n/a` = stream has no surface on that row.
 
 SoT: [`role-home.ts`](../apps/web/src/lib/auth/role-home.ts), [`navigation.ts`](../apps/web/src/lib/shell/navigation.ts) `visibleTopNavAreas`, [app-shell.md](app-shell.md).
 
@@ -249,7 +249,7 @@ Home `/auth/pending-access`. `AppNav` null — no empty areas, no ⌘K.
 
 ДеШон: adversarial notes from the `dc5de92` package stay historical. Try the no-op, the impostor filter, leaked Take next on Exec/Agent, VIEWER deep-link.
 
-[#116](https://github.com/m0llusca/Stemma/issues/116) **closed**. Historical walk PASS stays on tip `4f2ba3a` / package `dc5de92`. Current stand tip `2556e9e` (tunnelmole LIVE, smoke [#176](https://github.com/m0llusca/Stemma/pull/176) / [#175](https://github.com/m0llusca/Stemma/issues/175)). Do not invent a new PASS table for later tips. Smoke P0 closed on `2556e9e`. Soft open #175: Admin `/reviews/queue` → 404; working `/reviews?qaStatus=QUEUED`.
+[#116](https://github.com/m0llusca/Stemma/issues/116) **closed**. Historical walk PASS stays on tip `4f2ba3a` / package `dc5de92`. Current stand tip `005ab49` (tunnelmole LIVE, [#178](https://github.com/m0llusca/Stemma/pull/178) / [#175](https://github.com/m0llusca/Stemma/issues/175)). Do not invent a new PASS table for later tips. Smoke P0 closed on `2556e9e`. Soft #175 Admin `/reviews/queue` closed on `005ab49`: relative 307 → `/reviews?qaStatus=QUEUED`.
 
 ---
 
