@@ -7,7 +7,7 @@ const nav = readFileSync(join(process.cwd(), "src/components/app-nav.tsx"), "utf
 
 describe("/reviews/queue alias", () => {
   it("redirects the legacy path with a relative Location", () => {
-    const response = GET(new Request("http://0.0.0.0:3000/reviews/queue"));
+    const response = GET();
     const location = response.headers.get("location");
 
     expect(response.status).toBe(307);
