@@ -1,6 +1,6 @@
 # Morphicons: on master (`dc5de92`)
 
-Wired on master `dc5de92` (#148 squash). LIVE walk PASS (Jamal on `4f2ba3a`) — Copy↔Check on `/admin/tokens`. #116 stays open until epic gates green on master `dc5de92` (hard-reload in progress).
+Wired on master `dc5de92` (#148 squash). LIVE walk PASS (Jamal on `4f2ba3a`) — Copy↔Check on `/admin/tokens`. [#116](https://github.com/m0llusca/Stemma/issues/116) **closed** (epic gates green on master `dc5de92`).
 
 Roman (2026-09-09): implement, not defer. Parent epic: #116.
 Marques UX-ACCEPT (#117 spike): CopyButton + accordion/score-module chevron.
