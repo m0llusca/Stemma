@@ -108,8 +108,12 @@ Soft Admin `/reviews/queue` **closed** on master
 [`005ab49`](https://github.com/m0llusca/Stemma/commit/005ab49c8af61bf90bb3883989c90d597b36319c)
 (squash [#178](https://github.com/m0llusca/Stemma/pull/178)): **307** with relative
 `Location: /reviews?qaStatus=QUEUED` (same queue as the menu; no separate page).
-Not an absolute `0.0.0.0` / bind-host Location. Issue #175 closes after this docs
-package.
+Not an absolute `0.0.0.0` / bind-host Location. [#175](https://github.com/m0llusca/Stemma/issues/175)
+**closed** after docs [#179](https://github.com/m0llusca/Stemma/pull/179) on master
+[`3aedc85`](https://github.com/m0llusca/Stemma/commit/3aedc85af0ccb7d46731dd762063c1b53ab0112e).
+Verify-DB smoke re-green on current master:
+[run 36143969457](https://github.com/m0llusca/Stemma/actions/runs/36143969457)
+(trigger tip `ca7951f` over `3aedc85`; temporary PR #180 — do not merge).
 
 1. Reports «0-50». The range is drawn twice: a visible `tspan` and an SVG
    `<title>` with the same text. `getByText('0-50')` matched both nodes; strict

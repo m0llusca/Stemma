@@ -1,6 +1,6 @@
 # UX-контракт: плотность экранов
 
-Locked density chrome: **`dca6c00`** ([#167](https://github.com/m0llusca/Stemma/pull/167) / [#166](https://github.com/m0llusca/Stemma/issues/166)). Soft package tip **`e325df6`** ([#170](https://github.com/m0llusca/Stemma/pull/170) / [#169](https://github.com/m0llusca/Stemma/issues/169)). **#172/#173** tip **`67635ab`**. LIVE: https://nvqawe-ip-184-193-214-193.tunnelmole.net (tip **`005ab49`**, [#178](https://github.com/m0llusca/Stemma/pull/178) / soft [#175](https://github.com/m0llusca/Stemma/issues/175) closed). Verify-DB smoke tip **`2556e9e`** ([#176](https://github.com/m0llusca/Stemma/pull/176)).
+Locked density chrome: **`dca6c00`** ([#167](https://github.com/m0llusca/Stemma/pull/167) / [#166](https://github.com/m0llusca/Stemma/issues/166)). Soft package tip **`e325df6`** ([#170](https://github.com/m0llusca/Stemma/pull/170) / [#169](https://github.com/m0llusca/Stemma/issues/169)). **#172/#173** tip **`67635ab`**. LIVE: https://nvqawe-ip-184-193-214-193.tunnelmole.net (tip **`3aedc85`**, docs [#179](https://github.com/m0llusca/Stemma/pull/179); soft [#178](https://github.com/m0llusca/Stemma/pull/178) / [#175](https://github.com/m0llusca/Stemma/issues/175) closed). Verify-DB smoke tip **`2556e9e`** ([#176](https://github.com/m0llusca/Stemma/pull/176)).
 
 Appearance density доходит до page chrome. Пустые слоты не растягивают экран. Менять ритм PageShell / Card / Empty / графиков — только явным продуктовым решением. Тихий дрейф запрещён.
 
@@ -64,7 +64,7 @@ Appearance density доходит до page chrome. Пустые слоты не
 
 ## Очередь `/reviews`
 
-- Next-case preview: без `h-full`. Preview над таблицей на всю ширину — без правой колонки и дыры после скролла. Строки не сжимаются в искусственно узкую колонку. **«Взять следующий»** один раз — в шапке страницы, не в preview.
+- Next-case preview: без `h-full`. Preview над таблицей на всю ширину — без правой колонки и дыры после скролла. **«Взять следующий»** один раз — в шапке страницы, не в preview.
 - SLA/OTRS helper фильтров: `sr-only` на повторных визитах. Первый визит — компактный info-баннер в один ряд: иконка + короткий текст + dismiss. Не `AlertTitle` / не карточка на полэкрана. Условия показа не менять.
 - Строки таблицы: две линии, `h-auto py-1.5`.
 - Workspace: `gap-(--section-gap)`, main — `flex-col`.
@@ -93,7 +93,7 @@ Appearance density доходит до page chrome. Пустые слоты не
 
 ## `/coaching` — пустые оболочки оператора
 
-Гейт Marques / ДеШон / Джамал. Мерить **всю карточку**, не один текст.
+Гейт Marques / Дешон / Джамал. Мерить **всю карточку**, не один текст.
 
 | Срез | Контракт |
 | --- | --- |
@@ -102,11 +102,11 @@ Appearance density доходит до page chrome. Пустые слоты не
 
 Lead/Admin: EmptyState и CTA остаются. Нет пустых карточек тренда/зон и дыры под графиком.
 
-Jamal / ДеШон вне `/reports` (пакет `#173`, tip **`67635ab`**):
+Jamal / Дешон вне `/reports` (пакет `#173`, tip **`67635ab`**):
 
 | Приоритет | Контракт |
 | --- | --- |
-| P0 `/self-review` | Один открытый пак; closed `height: 0` + `hiddenUntilFound`; subject = trigger; «Открыть» отдельно. Crash с walk `b2fbcc1` — **NACK** на `3f3745d`+: один открытый ~3k, уже в density accordion. Soft HTML ~3MB — не блокер. |
+| P0 `/self-review` | Один открытый пак; closed `height: 0` + `hiddenUntilFound`; subject = trigger; «Открыть» отдельно. Crash с walk `b2fbcc1` — **NACK** на `3f3745d`+: один открытый ~3k, уже в density accordion. Soft HTML ~3MB — не блокере. |
 | P1 `/coaching` | Cold vs filtered — таблица выше. Мерить всю карточку. |
 | P1 `/calibration` | «Сигналы по апелляциям» — compact inline empty. |
 | P1 `/reviews/[id]` | Title wrap + `title=`; context grid `sm:grid-cols-3` без воздуха. |
@@ -115,9 +115,9 @@ Jamal / ДеШон вне `/reports` (пакет `#173`, tip **`67635ab`**):
 
 ## Soft — Закрыто в #169
 
-На master **`e325df6`** (#170): Day1 compact; тема = trigger + «Открыть»; preview над таблицей; `/reports` оси/title. Не писать «не закрыто».
+На master **`e325df6`** (#170): Day1 compact; тема = trigger + «Открыть»; preview над таблицей; `/reports` оси/title. Не писать «не закрыто». 
 
-Открыто (не блокер):
+Открытое (не блокер):
 
 | Остаток | Статус |
 | --- | --- |
