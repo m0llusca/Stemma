@@ -3,6 +3,9 @@ import { NextResponse } from "next/server";
 const QUEUED_REVIEWS_HREF = "/reviews?qaStatus=QUEUED";
 
 /** Legacy path. Nav and KPI drills stay on the query filter. */
-export function GET(request: Request) {
-  return NextResponse.redirect(new URL(QUEUED_REVIEWS_HREF, request.url));
+export function GET() {
+  return new NextResponse(null, {
+    status: 307,
+    headers: { Location: QUEUED_REVIEWS_HREF }
+  });
 }
