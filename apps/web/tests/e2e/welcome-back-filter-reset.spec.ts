@@ -14,10 +14,6 @@ test.beforeEach(() => {
   execFileSync("npm", ["run", "db:seed"], { cwd: process.cwd(), stdio: "inherit" });
 });
 
-function analystResetHref(name: string) {
-  return `/reviews?qaAssignee=${encodeURIComponent(name)}&due=overdue`;
-}
-
 async function openQueue(page: Page, path = "/reviews") {
   await page.goto(path);
   await expect(page.getByRole("heading", { name: "Очередь проверок" })).toBeVisible({ timeout: 15_000 });
@@ -84,15 +80,13 @@ test("welcome-back reset is one click when active filters would open the sheet",
   await expect(page.getByRole("region", { name: "Подсказки очереди" })).toHaveCount(0);
 
   const reset = banner.getByRole("link", { name: "Сбросить к очереди дня" });
-  await expect(reset).toHaveAttribute("href", analystResetHref(analyst.name));
+  await expect(reset).toHaveAttribute("href", "/reviews");
   await reset.click();
 
   await expect(page).toHaveURL((url) => {
     return (
       url.pathname === "/reviews" &&
-      url.searchParams.get("qaAssignee") === analyst.name &&
-      url.searchParams.get("due") === "overdue" &&
-      !url.searchParams.has("process")
+      url.search === ""
     );
   });
   await expect(page.getByRole("region", { name: "С возвращением" })).toHaveCount(0);
@@ -114,15 +108,13 @@ test("welcome-back names ad-hoc filters that are not role-home", async ({ page, 
   await expect(banner).not.toContainText("общий вид");
 
   const reset = banner.getByRole("link", { name: "Сбросить к очереди дня" });
-  await expect(reset).toHaveAttribute("href", analystResetHref(analyst.name));
+  await expect(reset).toHaveAttribute("href", "/reviews");
   await reset.click();
 
   await expect(page).toHaveURL((url) => {
     return (
       url.pathname === "/reviews" &&
-      url.searchParams.get("qaAssignee") === analyst.name &&
-      url.searchParams.get("due") === "overdue" &&
-      !url.searchParams.has("channel")
+      url.search === ""
     );
   });
 });

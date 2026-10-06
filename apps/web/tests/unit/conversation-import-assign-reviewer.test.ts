@@ -56,7 +56,7 @@ function makeTx(
     conversation: {
       upsert: conversationUpsert,
       findUnique: vi.fn(async () => existing),
-      count: vi.fn(async ({ where }: { where: { qaAssigneeName?: string } }) => counts[where.qaAssigneeName ?? ""] ?? 0)
+      groupBy: vi.fn(async () => Object.entries(counts).map(([qaAssigneeId, count]) => ({ qaAssigneeId, _count: { _all: count } })))
     },
     message: {
       upsert: vi.fn(async () => ({})),
@@ -84,7 +84,7 @@ describe("conversation import → auto-assign reviewer", () => {
         { id: "u-1", name: "Анна" },
         { id: "u-2", name: "Борис" }
       ],
-      counts: { Анна: 3, Борис: 1 }
+      counts: { "u-1": 3, "u-2": 1 }
     });
 
     await upsertCustomConversation("workspace-1", conversationPayload(), tx as never, {

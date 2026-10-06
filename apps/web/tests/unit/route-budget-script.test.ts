@@ -83,11 +83,9 @@ function writeChunk(nextDir: string, relativePath: string, body: Buffer | string
 }
 
 function richExportSource(exports: readonly string[], size = 0) {
+  const moduleId = 101 + RICH_EXPORTS.indexOf(exports[0] as typeof RICH_EXPORTS[number]);
   return Buffer.concat([
-    Buffer.from(
-      `${exports.map((name) => `export const ${name} = "${name}";`).join("\n")}\n` +
-        'export const marker = "recharts-surface";\n'
-    ),
+    Buffer.from(`globalThis.TURBOPACK.push([null,${moduleId},e=>{e.s([${exports.map((name) => `${JSON.stringify(name)},0,function(){}`).join(",")}]);}]);\n`),
     deterministicNoise(size)
   ]);
 }
@@ -103,31 +101,20 @@ function chunkWithDependencies(dependencies: string[], body: Buffer | string = "
   ]);
 }
 
-function writeDeferredRichChart(nextDir: string, size = 4 * 1024) {
-  const relativePath = "static/chunks/deferred-rich-chart.js";
+function writeStaticRichChart(nextDir: string, size = 4 * 1024) {
+  const relativePath = "static/chunks/rich-renderer.js";
   writeChunk(nextDir, relativePath, richExportSource(RICH_EXPORTS, size));
   return relativePath;
 }
 
-function writeRichLoaderMetadata(
+function writeRichImportMetadata(
   nextDir: string,
-  target = "static/chunks/deferred-rich-chart.js",
-  loaderBody?: string
+  target = "static/chunks/rich-renderer.js",
+  loaderBody?: Buffer | string
 ) {
-  const moduleId = 900001;
-  const usages = RICH_EXPORTS.map(
-    (name) => `void (await e.A(${moduleId})).${name};`
-  ).join("\n");
-  const body =
-    loaderBody ??
-    `e.v(t=>Promise.all([${JSON.stringify(
-      target
-    )}].map(t=>e.l(t))).then(()=>t(101)))`;
-  writeChunk(
-    nextDir,
-    "static/chunks/rich-loaders.js",
-    `${usages}\n,${moduleId},e=>{${body}}\n`
-  );
+  const body = loaderBody ?? chunkWithDependencies([target], "export const imports = true;");
+  writeChunk(nextDir, "static/chunks/rich-imports.js", body);
+
 }
 
 function syntheticBuild() {
@@ -145,12 +132,13 @@ function syntheticBuild() {
     mkdirSync(dirname(chunkPath), { recursive: true });
     writeFileSync(chunkPath, `export const route = ${JSON.stringify(name)};\n`);
   }
+  writeFileSync(join(nextDir, "build-manifest.json"), JSON.stringify({ rootMainFiles: [] }));
 
-  writeRouteManifest(nextDir, "reports", [chunks.shared, chunks.reports]);
+  writeRouteManifest(nextDir, "reports", [chunks.shared, chunks.reports, "static/chunks/rich-imports.js"]);
   writeRouteManifest(nextDir, "dashboard", [chunks.shared, chunks.dashboard]);
   writeRouteManifest(nextDir, "coaching", [chunks.shared, chunks.coaching]);
-  writeDeferredRichChart(nextDir);
-  writeRichLoaderMetadata(nextDir);
+  writeStaticRichChart(nextDir);
+  writeRichImportMetadata(nextDir);
 
   return { root, nextDir, chunks };
 }
@@ -166,6 +154,66 @@ function capture(build: ReturnType<typeof syntheticBuild>) {
 }
 
 describe("verify-route-budgets", () => {
+  it("includes bootstrap scripts in every route and shares their registered modules", () => {
+    const build = syntheticBuild();
+    const bootstrap = "static/chunks/bootstrap.js";
+    writeChunk(build.nextDir, bootstrap, 'globalThis.TURBOPACK.push([null,202,e=>{e.s(["runtime",0,1])}]);');
+    writeFileSync(join(build.nextDir, "build-manifest.json"), JSON.stringify({ rootMainFiles: [bootstrap] }));
+    writeChunk(build.nextDir, "static/chunks/rich-renderer.js", Buffer.from(richExportSource(RICH_EXPORTS).toString().replace("e=>{", "e=>{e.i(202);")));
+    const measurement = capture(build) as { richChartGzipBytes: number; richChartAdditionalGzipBytes: number };
+    expect(measurement.richChartGzipBytes - measurement.richChartAdditionalGzipBytes).toBe(gzipSync(readFileSync(join(build.nextDir, bootstrap)), { level: 9 }).length);
+  });
+  it("does not traverse unused factories sharing a required vendor chunk", () => {
+    const build = syntheticBuild();
+    writeChunk(build.nextDir, "static/chunks/rich-renderer.js", Buffer.from(richExportSource(RICH_EXPORTS).toString().replace("e=>{", "e=>{e.i(202);")));
+    writeChunk(build.nextDir, "static/chunks/vendor.js", 'globalThis.TURBOPACK.push([null,202,e=>{e.s(["needed",0,1])},777,e=>{e.i(888)}]);');
+    writeRouteManifest(build.nextDir, "reports", [build.chunks.shared, build.chunks.reports, "static/chunks/rich-imports.js", "static/chunks/vendor.js"]);
+    const measurement = capture(build) as { richChartReachableChunks: Array<{ path: string }> };
+    expect(measurement.richChartReachableChunks.map((chunk) => chunk.path).sort()).toEqual(["static/chunks/rich-renderer.js", "static/chunks/vendor.js"].sort());
+  });
+
+  it("keeps full transitive bytes visible while capping only additional chart payload", () => {
+    const build = syntheticBuild();
+    writeChunk(build.nextDir, "static/chunks/rich-renderer.js", chunkWithDependencies([build.chunks.shared], richExportSource(RICH_EXPORTS)));
+    const measurement = capture(build) as { richChartGzipBytes: number; richChartAdditionalGzipBytes: number; sharedGzipBytes: number };
+    expect(measurement.richChartGzipBytes).toBe(measurement.richChartAdditionalGzipBytes + measurement.sharedGzipBytes);
+  });
+
+  it("resolves actual Turbopack static module registrations, grouped IDs and CommonJS imports", () => {
+    const build = syntheticBuild();
+    writeChunk(build.nextDir, "static/chunks/rich-renderer.js", Buffer.concat([
+      Buffer.from(richExportSource(RICH_EXPORTS).toString().replace("e=>{", "e=>{e.i(202);e.r(303);"))
+    ]));
+    writeChunk(build.nextDir, "static/chunks/vendor.js", 'globalThis.TURBOPACK.push([document.currentScript,202,303,(e,t,r)=>{e.i(405)}]);');
+    writeChunk(build.nextDir, "static/chunks/shared-runtime.js", 'globalThis.TURBOPACK.push([document.currentScript,404,e=>{e.s(["runtime",0,1],405);e.i(405)}]);');
+    writeRouteManifest(build.nextDir, "reports", [build.chunks.shared, build.chunks.reports, "static/chunks/rich-imports.js", "static/chunks/vendor.js", "static/chunks/shared-runtime.js"]);
+    const measurement = capture(build) as { richChartReachableChunks: Array<{ path: string }>; richChartEdges: Array<{ from: string; to: string }> };
+    expect(measurement.richChartReachableChunks.map((chunk) => chunk.path).sort()).toEqual([
+      "static/chunks/rich-renderer.js", "static/chunks/vendor.js", "static/chunks/shared-runtime.js"
+    ].sort());
+    expect(measurement.richChartEdges).toContainEqual({ from: "static/chunks/rich-renderer.js", to: "static/chunks/vendor.js" });
+  });
+
+  it("excludes duplicated registrations belonging only to another route", () => {
+    const build = syntheticBuild();
+    writeChunk(build.nextDir, "static/chunks/rich-renderer.js", Buffer.from(richExportSource(RICH_EXPORTS).toString().replace("e=>{", "e=>{e.i(202);")));
+    writeChunk(build.nextDir, "static/chunks/vendor.js", 'globalThis.TURBOPACK.push([null,202,e=>{e.s(["needed",0,1])}]);');
+    writeChunk(build.nextDir, "static/chunks/unrelated-route.js", 'globalThis.TURBOPACK.push([null,202,e=>{e.s(["needed",0,1])},777,e=>{e.i(888)}]);');
+    writeRouteManifest(build.nextDir, "reports", [build.chunks.shared, build.chunks.reports, "static/chunks/rich-imports.js", "static/chunks/vendor.js"]);
+    const measurement = capture(build) as { richChartReachableChunks: Array<{ path: string }> };
+    expect(measurement.richChartReachableChunks.map((chunk) => chunk.path).sort()).toEqual(["static/chunks/rich-renderer.js", "static/chunks/vendor.js"].sort());
+  });
+
+  it("fails closed when a reachable static import has no emitted registration", () => {
+    const build = syntheticBuild();
+    writeChunk(build.nextDir, "static/chunks/rich-renderer.js", Buffer.concat([
+      Buffer.from(richExportSource(RICH_EXPORTS).toString().replace("e=>{", "e=>{e.i(999999);"))
+    ]));
+    const result = spawnSync(process.execPath, [SCRIPT, "--next-dir", build.nextDir, "--capture-baseline", join(build.root, "baseline.json")], { encoding: "utf8" });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("unregistered static module 999999");
+  });
+
   it("captures gzip union, shared, and route-specific bytes from client manifests", () => {
     const build = syntheticBuild();
     const baselinePath = join(build.root, "baseline.json");
@@ -187,10 +235,11 @@ describe("verify-route-budgets", () => {
       readFileSync(join(build.nextDir, build.chunks.reports))
     ).length;
 
+    const richBytes = ["static/chunks/rich-imports.js", "static/chunks/rich-renderer.js"].reduce((sum, path) => sum + gzipSync(readFileSync(join(build.nextDir, path)), { level: 9 }).length, 0);
     expect(baseline.sharedGzipBytes).toBe(sharedBytes);
     expect(baseline.routes.reports).toEqual({
-      unionGzipBytes: sharedBytes + reportsBytes,
-      routeSpecificGzipBytes: reportsBytes
+      unionGzipBytes: sharedBytes + reportsBytes + richBytes,
+      routeSpecificGzipBytes: reportsBytes + richBytes
     });
   });
 
@@ -297,7 +346,7 @@ describe("verify-route-budgets", () => {
     const build = syntheticBuild();
     const baselinePath = join(build.root, "baseline.json");
 
-    writeDeferredRichChart(build.nextDir, 80 * 1024);
+    writeStaticRichChart(build.nextDir, 80 * 1024);
     execFileSync(
       process.execPath,
       [SCRIPT, "--next-dir", build.nextDir, "--capture-baseline", baselinePath],
@@ -305,9 +354,9 @@ describe("verify-route-budgets", () => {
     );
 
     const baseline = JSON.parse(readFileSync(baselinePath, "utf8")) as {
-      deferredRichChartGzipBytes: number;
+      richChartGzipBytes: number;
     };
-    expect(baseline.deferredRichChartGzipBytes).toBeGreaterThan(70 * 1024);
+    expect(baseline.richChartGzipBytes).toBeGreaterThan(70 * 1024);
 
     const result = spawnSync(
       process.execPath,
@@ -316,7 +365,7 @@ describe("verify-route-budgets", () => {
     );
 
     expect(result.status).toBe(1);
-    expect(result.stderr).toMatch(/deferred rich-chart.+70 KiB/is);
+    expect(result.stderr).toMatch(/rich-chart.+70 KiB/is);
   });
 
   it("resolves all six static rich-export import sites to the shared renderer target", () => {
@@ -327,7 +376,7 @@ describe("verify-route-budgets", () => {
       richExportSource(RICH_EXPORTS)
     );
     const measurement = capture(build) as {
-      richDynamicTargets: Array<{
+      richStaticTargets: Array<{
         source: string;
         specifier: string;
         export: string;
@@ -335,19 +384,19 @@ describe("verify-route-budgets", () => {
       }>;
     };
 
-    expect(measurement.richDynamicTargets).toHaveLength(6);
-    expect(measurement.richDynamicTargets.map((target) => target.export).sort()).toEqual(
+    expect(measurement.richStaticTargets).toHaveLength(6);
+    expect(measurement.richStaticTargets.map((target) => target.export).sort()).toEqual(
       [...RICH_EXPORTS].sort()
     );
     expect(
-      new Set(measurement.richDynamicTargets.map((target) => target.specifier))
+      new Set(measurement.richStaticTargets.map((target) => target.specifier))
     ).toEqual(new Set(["@/components/charts/recharts-visuals.client"]));
     expect(
-      measurement.richDynamicTargets.every(
+      measurement.richStaticTargets.every(
         (target) =>
           target.source.startsWith("src/components/charts/") &&
           target.seedChunks.length === 1 &&
-          target.seedChunks[0] === "static/chunks/deferred-rich-chart.js"
+          target.seedChunks[0] === "static/chunks/rich-renderer.js"
       )
     ).toBe(true);
   });
@@ -356,7 +405,7 @@ describe("verify-route-budgets", () => {
     const build = syntheticBuild();
     writeChunk(
       build.nextDir,
-      "static/chunks/deferred-rich-chart.js",
+      "static/chunks/rich-renderer.js",
       chunkWithDependencies(
         ["static/chunks/recharts-runtime.js"],
         richExportSource(RICH_EXPORTS.slice(0, 3))
@@ -370,10 +419,10 @@ describe("verify-route-budgets", () => {
         richExportSource(RICH_EXPORTS.slice(3))
       )
     );
-    writeRichLoaderMetadata(
+    writeRichImportMetadata(
       build.nextDir,
-      "static/chunks/deferred-rich-chart.js",
-      `e.v(t=>Promise.all(["static/chunks/deferred-rich-chart.js","static/chunks/second-rich-seed.js"].map(t=>e.l(t))).then(()=>t(101)))`
+      "static/chunks/rich-renderer.js",
+      chunkWithDependencies(["static/chunks/rich-renderer.js", "static/chunks/second-rich-seed.js"])
     );
     writeChunk(
       build.nextDir,
@@ -390,21 +439,21 @@ describe("verify-route-budgets", () => {
     );
 
     const measurement = capture(build) as {
-      deferredRichChartReachableChunks: Array<{ path: string }>;
-      deferredRichChartEdges: Array<{ from: string; to: string }>;
+      richChartReachableChunks: Array<{ path: string }>;
+      richChartEdges: Array<{ from: string; to: string }>;
     };
 
     expect(
-      measurement.deferredRichChartReachableChunks.map((chunk) => chunk.path).sort()
+      measurement.richChartReachableChunks.map((chunk) => chunk.path).sort()
     ).toEqual(
       [
-        "static/chunks/deferred-rich-chart.js",
+        "static/chunks/rich-renderer.js",
         "static/chunks/recharts-runtime.js",
         "static/chunks/second-rich-seed.js",
         "static/chunks/shared-helper.js"
       ].sort()
     );
-    expect(measurement.deferredRichChartEdges).toContainEqual({
+    expect(measurement.richChartEdges).toContainEqual({
       from: "static/chunks/recharts-runtime.js",
       to: "static/chunks/shared-helper.js"
     });
@@ -415,7 +464,7 @@ describe("verify-route-budgets", () => {
     const sharedRuntime = deterministicNoise(9 * 1024);
     writeChunk(
       build.nextDir,
-      "static/chunks/deferred-rich-chart.js",
+      "static/chunks/rich-renderer.js",
       chunkWithDependencies(
         ["static/chunks/recharts-runtime.js"],
         richExportSource(RICH_EXPORTS.slice(0, 3))
@@ -429,10 +478,10 @@ describe("verify-route-budgets", () => {
         richExportSource(RICH_EXPORTS.slice(3))
       )
     );
-    writeRichLoaderMetadata(
+    writeRichImportMetadata(
       build.nextDir,
-      "static/chunks/deferred-rich-chart.js",
-      `e.v(t=>Promise.all(["static/chunks/deferred-rich-chart.js","static/chunks/second-rich-seed.js"].map(t=>e.l(t))).then(()=>t(101)))`
+      "static/chunks/rich-renderer.js",
+      chunkWithDependencies(["static/chunks/rich-renderer.js", "static/chunks/second-rich-seed.js"])
     );
     writeChunk(
       build.nextDir,
@@ -441,20 +490,20 @@ describe("verify-route-budgets", () => {
     );
 
     const measurement = capture(build) as {
-      deferredRichChartReachableChunks: Array<{ path: string; gzipBytes: number }>;
-      deferredRichChartGzipBytes: number;
+      richChartReachableChunks: Array<{ path: string; gzipBytes: number }>;
+      richChartGzipBytes: number;
     };
-    const inventoryTotal = measurement.deferredRichChartReachableChunks.reduce(
+    const inventoryTotal = measurement.richChartReachableChunks.reduce(
       (sum, chunk) => sum + chunk.gzipBytes,
       0
     );
 
     expect(
-      measurement.deferredRichChartReachableChunks.filter(
+      measurement.richChartReachableChunks.filter(
         (chunk) => chunk.path === "static/chunks/recharts-runtime.js"
       )
     ).toHaveLength(1);
-    expect(measurement.deferredRichChartGzipBytes).toBe(inventoryTotal);
+    expect(measurement.richChartGzipBytes).toBe(inventoryTotal);
   });
 
   it("fails closed when a reachable emitted dependency cannot be resolved", () => {
@@ -462,7 +511,7 @@ describe("verify-route-budgets", () => {
     const baselinePath = join(build.root, "baseline.json");
     writeChunk(
       build.nextDir,
-      "static/chunks/deferred-rich-chart.js",
+      "static/chunks/rich-renderer.js",
       chunkWithDependencies(
         ["static/chunks/missing-shared-helper.js"],
         richExportSource(RICH_EXPORTS)
@@ -477,16 +526,16 @@ describe("verify-route-budgets", () => {
 
     expect(result.status).toBe(1);
     expect(result.stderr).toMatch(
-      /deferred-rich-chart\.js.+missing-shared-helper\.js/is
+      /rich-renderer\.js.+missing-shared-helper\.js/is
     );
   });
 
   it("fails closed on a nonliteral emitted dynamic loader target", () => {
     const build = syntheticBuild();
     const baselinePath = join(build.root, "baseline.json");
-    writeRichLoaderMetadata(
+    writeRichImportMetadata(
       build.nextDir,
-      "static/chunks/deferred-rich-chart.js",
+      "static/chunks/rich-renderer.js",
       "e.v(t=>e.l(resolveChunkAtRuntime()).then(()=>t(101)))"
     );
 
@@ -497,7 +546,7 @@ describe("verify-route-budgets", () => {
     );
 
     expect(result.status).toBe(1);
-    expect(result.stderr).toMatch(/rich-loaders\.js.+unrecognized.+loader/is);
+    expect(result.stderr).toMatch(/rich-imports\.js.+unrecognized.+loader/is);
   });
 
   it("fails closed on an unknown loader form inside the rich reachable graph", () => {
@@ -505,7 +554,7 @@ describe("verify-route-budgets", () => {
     const baselinePath = join(build.root, "baseline.json");
     writeChunk(
       build.nextDir,
-      "static/chunks/deferred-rich-chart.js",
+      "static/chunks/rich-renderer.js",
       Buffer.concat([
         richExportSource(RICH_EXPORTS),
         Buffer.from("\ne.l(resolveTransitiveChunk());")
@@ -520,18 +569,18 @@ describe("verify-route-budgets", () => {
 
     expect(result.status).toBe(1);
     expect(result.stderr).toMatch(
-      /deferred-rich-chart\.js.+unrecognized.+loader/is
+      /rich-renderer\.js.+unrecognized.+loader/is
     );
   });
 
   it("records gzip-9 inventory with path, raw bytes, gzip bytes and sha256", () => {
     const build = syntheticBuild();
-    const relativePath = "static/chunks/deferred-rich-chart.js";
+    const relativePath = "static/chunks/rich-renderer.js";
     const bytes = richExportSource(RICH_EXPORTS, 1024);
     writeChunk(build.nextDir, relativePath, bytes);
 
     const measurement = capture(build) as {
-      deferredRichChartReachableChunks: Array<{
+      richChartReachableChunks: Array<{
         path: string;
         kind: string;
         rawBytes: number;
@@ -539,7 +588,7 @@ describe("verify-route-budgets", () => {
         sha256: string;
       }>;
     };
-    const item = measurement.deferredRichChartReachableChunks.find(
+    const item = measurement.richChartReachableChunks.find(
       (chunk) => chunk.path === relativePath
     );
 
@@ -552,30 +601,14 @@ describe("verify-route-budgets", () => {
     });
   });
 
-  it("fails when the initial reports graph reaches any rich dependency", () => {
+  it("measures sanctioned initial static chart dependencies without calling them deferred", () => {
     const build = syntheticBuild();
-    const baselinePath = join(build.root, "baseline.json");
-    writeChunk(
-      build.nextDir,
-      build.chunks.reports,
-      chunkWithDependencies(
-        ["static/chunks/deferred-rich-chart.js"],
-        "export const route = 'reports';"
-      )
-    );
-
-    const result = spawnSync(
-      process.execPath,
-      [SCRIPT, "--next-dir", build.nextDir, "--capture-baseline", baselinePath],
-      { encoding: "utf8" }
-    );
-
-    expect(result.status).toBe(1);
-    expect(result.stderr).toMatch(/reports.+initial.+rich/is);
+    const measurement = capture(build) as { initialRichChartGzipBytesByRoute: Record<string, number> };
+    expect(measurement.initialRichChartGzipBytesByRoute.reports).toBeGreaterThan(0);
   });
 
   it.each(["dashboard", "coaching"] as const)(
-    "fails when the initial %s graph reaches Recharts or Motion",
+    "fails when the initial %s graph reaches unapproved Motion",
     (route) => {
       const build = syntheticBuild();
       const baselinePath = join(build.root, "baseline.json");
@@ -588,7 +621,7 @@ describe("verify-route-budgets", () => {
       writeChunk(
         build.nextDir,
         dependency,
-        'export const packageMarker = "node_modules/recharts";'
+        'export const packageMarker = "node_modules/motion/react";'
       );
 
       const result = spawnSync(
@@ -611,7 +644,7 @@ describe("verify-route-budgets", () => {
       [SCRIPT, "--next-dir", build.nextDir, "--capture-baseline", baselinePath],
       { encoding: "utf8" }
     );
-    writeDeferredRichChart(build.nextDir, 80 * 1024);
+    writeStaticRichChart(build.nextDir, 80 * 1024);
 
     const result = spawnSync(
       process.execPath,

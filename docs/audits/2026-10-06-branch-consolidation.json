@@ -1,0 +1,201 @@
+{
+  "source_master": "0b24b72fcd49927108ec5867957206126031ac7e",
+  "source_branches": [
+    {
+      "branch": "chore/trigger-verify-smoke-3aedc85",
+      "head": "ca7951f7ac60a6a96d9d9860d87d9b67a4a4169c",
+      "merged_prs": [],
+      "consolidation": "preserve current documentation; temporary smoke marker retired"
+    },
+    {
+      "branch": "cursor/audit-harden-tip-2cd6",
+      "head": "a0de5bb4bd66d5b635f5bef201fa67e00f39ca37",
+      "merged_prs": [
+        148
+      ],
+      "consolidation": "preserve current master tree and join already-squashed history"
+    },
+    {
+      "branch": "cursor/chat-timeline-notes-7a6f",
+      "head": "71e1af037339dfd10694f856a412698f1795ed1c",
+      "merged_prs": [
+        155
+      ],
+      "consolidation": "preserve current master tree and join already-squashed history"
+    },
+    {
+      "branch": "cursor/clear-sticky-activeselect-ref-41f4",
+      "head": "b63962e801a9fa5d2bd17f082c9635b84e60881a",
+      "merged_prs": [
+        161
+      ],
+      "consolidation": "preserve current master tree and join already-squashed history"
+    },
+    {
+      "branch": "cursor/clear-sticky-evidence-focus-3622",
+      "head": "d9205913424ee5fd7956297479da2c808a2c90ee",
+      "merged_prs": [
+        159
+      ],
+      "consolidation": "preserve current master tree and join already-squashed history"
+    },
+    {
+      "branch": "cursor/docs-164-tip-ac35def-05c2",
+      "head": "7165436e3aa7ea1806ecb94d7a254b15b6403c51",
+      "merged_prs": [
+        165
+      ],
+      "consolidation": "preserve current master tree and join already-squashed history"
+    },
+    {
+      "branch": "cursor/docs-align-tip-47b2",
+      "head": "b00fdbed14c8dfdc36505b6cc371980ff6186f92",
+      "merged_prs": [],
+      "consolidation": "preserve current documentation; temporary smoke marker retired"
+    },
+    {
+      "branch": "cursor/docs-clear-sticky-focus-residual-dd1e",
+      "head": "36a9c6f29ca1744032e65ef5c7e9965269765ffe",
+      "merged_prs": [
+        160
+      ],
+      "consolidation": "preserve current master tree and join already-squashed history"
+    },
+    {
+      "branch": "cursor/docs-density-contract-d9a3",
+      "head": "0995b40bea717cde9e8e0def4c312168297e8937",
+      "merged_prs": [
+        168
+      ],
+      "consolidation": "preserve current master tree and join already-squashed history"
+    },
+    {
+      "branch": "cursor/docs-evidence-no-overwrite-0cc0",
+      "head": "702e1c9353a113b5be0d172e952e5e1ceaaad5ca",
+      "merged_prs": [
+        158
+      ],
+      "consolidation": "preserve current master tree and join already-squashed history"
+    },
+    {
+      "branch": "cursor/docs-matrix-dc5de92-c908",
+      "head": "205e64cbdb90bc2c606a4ddfac850ce307b6aab9",
+      "merged_prs": [
+        153
+      ],
+      "consolidation": "preserve current master tree and join already-squashed history"
+    },
+    {
+      "branch": "cursor/docs-pin-161-activeselectref-9d1c439-5645",
+      "head": "c6e2b7e126b7b954c7b9984a37e3c724596cd642",
+      "merged_prs": [
+        162
+      ],
+      "consolidation": "preserve current master tree and join already-squashed history"
+    },
+    {
+      "branch": "cursor/docs-pin-173-tip-67635ab-ee16",
+      "head": "b66b1df923e742c681f328a5946e3a28c0932cb0",
+      "merged_prs": [
+        174
+      ],
+      "consolidation": "preserve current master tree and join already-squashed history"
+    },
+    {
+      "branch": "cursor/docs-pin-e325df6-soft-residuals-41b9",
+      "head": "41d5ab6f7b1f9b97507328a777e6e46957960abf",
+      "merged_prs": [
+        171
+      ],
+      "consolidation": "preserve current master tree and join already-squashed history"
+    },
+    {
+      "branch": "cursor/e2e-verify-tails-163-0f84",
+      "head": "acfed01f2a06bda54cd83af8b276ffac8f470873",
+      "merged_prs": [
+        164
+      ],
+      "consolidation": "preserve current master tree and join already-squashed history"
+    },
+    {
+      "branch": "cursor/evidence-full-slots-no-overwrite-583d",
+      "head": "eaa509c1dd080ee5d64b45ca875b4bce94e09d7c",
+      "merged_prs": [
+        156
+      ],
+      "consolidation": "preserve current master tree and join already-squashed history"
+    },
+    {
+      "branch": "cursor/fix-verify-db-smoke-0795",
+      "head": "7ace57a5caf98eaf6c5fabe2da434965551b3795",
+      "merged_prs": [
+        176
+      ],
+      "consolidation": "preserve current master tree and join already-squashed history"
+    },
+    {
+      "branch": "cursor/issue-166-density-be10",
+      "head": "be7776e8d4edffe34730cafbd0a1c3ca3d35d4eb",
+      "merged_prs": [
+        167
+      ],
+      "consolidation": "preserve current master tree and join already-squashed history"
+    },
+    {
+      "branch": "cursor/pin-verify-db-smoke-2556e9e-7905",
+      "head": "268929672aae3b369a71dcd9ec88e00c12f95737",
+      "merged_prs": [
+        177
+      ],
+      "consolidation": "preserve current master tree and join already-squashed history"
+    },
+    {
+      "branch": "cursor/reports-density-p0-a770",
+      "head": "be378d0756fe6f3d9aa3ad8567784249f85a48e1",
+      "merged_prs": [
+        173
+      ],
+      "consolidation": "preserve current master tree and join already-squashed history"
+    },
+    {
+      "branch": "cursor/reviews-queue-redirect-dee3",
+      "head": "34643145c899a863832dae5e39d0eaa030c15765",
+      "merged_prs": [
+        178
+      ],
+      "consolidation": "preserve current master tree and join already-squashed history"
+    },
+    {
+      "branch": "cursor/soft-density-residuals-169-0540",
+      "head": "a8393b79834bd46a77d60677bd1b6aef0adcafd7",
+      "merged_prs": [
+        170
+      ],
+      "consolidation": "preserve current master tree and join already-squashed history"
+    },
+    {
+      "branch": "cursor/ux-dialogue-timeline-contract-c238",
+      "head": "95e84d4c61b6f24ad2c089c8bc298da61b2ddbdc",
+      "merged_prs": [
+        157
+      ],
+      "consolidation": "preserve current master tree and join already-squashed history"
+    },
+    {
+      "branch": "docs/hygiene-3aedc85-after-175",
+      "head": "42a25a36d87c0d5c24ff483c1332c8dcfbedd888",
+      "merged_prs": [
+        181
+      ],
+      "consolidation": "preserve current master tree and join already-squashed history"
+    },
+    {
+      "branch": "docs/pin-178-reviews-queue-005ab49",
+      "head": "f8b94e9cd62687ff5c949344b25d505d0c934be4",
+      "merged_prs": [
+        179
+      ],
+      "consolidation": "preserve current master tree and join already-squashed history"
+    }
+  ]
+}

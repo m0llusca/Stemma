@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
   const tx = {
+    $queryRaw: vi.fn(),
+    scorecard: { findFirst: vi.fn() },
+    calibrationSession: { findFirst: vi.fn() },
     conversation: {
       findFirst: vi.fn(),
       updateMany: vi.fn()
@@ -136,6 +139,7 @@ describe("review action lifecycle guards", () => {
       version: 3,
       criteria: [{ id: "crit-a", label: "Точность", kind: "PASS_FAIL", weight: 100 }]
     });
+    mocks.tx.scorecard.findFirst.mockImplementation((args) => mocks.prisma.scorecard.findFirst(args));
     mocks.prisma.user.count.mockResolvedValue(1);
     mocks.tx.conversation.findFirst.mockResolvedValue({
       id: "conversation-1",
@@ -146,12 +150,75 @@ describe("review action lifecycle guards", () => {
     mocks.tx.conversation.updateMany.mockResolvedValue({ count: 1 });
     mocks.tx.reviewEvent.findFirst.mockResolvedValue(null);
     mocks.tx.review.findFirst.mockResolvedValue(null);
+    mocks.tx.calibrationSession.findFirst.mockResolvedValue({ id: "session-2" });
     mocks.tx.review.updateMany.mockResolvedValue({ count: 1 });
     mocks.tx.review.create.mockResolvedValue({ id: "review-new" });
     mocks.tx.review.update.mockResolvedValue({ id: "review-existing" });
     mocks.auditLog.mockResolvedValue({});
     mocks.recordReviewEvent.mockResolvedValue({});
     mocks.enqueueBackendJob.mockResolvedValue({ id: "job-1" });
+  });
+
+  it("keeps a new calibration session independent of prior grades and HUMAN reopen cycles", async () => {
+    const { finalizeReview } = await import("@/lib/review-actions");
+    const form = baseFinalizeForm();
+    form.set("reviewSource", "CALIBRATION");
+    form.set("calibrationSessionId", "session-2");
+    mocks.tx.reviewEvent.findFirst.mockResolvedValue({ createdAt: new Date("2026-10-05T10:00:00Z") });
+    mocks.tx.review.findFirst.mockImplementation(async ({ where }) => where.calibrationSessionId === "session-1"
+      ? { id: "old-grade", status: "FINALIZED" } : null);
+
+    await finalizeReview(form);
+
+    expect(mocks.tx.calibrationSession.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: {
+      id: "session-2", workspaceId: "workspace-1", status: "active", scorecardId: "scorecard-1",
+      items: { some: { conversationId: "conversation-1" } }, participants: { some: { userId: "reviewer-1" } }
+    } }));
+    expect(mocks.tx.review.findFirst.mock.calls[0][0].where).toEqual({
+      workspaceId: "workspace-1", conversationId: "conversation-1", reviewerId: "reviewer-1",
+      reviewSource: "CALIBRATION", calibrationSessionId: "session-2"
+    });
+    expect(mocks.tx.review.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ calibrationSessionId: "session-2" }) }));
+    expect(mocks.tx.conversation.updateMany).not.toHaveBeenCalled();
+  });
+
+  it.each(["missing-id", "denied-session", "human-with-session"])("rejects invalid calibration context %s before writing", async (scenario) => {
+    const { finalizeReview } = await import("@/lib/review-actions");
+    const form = baseFinalizeForm();
+    if (scenario !== "human-with-session") form.set("reviewSource", "CALIBRATION");
+    if (scenario !== "missing-id") form.set("calibrationSessionId", "session-2");
+    mocks.tx.calibrationSession.findFirst.mockResolvedValue(null);
+
+    await expect(finalizeReview(form)).rejects.toThrow();
+    expect(mocks.tx.review.create).not.toHaveBeenCalled();
+    expect(mocks.tx.review.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects calibration take-next before finalizing or leaving its session", async () => {
+    const { finalizeReviewAndTakeNext } = await import("@/lib/review-actions");
+    const form = baseFinalizeForm();
+    form.set("reviewSource", "CALIBRATION");
+    form.set("calibrationSessionId", "session-1");
+    await expect(finalizeReviewAndTakeNext(form)).rejects.toThrow("QA-очереди");
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("saves an incomplete draft without inventing a failed criterion score", async () => {
+    const { saveReviewDraft, finalizeReview } = await import("@/lib/review-actions");
+    const form = baseFinalizeForm();
+    form.delete("criterion.crit-a.passed");
+    await saveReviewDraft(form);
+    expect(mocks.tx.review.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({
+      totalScore: 0, status: "DRAFT", scores: { create: [expect.objectContaining({ passed: null, value: null, isNotApplicable: false })] }
+    }) }));
+    await expect(finalizeReview(form)).rejects.toThrow("Missing pass/fail score");
+  });
+
+  it("rejects stale rubric inputs before creating a review", async () => {
+    const { saveReviewDraft } = await import("@/lib/review-actions");
+    mocks.tx.scorecard.findFirst.mockResolvedValue({ id: "scorecard-1", version: 4, criteria: [] });
+    await expect(saveReviewDraft(baseFinalizeForm())).rejects.toThrow("Форма оценки изменилась");
+    expect(mocks.tx.review.create).not.toHaveBeenCalled();
   });
 
   it("enqueues a MESSAGING_DELIVERY job for the manager when a review is finalized", async () => {

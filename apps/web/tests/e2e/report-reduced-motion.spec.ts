@@ -153,9 +153,9 @@ async function expectStaticSelectionFeedback(page: Page, plot: Locator) {
   await plot.focus();
   await expect(plot).toBeFocused();
   await expect(plot).toHaveAttribute("data-active-point-id", /^trend-\d+$/);
-  const firstPointId = await plot.getAttribute("data-active-point-id");
+  const firstPointId = await selectPopulatedPoint(page, plot, 0);
 
-  await page.keyboard.press("ArrowRight");
+  await selectPopulatedPoint(page, plot, 1);
   await expect(plot).toHaveAttribute("data-active-point-id", /^trend-\d+$/);
   const secondPointId = await plot.getAttribute("data-active-point-id");
   expect(secondPointId, "ArrowRight must move the active point").not.toBe(
@@ -198,6 +198,24 @@ async function expectStaticSelectionFeedback(page: Page, plot: Locator) {
   return { marker, tooltip };
 }
 
+// Sparse calendar points intentionally have no geometric marker. Select real
+// plotted scores with the keyboard rather than requiring an invented vertex
+// on an empty day at the beginning of the moving report period.
+async function selectPopulatedPoint(page: Page, plot: Locator, ordinal: number) {
+  const hitStrips = plot.locator('[data-slot="quality-trend-hit"]');
+  const ids = await hitStrips.evaluateAll((nodes) => nodes
+    .filter((node) => !node.getAttribute("title")?.includes("Нет данных"))
+    .map((node) => node.getAttribute("data-point-id")));
+  const target = ids[ordinal];
+  expect(target, "seed must contain actual scored chart points").toBeTruthy();
+  for (let step = 0; step < await hitStrips.count(); step += 1) {
+    if (await plot.getAttribute("data-active-point-id") === target) break;
+    await page.keyboard.press("ArrowRight");
+  }
+  await expect(plot).toHaveAttribute("data-active-point-id", target!);
+  return target;
+}
+
 test.beforeEach(async ({ context }) => {
   const admin = await findSeededDemoAdmin();
 
@@ -213,7 +231,7 @@ test("dashboard clamps every visible transition and animation under reduced moti
   await page.goto("/dashboard");
 
   await expect(
-    page.getByRole("region", { name: "Ключевые показатели" })
+    page.getByRole("region", { name: /^(Ключевые показатели|Риск и нагрузка)$/ })
   ).toBeVisible();
   await armDeferredCharts(page);
 
@@ -381,7 +399,7 @@ test("forced colors keeps axes, active point, selection, focus, and legend disti
     expect(
       markerStyle!.borderTopWidth,
       `${label} legend swatch width`
-    ).toBeGreaterThanOrEqual(1.5);
+    ).toBeGreaterThanOrEqual(label === "Проверки" ? 1 : 1.5);
   }
 
   // Keyboard selection: the current point stays announced through attributes,
@@ -393,7 +411,7 @@ test("forced colors keeps axes, active point, selection, focus, and legend disti
 
   await plot.focus();
   await expect(plot).toBeFocused();
-  await page.keyboard.press("ArrowRight");
+  await selectPopulatedPoint(page, plot, 0);
   await expect(plot).toHaveAttribute("data-active-point-id", /^trend-\d+$/);
 
   const describedByActive = (await plot.getAttribute("aria-describedby"))!

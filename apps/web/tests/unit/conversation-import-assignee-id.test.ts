@@ -78,6 +78,26 @@ beforeEach(() => {
 });
 
 describe("conversation import → resolve assigneeId from name", () => {
+  it.each([
+    { name: "Неизвестный", matches: [] },
+    { name: "Анна", matches: [{ id: "anna-1", name: "Анна" }, { id: "anna-2", name: "Анна" }] },
+    { name: undefined, matches: [] }
+  ])("revokes the previous assignment on reimport when the new name is $name", async ({ name, matches }) => {
+    const { tx, conversationUpsert } = makeTx({ assigneeMatches: matches });
+    let stored: Record<string, unknown> = { id: "conv-1", assigneeId: "previous-agent", assigneeName: "Прежний оператор" };
+    conversationUpsert.mockImplementation(async ({ update }) => {
+      stored = { ...stored, ...Object.fromEntries(Object.entries(update).filter(([, value]) => value !== undefined)) };
+      return stored as never;
+    });
+
+    await upsertCustomConversation("workspace-1", conversationPayload({ assigneeName: name }), tx as never, {
+      samplingRules: [nonSelectingRule()]
+    });
+
+    expect(stored.assigneeId).toBeNull();
+    expect(stored.assigneeName).toBe(name ?? null);
+  });
+
   it("sets assigneeId when the name resolves to exactly one workspace user", async () => {
     const { tx, conversationUpsert } = makeTx({
       assigneeMatches: [{ id: "agent-anna", name: "Анна" }]

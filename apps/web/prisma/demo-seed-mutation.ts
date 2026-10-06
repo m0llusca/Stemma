@@ -57,6 +57,10 @@ export async function mutateDemoSeed(
   await prisma.translationAudit.deleteMany({ where: { workspaceId } });
   await prisma.translationValue.deleteMany({ where: { workspaceId } });
   await prisma.locale.deleteMany({ where: { workspaceId } });
+  // Certification runs restrict deletion of their integration/provider/actor.
+  // Remove their evidence first within this guarded demo reset transaction.
+  await prisma.certificationEvidence.deleteMany({ where: { workspaceId } });
+  await prisma.certificationRun.deleteMany({ where: { workspaceId } });
   // AuditLog is append-only in product (migration 20260907094600). Demo reseed is the
   // documented local/test reset path, so briefly lift the delete trigger inside this
   // already-guarded seed transaction — never from application request handlers.
@@ -96,7 +100,6 @@ export async function mutateDemoSeed(
   await prisma.calibrationSessionItem.deleteMany({
     where: { session: { workspaceId } }
   });
-  await prisma.calibrationSession.deleteMany({ where: { workspaceId } });
   await prisma.reviewFeedbackEvent.deleteMany({
     where: { review: { workspaceId } }
   });
@@ -113,6 +116,7 @@ export async function mutateDemoSeed(
     where: { review: { workspaceId } }
   });
   await prisma.review.deleteMany({ where: { workspaceId } });
+  await prisma.calibrationSession.deleteMany({ where: { workspaceId } });
   await prisma.scorecardCriterion.deleteMany({
     where: { scorecard: { workspaceId } }
   });
@@ -1205,6 +1209,7 @@ export async function mutateDemoSeed(
   }
 
   async function createCalibrationReview(input: {
+    calibrationSessionId: string;
     conversationId: string;
     reviewerId: string;
     totalScore: number;
@@ -1219,6 +1224,7 @@ export async function mutateDemoSeed(
         reviewerId: input.reviewerId,
         scorecardId: scorecard.id,
         reviewSource: "CALIBRATION",
+        calibrationSessionId: input.calibrationSessionId,
         rubricVersion: scorecard.version,
         status: "FINALIZED",
         totalScore: input.totalScore,
@@ -2348,6 +2354,7 @@ export async function mutateDemoSeed(
   });
 
   await createCalibrationReview({
+    calibrationSessionId: calibrationSession.id,
     conversationId: criticalConversation.id,
     reviewerId: analyst.id,
     totalScore: 72,
@@ -2357,6 +2364,7 @@ export async function mutateDemoSeed(
   });
 
   await createCalibrationReview({
+    calibrationSessionId: calibrationSession.id,
     conversationId: criticalConversation.id,
     reviewerId: teamLead.id,
     totalScore: 55,
@@ -2366,6 +2374,7 @@ export async function mutateDemoSeed(
   });
 
   await createCalibrationReview({
+    calibrationSessionId: calibrationSession.id,
     conversationId: accurateConversation.id,
     reviewerId: analyst.id,
     totalScore: 94,
@@ -2420,7 +2429,7 @@ export async function mutateDemoSeed(
     }
   });
 
-  await prisma.calibrationSession.create({
+  const completedCalibrationSession = await prisma.calibrationSession.create({
     data: {
       workspaceId: workspace.id,
       ownerId: teamLead.id,
@@ -2469,6 +2478,7 @@ export async function mutateDemoSeed(
   });
 
   await createCalibrationReview({
+    calibrationSessionId: completedCalibrationSession.id,
     conversationId: conversationIdFor("HS-4301"),
     reviewerId: analyst.id,
     totalScore: 66,
@@ -2478,6 +2488,7 @@ export async function mutateDemoSeed(
   });
 
   await createCalibrationReview({
+    calibrationSessionId: completedCalibrationSession.id,
     conversationId: conversationIdFor("HS-4301"),
     reviewerId: seniorAnalyst.id,
     totalScore: 69,
@@ -2489,6 +2500,7 @@ export async function mutateDemoSeed(
   // Both items × both participants. A missing grade makes the chip say
   // «Закрыта · ждут оценки» instead of «Завершена».
   await createCalibrationReview({
+    calibrationSessionId: completedCalibrationSession.id,
     conversationId: conversationIdFor("ZD-7001"),
     reviewerId: analyst.id,
     totalScore: 71,
@@ -2498,6 +2510,7 @@ export async function mutateDemoSeed(
   });
 
   await createCalibrationReview({
+    calibrationSessionId: completedCalibrationSession.id,
     conversationId: conversationIdFor("ZD-7001"),
     reviewerId: seniorAnalyst.id,
     totalScore: 74,
@@ -2506,7 +2519,7 @@ export async function mutateDemoSeed(
     notes: "Расхождение внутри допустимого диапазона."
   });
 
-  await prisma.calibrationSession.create({
+  const archivedCalibrationSession = await prisma.calibrationSession.create({
     data: {
       workspaceId: workspace.id,
       ownerId: teamLead.id,
@@ -2539,6 +2552,16 @@ export async function mutateDemoSeed(
         ]
       }
     }
+  });
+
+  await createCalibrationReview({
+    calibrationSessionId: archivedCalibrationSession.id,
+    conversationId: previousConversation.id,
+    reviewerId: analyst.id,
+    totalScore: 88,
+    summary: "Архивная калибровка: ответ корректный, нужен более персональный тон.",
+    finalizedAt: at(-45, { hour: 9 }),
+    notes: "Историческая оценка закреплена за своей сессией."
   });
 
   await prisma.samplingRule.createMany({

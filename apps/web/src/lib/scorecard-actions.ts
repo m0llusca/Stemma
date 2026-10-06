@@ -7,6 +7,7 @@ import { auditLog } from "@/lib/audit";
 import { assertCanPersistSettings, canManageScorecards, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { validateScorecardDraft, type ScorecardCriterionDraft, type ScorecardDraft } from "@/lib/scorecard-validation";
+import { rubricSignature } from "@/lib/review/rubric-guard";
 
 function stringField(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -178,7 +179,7 @@ export async function updateScorecardVersion(formData: FormData) {
     },
     include: {
       criteria: {
-        select: { id: true }
+        orderBy: { order: "asc" }
       }
     }
   });
@@ -196,6 +197,24 @@ export async function updateScorecardVersion(formData: FormData) {
   const removedCriterionIds = [...existingCriterionIds].filter((id) => !submittedExistingIds.has(id));
 
   await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "Scorecard" WHERE id = ${scorecard.id} AND "workspaceId" = ${user.workspaceId} FOR UPDATE`;
+    const current = await tx.scorecard.findFirst({
+      where: { id: scorecard.id, workspaceId: user.workspaceId, isActive: true },
+      include: { criteria: { orderBy: { order: "asc" } }, _count: { select: { reviews: true, calibrationSessions: true } } }
+    });
+    if (!current || rubricSignature(current) !== rubricSignature(scorecard)) {
+      throw new Error("Форма оценки изменилась. Обновите страницу перед редактированием.");
+    }
+    if (current._count.reviews > 0 || current._count.calibrationSessions > 0) {
+      const changed = current.criteria.length !== draft.criteria.length || draft.criteria.some((criterion, index) => {
+        const original = current.criteria[index];
+        return !original || criterionInputs[index].id !== original.id ||
+          Object.entries(criterion).some(([key, value]) => original[key as keyof typeof original] !== value);
+      });
+      if (changed) {
+        throw new Error("Нельзя изменять критерии формы, которая уже использовалась в проверках. Выпустите новую версию формы.");
+      }
+    }
     const updatedScorecard = await tx.scorecard.update({
       where: { id: scorecard.id },
       data: { name: draft.name },

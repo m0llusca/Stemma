@@ -57,6 +57,7 @@ type ReviewPanelProps = {
   scorecard: Scorecard & { criteria: ScorecardCriterion[] };
   draftReview?: (Review & { scores: CriterionScore[]; findings: (Finding & { coachingAction: CoachingAction | null })[] }) | null;
   reviewSource?: ReviewSource;
+  calibrationSessionId?: string;
   returnTo?: string;
   title?: string;
   /**
@@ -307,6 +308,7 @@ export function ReviewPanel({
   scorecard,
   draftReview,
   reviewSource = "HUMAN",
+  calibrationSessionId,
   returnTo,
   title = "Проверка",
   aiPredictions
@@ -368,12 +370,13 @@ export function ReviewPanel({
       )}
       allowedMessageIds={messages.map((message) => message.id)}
     >
-    <ReviewFormShell className="review-panel-form panel overflow-clip bg-card">
+    <ReviewFormShell className="review-panel-form panel overflow-clip bg-card" allowTakeNext={reviewSource === "HUMAN"}>
       <EvidencePickerListener />
       <LiveEvidenceHighlights />
       <input type="hidden" name="conversationId" value={conversationId} />
       <input type="hidden" name="scorecardId" value={scorecard.id} />
       <input type="hidden" name="reviewSource" value={reviewSource} />
+      {calibrationSessionId ? <input type="hidden" name="calibrationSessionId" value={calibrationSessionId} /> : null}
       {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
 
       <div className="border-b border-border bg-card px-4 py-3.5">

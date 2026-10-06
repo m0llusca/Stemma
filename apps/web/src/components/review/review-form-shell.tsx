@@ -100,7 +100,7 @@ function FinalizeAndNextButton() {
   );
 }
 
-export function ReviewFormShell({ className, children }: { className?: string; children: ReactNode }) {
+export function ReviewFormShell({ className, children, allowTakeNext = true }: { className?: string; children: ReactNode; allowTakeNext?: boolean }) {
   const [actionState, formAction] = useActionState(submitReviewState, initialState);
   // The bridged result covers the inline error state when the client router
   // drops the action commit (Next 16.2.x); the redirect fallback is handled
@@ -139,7 +139,7 @@ export function ReviewFormShell({ className, children }: { className?: string; c
       <div className="review-actions-bar flex flex-wrap items-center gap-2 border-t border-border bg-muted/40 px-4 py-3">
         <SaveDraftButton />
         <FinalizeButton />
-        <FinalizeAndNextButton />
+        {allowTakeNext ? <FinalizeAndNextButton /> : null}
         <FinalizeBlockedHint />
         {errorState ? (
           <div ref={messageRef} tabIndex={-1} className="basis-full outline-none">

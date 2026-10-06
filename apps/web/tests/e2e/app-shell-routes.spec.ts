@@ -169,7 +169,7 @@ test("authenticated app shell routes render stable chrome and content", async ({
       // Имя «Рабочий пульс» делят два элемента: мобильная кнопка меню и
       // десктоп-контейнер ссылок — геометрию и ссылки смотрим в контейнере.
       const workPulse = topbar.locator('div[aria-label="Рабочий пульс"]');
-      const identityChip = topbar.locator('[data-slot="dropdown-menu-trigger"]').last();
+      const identityChip = topbar.getByRole("button", { name: /^Профиль:/ });
 
       await expect(commandTrigger).toBeVisible();
       await expect(workPulse.getByRole("link").first()).toBeVisible();
@@ -234,6 +234,9 @@ test("authenticated app shell routes render stable chrome and content", async ({
       await expect(kpiRegion).toBeVisible();
       await expect(kpiLinks).toHaveCount(4);
       await expect(kpiValue).toBeVisible();
+      await kpiValue.evaluate(async (element) => {
+        await Promise.all(element.getAnimations().map((animation) => animation.finished));
+      });
       const [kpiValueFontSize, kpiLabelFontSize] = await Promise.all([
         kpiValue.evaluate((element) => parseFloat(getComputedStyle(element).fontSize)),
         kpiLabel.evaluate((element) => parseFloat(getComputedStyle(element).fontSize))

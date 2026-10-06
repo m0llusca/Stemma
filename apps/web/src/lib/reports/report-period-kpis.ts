@@ -32,6 +32,7 @@ export async function loadReportPeriodKpis(
     FROM "Review"
     WHERE "workspaceId" = ${workspaceId}
       AND status = 'FINALIZED'
+      AND "reviewSource" = 'HUMAN'
       AND "finalizedAt" >= ${period.start}
       AND "finalizedAt" <= ${period.end}
   `;

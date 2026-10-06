@@ -13,6 +13,7 @@ import { auditLog } from "@/lib/audit";
 import { sanitizeReturnTo } from "@/lib/auth/role-home";
 import { canFinalizeReview, canSaveReviewDraft, canSelfReview, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
+import { loadCalibrationReviewSession } from "@/lib/calibration/review-session";
 import { enqueueBackendJob } from "@/lib/jobs/enqueue";
 import type { MessagingDeliveryJobPayload } from "@/lib/messaging/job-contract";
 import { selectNextReviewConversationId } from "@/lib/review/select-next-review-conversation";
@@ -30,6 +31,7 @@ import {
   assertQaWorkflowTransition
 } from "@/lib/review-workflow-policy";
 import { calculateReviewScore } from "@/lib/score";
+import { assertReviewRubricStable } from "@/lib/review/rubric-guard";
 import { qualityScorePointWord } from "@/lib/score-display";
 
 const ownerTypes = ["AGENT", "PROCESS", "PRODUCT", "POLICY", "AI_SYSTEM"] as const;
@@ -135,6 +137,25 @@ function reviewSourceField(formData: FormData): ReviewSource {
   return value as ReviewSource;
 }
 
+function calibrationSessionField(formData: FormData, source: ReviewSource) {
+  if (source === "CALIBRATION") return requiredString(formData, "calibrationSessionId");
+  if (optionalString(formData, "calibrationSessionId")) {
+    throw new Error("Сессия калибровки допустима только для калибровочной оценки.");
+  }
+  return null;
+}
+
+async function assertCalibrationReviewContext(
+  tx: Prisma.TransactionClient,
+  input: { sessionId: string | null; workspaceId: string; conversationId: string; reviewerId: string; scorecardId: string }
+) {
+  if (!input.sessionId) return;
+  const session = await loadCalibrationReviewSession({ ...input, sessionId: input.sessionId, activeOnly: true }, tx);
+  if (!session) {
+    throw new Error("Калибровочная оценка доступна только участнику активной сессии по ее обращениям и форме оценки.");
+  }
+}
+
 function reviewProcessFields(formData: FormData, summary: string) {
   const criticalError = formData.get("criticalError") === "on";
   const needsReanswer = formData.get("needsReanswer") === "on";
@@ -229,8 +250,8 @@ function buildCriterionScores(scorecard: ReviewScorecard, formData: FormData, va
 
     return {
       criterionId: criterion.id,
-      value: criterion.kind === "SCALE_1_3" && !isNotApplicable ? Number(scoreValue) : null,
-      passed: criterion.kind === "PASS_FAIL" && !isNotApplicable ? passedValue === "true" : null,
+      value: criterion.kind === "SCALE_1_3" && !isNotApplicable && scoreValue !== undefined ? Number(scoreValue) : null,
+      passed: criterion.kind === "PASS_FAIL" && !isNotApplicable && passedValue !== undefined ? passedValue === "true" : null,
       isNotApplicable,
       comment: optionalString(formData, `criterion.${criterion.id}.comment`) ?? "",
       evidenceMessageId
@@ -244,16 +265,18 @@ async function findCurrentReview(
   conversationId: string,
   reviewerId: string,
   reviewSource: ReviewSource,
-  latestReopenedAt: Date | null
+  latestReopenedAt: Date | null,
+  calibrationSessionId: string | null
 ) {
   const where: Prisma.ReviewWhereInput = {
     workspaceId,
     conversationId,
     reviewerId,
-    reviewSource
+    reviewSource,
+    ...(reviewSource === "CALIBRATION" ? { calibrationSessionId } : {})
   };
 
-  if (latestReopenedAt) {
+  if (reviewSource !== "CALIBRATION" && latestReopenedAt) {
     where.OR = [
       { createdAt: { gt: latestReopenedAt } },
       { finalizedAt: { gt: latestReopenedAt } }
@@ -304,6 +327,7 @@ export async function saveReviewDraft(formData: FormData) {
   const conversationId = requiredString(formData, "conversationId");
   const scorecardId = requiredString(formData, "scorecardId");
   const reviewSource = reviewSourceField(formData);
+  const calibrationSessionId = calibrationSessionField(formData, reviewSource);
   const returnTo = sanitizeReturnTo(optionalString(formData, "returnTo") ?? `/reviews/${conversationId}`);
 
   if (reviewSource === "SELF_REVIEW" ? !canSelfReview(user.role) : !canSaveReviewDraft(user.role)) {
@@ -316,7 +340,11 @@ export async function saveReviewDraft(formData: FormData) {
     userId: user.id,
     conversationAssigneeId: conversation.assigneeId
   });
-  const { totalScore } = calculateReviewScore(buildScoreInputs(scorecard, formData));
+  // A draft may be incomplete. Keep unanswered values null, and preview only
+  // answered criteria; finalization still validates the complete rubric.
+  const { totalScore } = calculateReviewScore(buildScoreInputs(scorecard, formData).filter((criterion) =>
+    criterion.notApplicable || (criterion.type === "SCALE_1_3" ? criterion.score !== undefined : criterion.passed !== undefined)
+  ));
   const validEvidenceMessageIds = new Set(conversation.messages.map((message) => message.id));
   const criterionScores = buildCriterionScores(scorecard, formData, validEvidenceMessageIds);
   const summary = optionalString(formData, "summary") ?? "";
@@ -353,6 +381,8 @@ export async function saveReviewDraft(formData: FormData) {
       : undefined;
 
   await prisma.$transaction(async (tx) => {
+    await assertReviewRubricStable(tx, user.workspaceId, scorecard);
+    await assertCalibrationReviewContext(tx, { sessionId: calibrationSessionId, workspaceId: user.workspaceId, conversationId, reviewerId: user.id, scorecardId });
     const currentConversation = await tx.conversation.findFirst({
       where: {
         id: conversationId,
@@ -375,7 +405,7 @@ export async function saveReviewDraft(formData: FormData) {
     }
 
     const latestReopenedAt = await findLatestReopenedAt(tx, user.workspaceId, conversationId);
-    const existingReview = await findCurrentReview(tx, user.workspaceId, conversationId, user.id, reviewSource, latestReopenedAt);
+    const existingReview = await findCurrentReview(tx, user.workspaceId, conversationId, user.id, reviewSource, latestReopenedAt, calibrationSessionId);
     assertReviewCanSaveDraft(existingReview?.status ?? null);
     if (reviewSource === "HUMAN") {
       assertQaWorkflowTransition({
@@ -395,6 +425,7 @@ export async function saveReviewDraft(formData: FormData) {
         data: {
           scorecardId: scorecard.id,
           reviewSource,
+          calibrationSessionId,
           rubricVersion: scorecard.version,
           totalScore: reviewTotalScore,
           summary,
@@ -415,6 +446,7 @@ export async function saveReviewDraft(formData: FormData) {
           reviewerId: user.id,
           scorecardId: scorecard.id,
           reviewSource,
+          calibrationSessionId,
           rubricVersion: scorecard.version,
           status: "DRAFT",
           totalScore: reviewTotalScore,
@@ -507,6 +539,7 @@ async function finalizeReviewCore(formData: FormData) {
   const conversationId = requiredString(formData, "conversationId");
   const scorecardId = requiredString(formData, "scorecardId");
   const reviewSource = reviewSourceField(formData);
+  const calibrationSessionId = calibrationSessionField(formData, reviewSource);
 
   if (reviewSource === "SELF_REVIEW" ? !canSelfReview(user.role) : !canFinalizeReview(user.role)) {
     throw new Error("Нет прав на завершение проверок.");
@@ -536,6 +569,8 @@ async function finalizeReviewCore(formData: FormData) {
   let finalizedReviewId = "";
 
   await prisma.$transaction(async (tx) => {
+    await assertReviewRubricStable(tx, user.workspaceId, scorecard);
+    await assertCalibrationReviewContext(tx, { sessionId: calibrationSessionId, workspaceId: user.workspaceId, conversationId, reviewerId: user.id, scorecardId });
     const currentConversation = await tx.conversation.findFirst({
       where: {
         id: conversationId,
@@ -554,7 +589,7 @@ async function finalizeReviewCore(formData: FormData) {
     }
 
     const latestReopenedAt = await findLatestReopenedAt(tx, user.workspaceId, conversationId);
-    const existingReview = await findCurrentReview(tx, user.workspaceId, conversationId, user.id, reviewSource, latestReopenedAt);
+    const existingReview = await findCurrentReview(tx, user.workspaceId, conversationId, user.id, reviewSource, latestReopenedAt, calibrationSessionId);
     assertReviewCanFinalize(existingReview?.status ?? null);
     if (reviewSource === "HUMAN") {
       assertHumanReviewFinalizeTransition({ fromStatus: currentConversation.qaStatus });
@@ -569,6 +604,7 @@ async function finalizeReviewCore(formData: FormData) {
     const reviewData = {
       scorecardId: scorecard.id,
       reviewSource,
+      calibrationSessionId,
       rubricVersion: scorecard.version,
       status: "FINALIZED" as const,
       totalScore: reviewTotalScore,
@@ -734,6 +770,9 @@ export async function finalizeReview(formData: FormData) {
  * via {@link selectNextReviewConversationId}, excluding the just-finalized case.
  */
 export async function finalizeReviewAndTakeNext(formData: FormData) {
+  if (reviewSourceField(formData) !== "HUMAN") {
+    throw new Error("Следующее обращение из QA-очереди доступно только для обычной проверки.");
+  }
   // Carry the reviewer's queue view forward so the eventual "back to queue" from
   // the next workbench lands on their filtered view, not the bare queue. Also
   // apply those filters when selecting the next case so take-next cannot jump

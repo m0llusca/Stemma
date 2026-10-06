@@ -934,7 +934,7 @@ export async function runDueBackendJobs(input: {
   // before claiming work, so this same on-demand worker drains them in the loop
   // below. A schedule failure must never block ordinary job draining.
   try {
-    await enqueueDueReportSchedules(new Date(), prisma);
+    await enqueueDueReportSchedules(new Date(), prisma, input.workspaceId);
   } catch (error) {
     logBackendEvent({
       level: "error",

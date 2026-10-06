@@ -61,6 +61,7 @@ import {
   canSelfReview
 } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
+import { loadCalibrationReviewSession } from "@/lib/calibration/review-session";
 import {
   channelLabels,
   conversationStatusLabel,
@@ -231,11 +232,17 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
   const requestedReviewSource = singleParam(rawSearchParams.reviewSource);
   const reviewSource =
     requestedReviewSource === "CALIBRATION" || requestedReviewSource === "SELF_REVIEW" ? requestedReviewSource : "HUMAN";
+  const calibrationSessionId = singleParam(rawSearchParams.calibrationSessionId);
+  const calibrationSession = reviewSource === "CALIBRATION" && calibrationSessionId
+    ? await loadCalibrationReviewSession({ sessionId: calibrationSessionId, workspaceId: user.workspaceId, conversationId }, prisma)
+    : null;
+  if (reviewSource === "CALIBRATION" && !calibrationSession) notFound();
   const returnTo = singleParam(rawSearchParams.returnTo);
   const savedMarker = singleParam(rawSearchParams.saved);
   const supportAgentScope = user.role === "SUPPORT_AGENT" ? { assigneeId: user.id } : undefined;
   const canSaveHumanReviewDraft = canSaveReviewDraft(user.role);
-  const canEvaluateReviewPermission = reviewSource === "SELF_REVIEW" ? canSelfReview(user.role) : canSaveHumanReviewDraft;
+  const canEvaluateReviewPermission = reviewSource === "SELF_REVIEW" ? canSelfReview(user.role) : canSaveHumanReviewDraft &&
+    (reviewSource !== "CALIBRATION" || (calibrationSession?.status === "active" && calibrationSession.participants.some((participant) => participant.userId === user.id)));
   const canManageWorkflow = canManageReviewWorkflow(user.role);
   const canResolveAppeals = canResolveAppeal(user.role);
   const canCreateTrainingAssignment = canManageTraining(user.role) && user.role !== "SUPPORT_AGENT";
@@ -273,7 +280,9 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
     pendingReopenRequest
   ] = await Promise.all([
     getConversationForReview(user.workspaceId, conversationId, supportAgentScope),
-    canEvaluateReviewPermission ? getActiveScorecard(user.workspaceId) : Promise.resolve(null),
+    canEvaluateReviewPermission
+      ? calibrationSession ? Promise.resolve(calibrationSession.scorecard) : getActiveScorecard(user.workspaceId)
+      : Promise.resolve(null),
     canManageWorkflow
       ? prisma.user.findMany({
           where: {
@@ -400,7 +409,8 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
       ? conversation.reviews.find((review) => review.status === "FINALIZED" && review.reviewSource === "HUMAN")
       : undefined;
   const currentDraftReview = conversation.reviews.find(
-    (review) => review.status === "DRAFT" && review.reviewerId === user.id && review.reviewSource === reviewSource
+    (review) => review.status === "DRAFT" && review.reviewerId === user.id && review.reviewSource === reviewSource &&
+      (reviewSource !== "CALIBRATION" || review.calibrationSessionId === calibrationSessionId)
   );
   const canShowReviewPanel = canEvaluateReviewPermission && (reviewSource !== "HUMAN" || conversation.qaStatus !== "FINALIZED");
   const scorePreviewReview = latestFinalizedReview ?? currentDraftReview;
@@ -1272,6 +1282,7 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
                     scorecard={scorecard}
                     draftReview={currentDraftReview}
                     reviewSource={reviewSource}
+                    calibrationSessionId={reviewSource === "CALIBRATION" ? calibrationSessionId : undefined}
                     returnTo={returnTo}
                     title={reviewSource === "CALIBRATION" ? "Калибровочная оценка" : reviewSource === "SELF_REVIEW" ? "Комментарий оператора" : "Проверка"}
                     aiPredictions={aiPredictions}

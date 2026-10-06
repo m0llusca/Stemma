@@ -71,7 +71,7 @@ export function AppNavPulseChrome({ items }: { items: WorkPulseItem[] }) {
               <DropdownMenuItem
                 key={item.label}
                 render={
-                  <Link href={item.href} aria-label={`${item.label}: ${item.value}`} />
+                  <Link href={item.href} prefetch={false} aria-label={`${item.label}: ${item.value}`} />
                 }
                 nativeButton={false}
               >
@@ -88,6 +88,7 @@ export function AppNavPulseChrome({ items }: { items: WorkPulseItem[] }) {
       <div className="flex min-w-0 items-center gap-1">
         {items.map((item) => (
           <Link
+            prefetch={false}
             key={item.label}
             href={item.href}
             data-slot="button"

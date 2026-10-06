@@ -25,12 +25,18 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
   const params = await searchParams;
   const user = await requirePagePermission("reports:read");
   const model = await loadReportPageModel({ user, searchParams: params });
+  const exportFilters = Object.fromEntries(
+    ["team", "source", "risk", "block"].flatMap((key) => {
+      const value = model.analysisState[key as "team" | "source" | "risk" | "block"];
+      return value ? [[key, value]] : [];
+    })
+  );
 
   return (
     <PageShell
       title="Аналитика качества"
       description={`${model.activeView.description}. ${model.period.label}: ${formatPeriod(model.period)}.`}
-      actions={<ReportExportMenu period={model.period} />}
+      actions={<ReportExportMenu period={model.period} filters={exportFilters} />}
       tabs={model.shellTabs}
       className="[&_[id]]:scroll-mt-[calc(var(--app-topbar-height)+4rem)]"
     >

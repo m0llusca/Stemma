@@ -62,21 +62,23 @@ export function formatPeriod(period: ReportPeriod) {
   return `${reportPeriodDateLabel(period.start)} - ${reportPeriodDateLabel(period.end)}`;
 }
 
-export function reportExportHref(period: ReportPeriod) {
+export function reportExportHref(period: ReportPeriod, filters: Record<string, string> = {}) {
   const params = new URLSearchParams({
     period: period.preset,
     start: reportDateInputValue(period.start),
-    end: reportDateInputValue(period.end)
+    end: reportDateInputValue(period.end),
+    ...filters
   });
 
   return `/reports/export?${params.toString()}`;
 }
 
-export function reportExportFormatHref(period: ReportPeriod, format: "xlsx" | "pdf") {
+export function reportExportFormatHref(period: ReportPeriod, format: "xlsx" | "pdf", filters: Record<string, string> = {}) {
   const params = new URLSearchParams({
     period: period.preset,
     start: reportDateInputValue(period.start),
-    end: reportDateInputValue(period.end)
+    end: reportDateInputValue(period.end),
+    ...filters
   });
 
   return `/reports/export/${format}?${params.toString()}`;

@@ -39,5 +39,6 @@ describe("loadReportPeriodKpis", () => {
       criticalCount: 2,
       reanswerCount: 1
     });
+    expect(mocks.queryRaw.mock.calls[0][0].join(" ")).toContain('"reviewSource" = \'HUMAN\'');
   });
 });

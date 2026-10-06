@@ -12,9 +12,9 @@ describe("selectLeastLoadedReviewer", () => {
       { id: "u-2", name: "Борис" },
       { id: "u-3", name: "Виктор" }
     ];
-    const loadByName = { Анна: 5, Борис: 2, Виктор: 9 };
+    const loadById = { "u-1": 5, "u-2": 2, "u-3": 9 };
 
-    expect(selectLeastLoadedReviewer(candidates, loadByName)).toEqual({ id: "u-2", name: "Борис" });
+    expect(selectLeastLoadedReviewer(candidates, loadById)).toEqual({ id: "u-2", name: "Борис" });
   });
 
   it("treats missing load entries as zero", () => {
@@ -22,9 +22,9 @@ describe("selectLeastLoadedReviewer", () => {
       { id: "u-1", name: "Анна" },
       { id: "u-2", name: "Борис" }
     ];
-    const loadByName = { Анна: 3 };
+    const loadById = { "u-1": 3 };
 
-    expect(selectLeastLoadedReviewer(candidates, loadByName)).toEqual({ id: "u-2", name: "Борис" });
+    expect(selectLeastLoadedReviewer(candidates, loadById)).toEqual({ id: "u-2", name: "Борис" });
   });
 
   it("breaks ties deterministically by name", () => {
@@ -33,9 +33,15 @@ describe("selectLeastLoadedReviewer", () => {
       { id: "u-1", name: "Анна" },
       { id: "u-2", name: "Борис" }
     ];
-    const loadByName = { Анна: 4, Борис: 4, Виктор: 4 };
+    const loadById = { "u-1": 4, "u-2": 4, "u-3": 4 };
 
-    expect(selectLeastLoadedReviewer(candidates, loadByName)).toEqual({ id: "u-1", name: "Анна" });
+    expect(selectLeastLoadedReviewer(candidates, loadById)).toEqual({ id: "u-1", name: "Анна" });
+  });
+
+  it("keeps equal display names independent and breaks their ties by id", () => {
+    const candidates = [{ id: "u-2", name: "Анна" }, { id: "u-1", name: "Анна" }];
+    expect(selectLeastLoadedReviewer(candidates, { "u-1": 5, "u-2": 1 })?.id).toBe("u-2");
+    expect(selectLeastLoadedReviewer(candidates, {} )?.id).toBe("u-1");
   });
 });
 
@@ -49,15 +55,12 @@ describe("assignReviewerForConversation", () => {
     const findMany = vi.fn(
       async (_args: { where: { workspaceId: string; lifecycleStatus: string; role: { in: string[] } } }) => users
     );
-    const count = vi.fn(
-      async ({ where }: { where: { workspaceId: string; qaAssigneeName?: string; qaStatus: { in: string[] } } }) =>
-        counts[where.qaAssigneeName ?? ""] ?? 0
-    );
+    const groupBy = vi.fn(async (_args: { where: { workspaceId: string; qaStatus: { in: string[] } } }) => Object.entries(counts).map(([qaAssigneeId, count]) => ({ qaAssigneeId, _count: { _all: count } })));
 
     return {
-      client: { user: { findMany }, conversation: { count } },
+      client: { user: { findMany }, conversation: { groupBy } },
       findMany,
-      count
+      groupBy
     };
   }
 
@@ -81,18 +84,19 @@ describe("assignReviewerForConversation", () => {
   });
 
   it("counts open load (QUEUED + IN_PROGRESS) per reviewer and picks the least loaded", async () => {
-    const { client, count } = makeClient({
+    const { client, groupBy } = makeClient({
       users: [
         { id: "u-1", name: "Анна" },
         { id: "u-2", name: "Борис" }
       ],
-      counts: { Анна: 4, Борис: 1 }
+      counts: { "u-1": 4, "u-2": 1 }
     });
 
     const chosen = await assignReviewerForConversation("workspace-1", client as never);
 
     expect(chosen).toEqual({ id: "u-2", name: "Борис" });
-    const countWhere = count.mock.calls[0][0].where;
+    expect(groupBy).toHaveBeenCalledTimes(1);
+    const countWhere = groupBy.mock.calls[0][0].where;
     expect(countWhere.workspaceId).toBe("workspace-1");
     expect(countWhere.qaStatus.in).toEqual(expect.arrayContaining(["QUEUED", "IN_PROGRESS"]));
   });

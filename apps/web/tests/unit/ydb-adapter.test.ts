@@ -23,9 +23,9 @@ const ydbRows = [
   ]
 ];
 const queryFn = vi.fn();
-const driverConstructor = vi.fn().mockImplementation(() => ({ ready, close }));
+const driverConstructor = vi.fn(function () { return { ready, close }; });
 const unsafe = vi.fn((value: string) => value);
-const staticCredentialsProvider = vi.fn().mockImplementation((value) => value);
+const staticCredentialsProvider = vi.fn(function (value) { return value; });
 const now = new Date("2026-05-09T08:00:00.000Z");
 
 function credential(kind: string, secret: string): IntegrationCredential {
@@ -81,8 +81,8 @@ vi.mock("@ydbjs/query", () => ({
   unsafe
 }));
 
-const serviceAccountCredentialsProvider = vi.fn().mockImplementation((value) => ({ kind: "service_account", value }));
-const accessTokenCredentialsProvider = vi.fn().mockImplementation((value) => ({ kind: "access_token", value }));
+const serviceAccountCredentialsProvider = vi.fn(function (value) { return { kind: "service_account", value }; });
+const accessTokenCredentialsProvider = vi.fn(function (value) { return { kind: "access_token", value }; });
 
 vi.mock("@ydbjs/auth/static", () => ({
   StaticCredentialsProvider: staticCredentialsProvider
@@ -110,7 +110,7 @@ describe("YDB adapter", () => {
     vi.clearAllMocks();
     ready.mockResolvedValue(undefined);
     queryFn.mockResolvedValue(ydbRows);
-    driverConstructor.mockImplementation(() => ({ ready, close }));
+    driverConstructor.mockImplementation(function () { return { ready, close }; });
   });
 
   it("executes a configured query and closes the driver", async () => {

@@ -104,6 +104,7 @@ const draftReview: Review & {
   scorecardId: "scorecard-1",
   status: "DRAFT",
   reviewSource: "HUMAN",
+  calibrationSessionId: null,
   rubricVersion: 1,
   totalScore: 100,
   confidence: null,

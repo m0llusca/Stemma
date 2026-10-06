@@ -753,6 +753,8 @@ model Review {
   scorecardId          String
   scorecard            Scorecard                @relation(fields: [scorecardId, workspaceId], references: [id, workspaceId])
   reviewSource         ReviewSource
+  calibrationSessionId String?
+  calibrationSession   CalibrationSession?       @relation("CalibrationReviews", fields: [calibrationSessionId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
   rubricVersion        Int
   status               ReviewStatus
   totalScore           Float
@@ -791,6 +793,7 @@ model Review {
   @@index([workspaceId, conversationId])
   @@index([conversationId, createdAt])
   @@index([scorecardId])
+  @@unique([calibrationSessionId, conversationId, reviewerId])
 }
 
 model ReviewEvent {
@@ -929,10 +932,12 @@ model CalibrationSession {
   notes        String                   @default("")
   items        CalibrationSessionItem[]
   participants CalibrationParticipant[]
+  reviews      Review[]                 @relation("CalibrationReviews")
   createdAt    DateTime                 @default(now())
   updatedAt    DateTime                 @updatedAt
 
   @@index([workspaceId, status])
+  @@unique([id, workspaceId])
   @@index([workspaceId, dueAt])
 }
 

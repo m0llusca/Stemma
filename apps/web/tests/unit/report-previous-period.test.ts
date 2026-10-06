@@ -69,7 +69,8 @@ describe("loadPreviousFinalizedReviews narrow select", () => {
     });
     expect(call.where).toMatchObject({
       workspaceId: "workspace-1",
-      status: "FINALIZED"
+      status: "FINALIZED",
+      reviewSource: "HUMAN"
     });
     expect(call.where.finalizedAt).toEqual({ gte: period.start, lte: period.end });
   });

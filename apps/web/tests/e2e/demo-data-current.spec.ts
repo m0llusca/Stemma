@@ -124,6 +124,7 @@ test("review queue exposes every active state and mixed SLA dates", async ({ pag
 
   for (const queueCase of queueCases) {
     await page.goto(`/reviews?qaStatus=${queueCase.status}`);
+    await page.waitForLoadState("networkidle");
 
     await expect(page.locator('[data-slot="page-shell"] h1')).toHaveText("Очередь проверок", {
       timeout: 15_000

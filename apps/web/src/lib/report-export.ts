@@ -1,9 +1,13 @@
 import fs from "node:fs";
 import PDFDocument from "pdfkit";
 import { prisma } from "@/lib/db";
+import type { RiskLevel } from "@prisma/client";
 import { resolveReportPeriod, type ReportPeriod } from "@/lib/report-period";
 import { reportScheduleFilterKeys } from "@/lib/report-schedule-filters";
 import { formatQualityScore } from "@/lib/score-display";
+import { loadReportFilterCatalog } from "@/lib/reports/report-filter-catalog";
+import { parseReportAnalysisState, reportFilterValue } from "@/lib/reports/report-analysis-state";
+import { buildReportAnalysisReviewWhere, reportAnalysisScoreForReview } from "@/lib/reports/report-analysis-filtering";
 
 export const reportExportColumns = [
   "Дата проверки",
@@ -209,6 +213,20 @@ function fontPath() {
 export async function loadReportExportRows(workspaceId: string, rawParams: Record<string, string>) {
   const period = resolveReportPeriod(rawParams);
   const conversationFilter: Record<string, string> = {};
+  const hasAnalysisFilters = ["team", "source", "risk", "block"].some((key) => Boolean(rawParams[key]?.trim()));
+  const catalog = hasAnalysisFilters ? await loadReportFilterCatalog(workspaceId) : null;
+  const state = catalog ? parseReportAnalysisState(rawParams, catalog) : null;
+  if (state) {
+    for (const key of ["team", "source", "risk", "block"] as const) {
+      if (rawParams[key]?.trim() && !state[key]) {
+        throw new Error("Фильтр отчета больше недоступен. Обновите фильтры перед экспортом.");
+      }
+    }
+  }
+  const analysisWhere = state && catalog ? buildReportAnalysisReviewWhere(state, catalog) : {};
+  const selectedRisks: RiskLevel[] | undefined = state?.risk
+    ? state.risk === "high_plus" ? ["HIGH", "CRITICAL"] : [state.risk.toUpperCase() as RiskLevel]
+    : undefined;
 
   for (const key of reportScheduleFilterKeys) {
     const value = rawParams[key]?.trim();
@@ -226,15 +244,15 @@ export async function loadReportExportRows(workspaceId: string, rawParams: Recor
         gte: period.start,
         lte: period.end
       },
+      ...analysisWhere,
       ...(Object.keys(conversationFilter).length > 0
-        ? {
-            conversation: conversationFilter
-          }
+        ? { AND: [{ conversation: conversationFilter }] }
         : {})
     },
     // Narrow select: only the columns the CSV/XLSX/PDF rows actually read.
     // Output stays byte-identical to the previous `include` of whole rows.
     select: {
+      id: true,
       finalizedAt: true,
       totalScore: true,
       criticalError: true,
@@ -243,6 +261,7 @@ export async function loadReportExportRows(workspaceId: string, rawParams: Recor
       reanswerStatus: true,
       appealStatus: true,
       summary: true,
+      _count: { select: { findings: { where: { riskLevel: { in: selectedRisks?.filter((risk) => risk === "HIGH" || risk === "CRITICAL") ?? ["HIGH", "CRITICAL"] } } } } },
       reviewer: {
         select: {
           name: true
@@ -261,6 +280,7 @@ export async function loadReportExportRows(workspaceId: string, rawParams: Recor
         }
       },
       findings: {
+        ...(selectedRisks ? { where: { riskLevel: { in: selectedRisks } } } : {}),
         // Only the first finding is rendered; cap the read at one row per review.
         select: {
           category: true,
@@ -276,12 +296,28 @@ export async function loadReportExportRows(workspaceId: string, rawParams: Recor
       finalizedAt: "desc"
     }
   });
-  const rows = reviews.map((review): ReportExportRow => {
+  // Only filtered block exports need criterion data. Fetch those scores in one
+  // bounded query, leaving the unfiltered export's narrow row loader intact.
+  const blockScores = state?.block && catalog && reviews.length > 0 ? await prisma.criterionScore.findMany({
+    where: { reviewId: { in: reviews.map((review) => review.id) }, criterion: { block: reportFilterValue(state.block, catalog.blocks) } },
+    select: { reviewId: true, value: true, passed: true, isNotApplicable: true, criterion: { select: { block: true, kind: true, weight: true } } }
+  }) : [];
+  const scoresByReview = new Map<string, typeof blockScores>();
+  for (const score of blockScores) {
+    const entries = scoresByReview.get(score.reviewId) ?? [];
+    entries.push(score);
+    scoresByReview.set(score.reviewId, entries);
+  }
+  const scoredReviews = reviews.map((review) => ({
+    ...review,
+    totalScore: state && catalog ? reportAnalysisScoreForReview({ ...review, scores: scoresByReview.get(review.id) ?? [] }, state, catalog) : review.totalScore
+  }));
+  const rows = scoredReviews.map((review): ReportExportRow => {
     const finding = review.findings[0];
 
     return [
       review.finalizedAt?.toLocaleString("ru-RU") ?? "",
-      formatQualityScore(review.totalScore),
+      formatQualityScore(review.totalScore, "Нет данных"),
       review.criticalError ? review.criticalCategory ?? "Да" : "Нет",
       review.needsReanswer ? review.reanswerStatus : "Нет",
       review.appealStatus,
@@ -299,18 +335,16 @@ export async function loadReportExportRows(workspaceId: string, rawParams: Recor
     ];
   });
 
-  const criticalErrorCount = reviews.filter((review) => review.criticalError).length;
-  const highRiskCount = reviews.filter((review) => {
-    const risk = review.findings[0]?.riskLevel;
-    return risk === "HIGH" || risk === "CRITICAL";
-  }).length;
+  const criticalErrorCount = scoredReviews.filter((review) => review.criticalError).length;
+  const highRiskCount = scoredReviews.filter((review) => review._count.findings > 0).length;
+  const comparableScores = scoredReviews.map((review) => review.totalScore).filter((score): score is number => score !== null);
   const averageScore =
-    reviews.length > 0
-      ? Math.round((reviews.reduce((sum, review) => sum + review.totalScore, 0) / reviews.length) * 10) / 10
+    comparableScores.length > 0
+      ? Math.round((comparableScores.reduce((sum, score) => sum + score, 0) / comparableScores.length) * 10) / 10
       : null;
 
   const metrics: ReportExportMetrics = {
-    finalizedCount: reviews.length,
+    finalizedCount: scoredReviews.length,
     averageScore,
     criticalErrorCount,
     highRiskCount

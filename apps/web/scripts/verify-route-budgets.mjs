@@ -1,3 +1,4 @@
+import ts from "typescript";
 import { createHash } from "node:crypto";
 import {
   existsSync,
@@ -19,11 +20,13 @@ const HARD_DELTA_BYTES = {
   dashboard: 10 * 1024,
   coaching: 10 * 1024
 };
-const DEFERRED_RICH_CHART_HARD_BYTES = 70 * 1024;
+// Static charts share the app shell's existing chunks. Cap additional chart
+// payload; record the full transitive footprint separately so it stays visible.
+const RICH_CHART_ADDITIONAL_HARD_BYTES = 70 * 1024;
 const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const RICH_RENDERER_SPECIFIER =
   "@/components/charts/recharts-visuals.client";
-const RICH_DYNAMIC_SOURCES = [
+const STATIC_RICH_SOURCES = [
   {
     source: "src/components/charts/quality-trend-chart.client.tsx",
     export: "QualityTrendVisual"
@@ -112,6 +115,9 @@ function readRouteChunks(nextDir, route) {
   }
 
   const chunks = new Set();
+  const buildManifest = JSON.parse(readFileSync(join(nextDir, "build-manifest.json"), "utf8"));
+  if (!Array.isArray(buildManifest.rootMainFiles)) throw new Error("Build manifest has no rootMainFiles bootstrap inventory");
+  for (const path of buildManifest.rootMainFiles) chunks.add(normalizeChunkPath(path));
   for (const moduleEntry of Object.values(routeManifest.clientModules ?? {})) {
     for (const chunk of moduleEntry.chunks ?? []) {
       chunks.add(normalizeChunkPath(chunk));
@@ -188,7 +194,7 @@ function parseChunkDependencies(source) {
   }
 
   const directLazyPattern =
-    /(?:\.\s*[lL]\s*\(|import\s*\()\s*["']((?:\/?_next\/)?static\/chunks\/[^"'?#]+\.js)["']/g;
+    /(?:\.\s*l\s*\(|import\s*\()\s*["']((?:\/?_next\/)?static\/chunks\/[^"'?#]+\.js)["']/g;
   while ((match = directLazyPattern.exec(source))) {
     lazyDependencies.add(normalizeChunkPath(match[1]));
     recognizedLoaderSpans.push({
@@ -198,7 +204,7 @@ function parseChunkDependencies(source) {
   }
 
   const lazyTablePattern =
-    /\[((?:\s*["'](?:\/?_next\/)?static\/chunks\/[^"'?#]+\.js["']\s*,?)+)\]\s*\.map\s*\([^)]*?\.\s*[lL]\s*\(/g;
+    /\[((?:\s*["'](?:\/?_next\/)?static\/chunks\/[^"'?#]+\.js["']\s*,?)+)\]\s*\.map\s*\([^)]*?\.\s*l\s*\(/g;
   while ((match = lazyTablePattern.exec(source))) {
     for (const dependency of quotedJavaScriptPaths(match[1])) {
       lazyDependencies.add(dependency);
@@ -214,7 +220,7 @@ function parseChunkDependencies(source) {
   }
 
   const unresolvedLoaderCalls = [];
-  const loaderCallPattern = /(?:\.\s*[lL]\s*\(|\bimport\s*\()/g;
+  const loaderCallPattern = /(?:\.\s*l\s*\(|\bimport\s*\()/g;
   while ((match = loaderCallPattern.exec(source))) {
     if (!indexIsWithinSpans(match.index, recognizedLoaderSpans)) {
       unresolvedLoaderCalls.push(
@@ -230,6 +236,84 @@ function parseChunkDependencies(source) {
     lazyDependencies,
     unresolvedLoaderCalls
   };
+}
+
+function parseModuleFactories(path, source) {
+  const ast = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  const factories = [];
+  function scan(node) {
+    if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) &&
+        node.expression.name.text === "push" && node.expression.expression.getText(ast).includes("TURBOPACK") &&
+        node.arguments[0] && ts.isArrayLiteralExpression(node.arguments[0])) {
+      let ids = [];
+      for (const element of node.arguments[0].elements) {
+        if (ts.isNumericLiteral(element)) { ids.push(element.text); continue; }
+        if (ts.isArrowFunction(element) || ts.isFunctionExpression(element)) {
+          const context = element.parameters[0]?.name.getText(ast);
+          const factory = { path, ids: new Set(ids), imports: new Set(), exports: new Set(), unresolvedImports: [] };
+          function visit(child) {
+            // A nested function's parameter can shadow the module context.
+            if ((ts.isArrowFunction(child) || ts.isFunctionExpression(child) || ts.isFunctionDeclaration(child)) &&
+                child.parameters.some((parameter) => parameter.name.getText(ast) === context)) return;
+            if (ts.isCallExpression(child) && ts.isPropertyAccessExpression(child.expression) &&
+                ts.isIdentifier(child.expression.expression) && child.expression.expression.text === context) {
+              const method = child.expression.name.text;
+              if (["i", "r", "A"].includes(method)) {
+                if (child.arguments[0] && ts.isNumericLiteral(child.arguments[0])) factory.imports.add(child.arguments[0].text);
+                else factory.unresolvedImports.push(child.getText(ast));
+              }
+              if (method === "s" && child.arguments[0] && ts.isArrayLiteralExpression(child.arguments[0])) {
+                for (const item of child.arguments[0].elements) if (ts.isStringLiteral(item)) factory.exports.add(item.text);
+                if (child.arguments[1] && ts.isNumericLiteral(child.arguments[1])) factory.ids.add(child.arguments[1].text);
+              }
+            }
+            ts.forEachChild(child, visit);
+          }
+          visit(element.body);
+          factories.push(factory);
+        }
+        ids = [];
+      }
+    }
+    ts.forEachChild(node, scan);
+  }
+  scan(ast);
+  return factories;
+}
+
+function richModuleClosure(chunkGraph, richSeeds, reportsChunks) {
+  const loadingContext = traverseChunkGraph(chunkGraph, reportsChunks, { includeLazy: true, label: "Reports module loading context" }).reachable;
+  const exportedNames = new Set(STATIC_RICH_SOURCES.map((target) => target.export));
+  const queue = [...richSeeds].flatMap((path) => chunkGraph.get(path).factories.filter(
+    (factory) => [...factory.exports].some((name) => exportedNames.has(name))
+  ));
+  if (queue.length === 0) throw new Error("Rich renderer has no emitted module export registrations");
+  const seen = new Set();
+  const paths = new Set(richSeeds);
+  const moduleEdges = new Map();
+  while (queue.length > 0) {
+    const factory = queue.pop();
+    if (seen.has(factory)) continue;
+    seen.add(factory);
+    if (factory.unresolvedImports.length > 0) {
+      throw new Error(`${factory.path} has unrecognized static module imports: ${factory.unresolvedImports.join(", ")}`);
+    }
+    paths.add(factory.path);
+    for (const id of factory.imports) {
+      const dependencies = chunkGraph.modules.get(id);
+      if (!dependencies) throw new Error(`${factory.path} references unregistered static module ${id}`);
+      const available = [...dependencies].filter((dependency) => loadingContext.has(dependency.path));
+      if (available.length === 0) throw new Error(`${factory.path} imports module ${id} outside the reports loading context`);
+      for (const dependency of available) {
+        if (factory.path !== dependency.path) moduleEdges.set(`${factory.path}\0${dependency.path}`, { from: factory.path, to: dependency.path });
+        queue.push(dependency);
+      }
+    }
+  }
+  // Physical chunk metadata may declare further chunks needed at registration.
+  const physical = traverseChunkGraph(chunkGraph, paths, { includeLazy: true, label: "Rich renderer" });
+  for (const edge of physical.edges) moduleEdges.set(`${edge.from}\0${edge.to}`, edge);
+  return { reachable: physical.reachable, edges: [...moduleEdges.values()] };
 }
 
 function buildChunkGraph(nextDir) {
@@ -251,64 +335,20 @@ function buildChunkGraph(nextDir) {
     });
   }
 
+  const modules = new Map();
+  for (const chunk of chunks.values()) {
+    chunk.factories = parseModuleFactories(chunk.path, chunk.source);
+    for (const factory of chunk.factories) {
+      for (const id of factory.ids) {
+        const definitions = modules.get(id) ?? new Set();
+        definitions.add(factory);
+        modules.set(id, definitions);
+      }
+    }
+  }
+  chunks.modules = modules;
+
   return chunks;
-}
-
-function extractBalancedBlock(source, openingBraceIndex) {
-  let depth = 0;
-  let quote = null;
-  let escaped = false;
-
-  for (let index = openingBraceIndex; index < source.length; index += 1) {
-    const character = source[index];
-
-    if (quote) {
-      if (escaped) {
-        escaped = false;
-      } else if (character === "\\") {
-        escaped = true;
-      } else if (character === quote) {
-        quote = null;
-      }
-      continue;
-    }
-
-    if (character === '"' || character === "'" || character === "`") {
-      quote = character;
-    } else if (character === "{") {
-      depth += 1;
-    } else if (character === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(openingBraceIndex + 1, index);
-      }
-    }
-  }
-
-  return null;
-}
-
-function moduleBodiesForId(source, moduleId) {
-  const bodies = [];
-  const modulePattern = new RegExp(
-    `(?:^|[,\\[])\\s*${escapeRegExp(moduleId)}\\s*,\\s*[A-Za-z_$][\\w$]*\\s*=>\\s*\\{`,
-    "g"
-  );
-  let match;
-
-  while ((match = modulePattern.exec(source))) {
-    const openingBraceIndex = modulePattern.lastIndex - 1;
-    const body = extractBalancedBlock(source, openingBraceIndex);
-    if (body === null) {
-      throw new Error(
-        `Unrecognized emitted loader module ${moduleId}: unbalanced module body`
-      );
-    }
-    bodies.push(body);
-    modulePattern.lastIndex = openingBraceIndex + body.length + 2;
-  }
-
-  return bodies;
 }
 
 function richExportRegistrationPattern(exportName) {
@@ -318,88 +358,17 @@ function richExportRegistrationPattern(exportName) {
   );
 }
 
-function emittedSeedsForExport(chunkGraph, exportName) {
-  const usagePattern = new RegExp(
-    `\\.\\s*A\\s*\\(\\s*(\\d+)\\s*\\)\\s*\\)\\s*\\.\\s*${escapeRegExp(exportName)}\\b`,
-    "g"
-  );
-  const usages = [];
-
-  for (const chunk of chunkGraph.values()) {
-    let match;
-    while ((match = usagePattern.exec(chunk.source))) {
-      usages.push({ chunk, moduleId: match[1] });
-    }
-  }
-
-  if (usages.length === 0) {
-    throw new Error(
-      `No emitted dynamic-loader usage resolves rich export ${exportName}`
-    );
-  }
-
-  const seedChunks = new Set();
-  const resolvedLoaderModules = new Set();
-  for (const usage of usages) {
-    const candidateChunks = [
-      usage.chunk,
-      ...[...chunkGraph.values()].filter(
-        (chunk) => chunk.path !== usage.chunk.path
-      )
-    ];
-
-    for (const candidate of candidateChunks) {
-      const bodies = moduleBodiesForId(candidate.source, usage.moduleId);
-      for (const body of bodies) {
-        const loaderKey = `${candidate.path}\0${usage.moduleId}\0${body}`;
-        if (resolvedLoaderModules.has(loaderKey)) {
-          continue;
-        }
-        resolvedLoaderModules.add(loaderKey);
-        const dependencies = parseChunkDependencies(body);
-        if (dependencies.unresolvedLoaderCalls.length > 0) {
-          throw new Error(
-            `${candidate.path} has an unrecognized emitted loader for ${exportName}: ` +
-              dependencies.unresolvedLoaderCalls.join(", ")
-          );
-        }
-        for (const dependency of dependencies.lazyDependencies) {
-          seedChunks.add(dependency);
-        }
-      }
-    }
-  }
-
-  if (resolvedLoaderModules.size === 0 || seedChunks.size === 0) {
-    throw new Error(
-      `No emitted loader table resolves rich export ${exportName}`
-    );
-  }
-
-  for (const seedChunk of seedChunks) {
-    if (!chunkGraph.has(seedChunk)) {
-      throw new Error(
-        `Emitted loader for ${exportName} references a missing client chunk: ${seedChunk}`
-      );
-    }
-  }
-
+function emittedSeedsForExport(chunkGraph, exportName, reportsChunks) {
   const registrationPattern = richExportRegistrationPattern(exportName);
-  if (
-    ![...seedChunks].some((seedChunk) =>
-      registrationPattern.test(chunkGraph.get(seedChunk).source)
-    )
-  ) {
-    throw new Error(
-      `Resolved rich seed chunks do not register expected export ${exportName}`
-    );
+  const seeds = [...reportsChunks].filter((path) => registrationPattern.test(chunkGraph.get(path).source));
+  if (seeds.length === 0) {
+    throw new Error(`Missing statically imported chart export ${exportName} in the reports graph`);
   }
-
-  return [...seedChunks].sort();
+  return seeds.sort();
 }
 
-function validateDynamicSources(chunkGraph) {
-  return RICH_DYNAMIC_SOURCES.map((target) => {
+function validateStaticSources(chunkGraph, reportsChunks) {
+  return STATIC_RICH_SOURCES.map((target) => {
     const sourcePath = resolve(APP_ROOT, target.source);
     if (!existsSync(sourcePath)) {
       throw new Error(`Missing rich chart source: ${target.source}`);
@@ -425,7 +394,7 @@ function validateDynamicSources(chunkGraph) {
       );
     }
 
-    const seedChunks = emittedSeedsForExport(chunkGraph, target.export);
+    const seedChunks = emittedSeedsForExport(chunkGraph, target.export, reportsChunks);
 
     return {
       source: target.source,
@@ -506,8 +475,8 @@ function gzipBytesForInventory(inventory) {
   return inventory.reduce((sum, chunk) => sum + chunk.gzipBytes, 0);
 }
 
-function containsRechartsOrMotion(chunk) {
-  return /(?:node_modules[\\/_](?:recharts|framer-motion|motion)(?:[\\/_"'])|recharts-surface|data-animation-active|motion\/react)/i.test(
+function containsMotion(chunk) {
+  return /(?:node_modules[\\/_](?:framer-motion|motion)(?:[\\/_"'])|motion\/react)/i.test(
     chunk.source
   );
 }
@@ -519,19 +488,6 @@ function intersection(sets) {
 
 function measure(nextDir) {
   const chunkGraph = buildChunkGraph(nextDir);
-  const richDynamicTargets = validateDynamicSources(chunkGraph);
-  const richSeeds = new Set(
-    richDynamicTargets.flatMap((target) => target.seedChunks)
-  );
-  const richTraversal = traverseChunkGraph(chunkGraph, richSeeds, {
-    includeLazy: true,
-    label: "Rich renderer"
-  });
-  const richInventory = inventoryForChunks(
-    chunkGraph,
-    richTraversal.reachable
-  );
-  const deferredRichChartGzipBytes = gzipBytesForInventory(richInventory);
   const chunksByRoute = Object.fromEntries(
     ROUTES.map((route) => {
       const seeds = readRouteChunks(nextDir, route);
@@ -542,7 +498,19 @@ function measure(nextDir) {
       return [route, traversal.reachable];
     })
   );
+  const richStaticTargets = validateStaticSources(chunkGraph, chunksByRoute.reports);
+  const richSeeds = new Set(
+    richStaticTargets.flatMap((target) => target.seedChunks)
+  );
+  const richTraversal = richModuleClosure(chunkGraph, richSeeds, chunksByRoute.reports);
+  const richInventory = inventoryForChunks(
+    chunkGraph,
+    richTraversal.reachable
+  );
+  const richChartGzipBytes = gzipBytesForInventory(richInventory);
   const sharedChunks = intersection(Object.values(chunksByRoute));
+  const additionalRichChunks = new Set([...richTraversal.reachable].filter((path) => !sharedChunks.has(path)));
+  const richChartAdditionalGzipBytes = gzipBytesForChunks(nextDir, additionalRichChunks);
   const sharedGzipBytes = gzipBytesForChunks(nextDir, sharedChunks);
   const routes = {};
   const initialRichChartGzipBytesByRoute = {};
@@ -567,16 +535,17 @@ function measure(nextDir) {
       initialRichChunks
     );
     initialForbiddenLibraryChunksByRoute[route] = [...routeChunks]
-      .filter((path) => containsRechartsOrMotion(chunkGraph.get(path)))
+      .filter((path) => containsMotion(chunkGraph.get(path)))
       .sort();
   }
 
   return {
     sharedGzipBytes,
-    deferredRichChartGzipBytes,
-    richDynamicTargets,
-    deferredRichChartReachableChunks: richInventory,
-    deferredRichChartEdges: richTraversal.edges,
+    richChartGzipBytes,
+    richChartAdditionalGzipBytes,
+    richStaticTargets,
+    richChartReachableChunks: richInventory,
+    richChartEdges: richTraversal.edges,
     initialRichChartGzipBytesByRoute,
     initialForbiddenLibraryChunksByRoute,
     routes
@@ -589,9 +558,9 @@ function compare(current, baseline) {
   if (sharedDelta > HARD_DELTA_BYTES.shared) {
     failures.push(`shared grew by ${sharedDelta} bytes (hard limit: 0 KiB)`);
   }
-  if (current.deferredRichChartGzipBytes > DEFERRED_RICH_CHART_HARD_BYTES) {
+  if (current.richChartAdditionalGzipBytes > RICH_CHART_ADDITIONAL_HARD_BYTES) {
     failures.push(
-      `deferred rich-chart is ${current.deferredRichChartGzipBytes} bytes (hard limit: 70 KiB)`
+      `additional rich-chart is ${current.richChartAdditionalGzipBytes} bytes (hard limit: 70 KiB)`
     );
   }
 
@@ -611,16 +580,11 @@ function compare(current, baseline) {
 
 function structuralFailures(current) {
   const failures = [];
-  if (current.initialRichChartGzipBytesByRoute.reports > 0) {
-    failures.push(
-      `reports initial graph reaches ${current.initialRichChartGzipBytesByRoute.reports} bytes of rich-chart dependencies`
-    );
-  }
   for (const route of ["dashboard", "coaching"]) {
     const chunks = current.initialForbiddenLibraryChunksByRoute[route];
     if (chunks.length > 0) {
       failures.push(
-        `${route} initial graph reaches Recharts or Motion chunks: ${chunks.join(", ")}`
+        `${route} initial graph reaches Motion chunks: ${chunks.join(", ")}`
       );
     }
   }

@@ -145,17 +145,20 @@ function AreaNavLink({
   className?: string;
 }) {
   const [hot, setHot] = useState(false);
+  const activate = () => setHot(true);
+  const deactivate = () => setHot(false);
 
   return (
     <Link
       href={area.href}
+      prefetch={false}
       data-slot="button"
       title={area.description}
       aria-current={isActive ? "page" : undefined}
-      onMouseEnter={() => setHot(true)}
-      onMouseLeave={() => setHot(false)}
-      onFocus={() => setHot(true)}
-      onBlur={() => setHot(false)}
+      onMouseEnter={activate}
+      onMouseLeave={deactivate}
+      onFocus={activate}
+      onBlur={deactivate}
       className={className}
     >
       <AreaNavMorphIcon areaIcon={area.icon} emphasized={isActive || hot} />
@@ -292,6 +295,7 @@ function AppNavShellChrome({
       <div className="flex min-h-14 w-full min-w-0 items-center gap-3 px-(--app-topbar-inline)">
         <Link
           href={homeHref}
+          prefetch={false}
           className="inline-flex size-11 shrink-0 items-center justify-center rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
           aria-label={activeBranding.brandLogoAlt}
         >
@@ -356,7 +360,7 @@ function AppNavShellChrome({
                       return (
                         <DropdownMenuItem
                           key={area.id}
-                          render={<Link href={area.href} />}
+                          render={<Link href={area.href} prefetch={false} />}
                           nativeButton={false}
                           title={area.description}
                           aria-current={isActive ? "page" : undefined}

@@ -13,7 +13,8 @@ const mocks = vi.hoisted(() => ({
     idempotencyKey: {
       findUnique: vi.fn(),
       create: vi.fn(),
-      deleteMany: vi.fn()
+      deleteMany: vi.fn(),
+      updateMany: vi.fn()
     },
     integration: {
       findFirst: vi.fn()
@@ -51,6 +52,7 @@ function authedSession() {
 describe("idempotency key reservation expiry", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.prisma.idempotencyKey.deleteMany.mockResolvedValue({ count: 1 });
   });
 
   const input = {
@@ -60,6 +62,40 @@ describe("idempotency key reservation expiry", () => {
     path: "/api/v1/conversations",
     requestHash: "hash-1"
   };
+
+  it("grants only one concurrent retry ownership of a failed request", async () => {
+    const { reserveIdempotencyKey } = await import("@/lib/api/idempotency");
+    let record = {
+      id: "reservation-1", status: "FAILED", requestHash: "hash-1", method: "POST",
+      path: input.path, expiresAt: new Date(Date.now() + 60_000), responseStatus: 500, responseBodyJson: "{}"
+    };
+    mocks.prisma.idempotencyKey.findUnique.mockImplementation(async () => ({ ...record }));
+    mocks.prisma.idempotencyKey.updateMany.mockImplementation(async () => {
+      if (record.status !== "FAILED") return { count: 0 };
+      record = { ...record, status: "IN_PROGRESS" };
+      return { count: 1 };
+    });
+
+    const results = await Promise.all([reserveIdempotencyKey(input), reserveIdempotencyKey(input)]);
+
+    expect(results.filter((result) => result.created)).toHaveLength(1);
+    expect(results.filter((result) => result.isInProgress)).toHaveLength(1);
+    expect(results.find((result) => result.created)?.record).toMatchObject({
+      status: "IN_PROGRESS", responseStatus: null, responseBodyJson: null
+    });
+    expect(results.find((result) => result.created)?.record.expiresAt.getTime()).toBeGreaterThan(Date.now() + 60_000);
+  });
+
+  it("rejects a changed payload without reclaiming the failed reservation", async () => {
+    const { reserveIdempotencyKey } = await import("@/lib/api/idempotency");
+    mocks.prisma.idempotencyKey.findUnique.mockResolvedValue({
+      id: "reservation-1", status: "FAILED", requestHash: "different-hash", method: input.method,
+      path: input.path, expiresAt: new Date(Date.now() + 60_000)
+    });
+    const result = await reserveIdempotencyKey(input);
+    expect(result.isConflict).toBe(true);
+    expect(mocks.prisma.idempotencyKey.updateMany).not.toHaveBeenCalled();
+  });
 
   it("replaces an expired reservation instead of reporting a replay", async () => {
     const { reserveIdempotencyKey } = await import("@/lib/api/idempotency");
@@ -76,7 +112,7 @@ describe("idempotency key reservation expiry", () => {
     const reservation = await reserveIdempotencyKey(input);
 
     expect(mocks.prisma.idempotencyKey.deleteMany).toHaveBeenCalledWith({
-      where: { id: "reservation-1" }
+      where: { id: "reservation-1", expiresAt: { lte: expect.any(Date) } }
     });
     expect(mocks.prisma.idempotencyKey.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -93,6 +129,19 @@ describe("idempotency key reservation expiry", () => {
       isInProgress: false,
       isConflict: false
     });
+  });
+
+  it("does not delete an expired row that another retry has already renewed", async () => {
+    const { reserveIdempotencyKey } = await import("@/lib/api/idempotency");
+    const record = { id: "reservation-1", status: "FAILED", requestHash: input.requestHash,
+      method: input.method, path: input.path, expiresAt: new Date(Date.now() - 1000) };
+    mocks.prisma.idempotencyKey.findUnique.mockResolvedValueOnce(record).mockResolvedValueOnce({
+      ...record, status: "IN_PROGRESS", expiresAt: new Date(Date.now() + 60_000)
+    });
+    mocks.prisma.idempotencyKey.deleteMany.mockResolvedValue({ count: 0 });
+    const result = await reserveIdempotencyKey(input);
+    expect(result.isInProgress).toBe(true);
+    expect(mocks.prisma.idempotencyKey.create).not.toHaveBeenCalled();
   });
 
   it("keeps replay semantics for a live reservation", async () => {
