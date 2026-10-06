@@ -1019,7 +1019,8 @@ describe("backend job queue", () => {
           csatScore: 4,
           csatBucket: "POSITIVE"
         },
-        findings: [{ category: "Тон", riskLevel: "HIGH" }]
+        findings: [{ category: "Тон", riskLevel: "HIGH" }],
+        _count: { findings: 1 }
       }
     ]);
     mocks.prisma.reportSnapshot.create.mockResolvedValue({ id: "snapshot-metrics" });
@@ -1037,7 +1038,7 @@ describe("backend job queue", () => {
     expect(mocks.prisma.review.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          conversation: { supportLine: "L1" }
+          AND: [{ conversation: { supportLine: "L1" } }]
         })
       })
     );

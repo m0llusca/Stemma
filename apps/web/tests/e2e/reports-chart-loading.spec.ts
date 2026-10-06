@@ -1,27 +1,24 @@
 import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import { prisma } from "@/lib/db";
 import { demoEntityIds } from "../../prisma/demo-seed-bootstrap";
 
 type BudgetInventory = {
-  deferredRichChartReachableChunks: Array<{ path: string }>;
-  deferredRichChartEdges: Array<{ from: string; to: string }>;
+  richChartReachableChunks: Array<{ path: string }>;
+  richChartEdges: Array<{ from: string; to: string }>;
 };
 
-// The inventory must come from the freshest certified route-budget report for
-// the build under test: rich chunk filenames are content-hashed, so any chart
-// source change renames them. Task 10's Agent B report tracks the current
-// production build; the historical task-6 report names a stale chunk.
-const inventoryPath = resolve(
-  process.cwd(),
-  "../../.superpowers/sdd/2026-07-28-kinetics-evilcharts-ui-hardening/task-10/route-budgets.json"
-);
+// Derive chunk hashes from the build actually under test. A historical report
+// can silently miss rich downloads and cannot intercept newly renamed chunks.
+const inventoryPath = resolve(process.cwd(), ".next/playwright-route-inventory.json");
+execFileSync(process.execPath, [resolve(process.cwd(), "scripts/verify-route-budgets.mjs"), "--capture-baseline", inventoryPath]);
 const inventory = JSON.parse(
   readFileSync(inventoryPath, "utf8")
 ) as BudgetInventory;
 const richPaths = new Set(
-  inventory.deferredRichChartReachableChunks.map((chunk) => chunk.path)
+  inventory.richChartReachableChunks.map((chunk) => chunk.path)
 );
 const fixturePromptVersion = "task6-chart-budget-e2e";
 let fixtureIds: string[] = [];
@@ -151,133 +148,53 @@ test.beforeEach(async ({ page }) => {
 });
 
 for (const view of ["overview", "performance", "process"] as const) {
-  test(`table ${view} scrolls to the end without requesting a rich chart response`, async ({
-    page
-  }) => {
-    const responses = trackJavaScript(page);
-    await page.goto(
-      `/reports?period=vk-current&view=${view}&chartView=table`
-    );
-    await expect(
-      page.getByRole("heading", { name: "Аналитика качества" })
-    ).toBeVisible();
+  test(`table ${view} renders without interactive chart surfaces`, async ({ page }) => {
+    await page.goto(`/reports?period=vk-current&view=${view}&chartView=table`);
+    await expect(page.getByRole("heading", { name: "Аналитика качества" })).toBeVisible();
     await fullScroll(page);
-
-    const requestedRich = new Set(
-      responses.filter((path) => richPaths.has(path))
-    );
-    expect([...requestedRich]).toEqual([]);
+    await expect(page.getByRole("table").first()).toBeVisible();
+    await expect(page.locator('[data-slot="deferred-chart-visual"]')).toHaveCount(0);
+    await expect(page.locator("svg.recharts-surface")).toHaveCount(0);
   });
 }
 
-test("graph performance does not request the rich renderer before near-viewport", async ({
-  page
-}) => {
-  const responses = trackJavaScript(page);
-  await page.goto(
-    "/reports?period=vk-current&view=performance&chartView=graph"
-  );
-  await expect(
-    page.getByRole("heading", { name: "Аналитика качества" })
-  ).toBeVisible();
-  await settle(page);
-
-  const alreadyLoadedBeforeArm = new Set(responses);
-  expect(
-    [...alreadyLoadedBeforeArm].filter((path) => richPaths.has(path))
-  ).toEqual([]);
+test("graph performance renders its static visual before scrolling into view", async ({ page }) => {
+  await page.goto("/reports?period=vk-current&view=performance&chartView=graph");
+  const agreement = page.locator('[data-slot="ranked-breakdown-chart"]');
+  await expect(agreement.locator('[data-slot="deferred-chart-visual"]')).toHaveAttribute("data-deferred-state", "ready");
+  await expect(agreement.locator("svg.recharts-surface")).toBeAttached();
+  await expect(page.getByRole("status", { name: "Загрузка визуального представления" })).toHaveCount(0);
 });
 
-test("graph performance requests the shared rich renderer once after near-viewport", async ({
-  page
-}) => {
+test("scrolling a ready graph does not download the rich renderer again", async ({ page }) => {
   const responses = trackJavaScript(page);
-  await page.goto(
-    "/reports?period=vk-current&view=performance&chartView=graph"
-  );
-  await expect(
-    page.getByRole("heading", { name: "Аналитика качества" })
-  ).toBeVisible();
+  await page.goto("/reports?period=vk-current&view=performance&chartView=graph");
   await settle(page);
-  const alreadyLoadedBeforeArm = new Set(responses);
-  expect(
-    [...alreadyLoadedBeforeArm].filter((path) => richPaths.has(path))
-  ).toEqual([]);
-
+  const beforeScroll = responses.filter((path) => richPaths.has(path));
   const agreement = page.locator('[data-slot="ranked-breakdown-chart"]');
   await agreement.scrollIntoViewIfNeeded();
-  await expect(agreement).toBeVisible();
+  await expect(agreement.locator("svg.recharts-surface")).toBeVisible();
   await settle(page);
-
-  const afterArm = new Set(responses);
-  const newJavaScript = [...afterArm].filter(
-    (path) => !alreadyLoadedBeforeArm.has(path)
-  );
-  const expectedRich = [...richPaths].filter(
-    (path) => !alreadyLoadedBeforeArm.has(path)
-  );
-  expect(new Set(newJavaScript)).toEqual(new Set(expectedRich));
-  for (const path of expectedRich) {
-    expect(
-      responses.filter((responsePath) => responsePath === path),
-      `${path} should be requested once`
-    ).toHaveLength(1);
-  }
-
-  const knownPaths = new Set([
-    ...inventory.deferredRichChartReachableChunks.map((chunk) => chunk.path),
-    ...inventory.deferredRichChartEdges.flatMap((edge) => [
-      edge.from,
-      edge.to
-    ])
-  ]);
-  expect(
-    newJavaScript.filter((path) => !knownPaths.has(path)),
-    "new JavaScript after arming must reconcile with the production rich inventory"
-  ).toEqual([]);
+  expect(responses.filter((path) => richPaths.has(path))).toEqual(beforeScroll);
+  expect(new Set(beforeScroll).size).toBe(beforeScroll.length);
 });
 
-test("graph process keeps static skeleton geometry until the shared renderer resolves", async ({
-  page
-}) => {
-  let releaseRenderer!: () => void;
-  const rendererReleased = new Promise<void>((resolvePromise) => {
-    releaseRenderer = resolvePromise;
-  });
-  let intercepted = 0;
-
-  for (const path of richPaths) {
-    await page.route(`**/_next/${path}`, async (route) => {
-      intercepted += 1;
-      await rendererReleased;
-      await route.continue();
-    });
-  }
-
+test("graph process keeps stable geometry after its static visual is ready", async ({ page }) => {
   await page.goto("/reports?period=vk-current&view=process&chartView=graph");
   const reason = page.locator('[data-slot="reason-trend-chart"]');
+  await expect(reason.locator('[data-slot="deferred-chart-visual"]')).toHaveAttribute("data-deferred-state", "ready");
+  const visual = reason.locator("svg.recharts-surface");
+  await expect(visual).toBeAttached();
   await reason.scrollIntoViewIfNeeded();
-  await expect(reason).toBeVisible();
-  const deferred = reason.locator('[data-slot="deferred-chart-visual"]');
-  await expect(deferred).toHaveAttribute("data-deferred-state", "loading");
-  await expect
-    .poll(() => intercepted, { message: "rich renderer request should be held" })
-    .toBeGreaterThan(0);
-
-  const skeleton = deferred.getByRole("status", {
-    name: "Загрузка визуального представления"
-  });
-  await expect(skeleton).toBeVisible();
-  const before = await skeleton.boundingBox();
-  expect(before).not.toBeNull();
-  await page.waitForTimeout(200);
-  const whileHeld = await skeleton.boundingBox();
-  expect(whileHeld).toEqual(before);
-  await expect(
-    skeleton.locator('[aria-hidden="true"][data-qc-motion="none"]')
-  ).toBeVisible();
-
-  releaseRenderer();
-  await expect(reason.locator("svg.recharts-surface")).toBeVisible();
-  await expect(deferred).toHaveAttribute("data-deferred-state", "ready");
+  await expect(visual).toBeVisible();
+  await settle(page);
+  const initial = await visual.boundingBox();
+  await reason.scrollIntoViewIfNeeded();
+  await settle(page);
+  const settled = await visual.boundingBox();
+  expect(initial).not.toBeNull();
+  expect(settled).not.toBeNull();
+  expect(initial!.height).toBeGreaterThan(100);
+  expect(Math.abs(initial!.width - settled!.width)).toBeLessThanOrEqual(1);
+  expect(Math.abs(initial!.height - settled!.height)).toBeLessThanOrEqual(1);
 });

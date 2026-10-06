@@ -49,6 +49,13 @@ const webServerEnv: Record<string, string> = {
   TEST_DATABASE_URL: testDatabaseUrl
 };
 
+// Tests reseed and create encrypted integration credentials in worker processes.
+// Use the same throwaway keys as next start, otherwise the server cannot decrypt
+// values written by beforeEach. The verify database guard above runs first.
+for (const key of ["ALLOW_SEED", "AUTH_SECRET", "QC_SECRET_KEY", "QC_ALLOW_PRIVATE_BASE_URLS"] as const) {
+  process.env[key] = webServerEnv[key];
+}
+
 export default defineConfig({
   testDir: "tests/e2e",
   fullyParallel: true,

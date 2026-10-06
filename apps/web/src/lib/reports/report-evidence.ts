@@ -536,6 +536,7 @@ async function loadTrustedCatalog(
         review: {
           workspaceId,
           status: "FINALIZED",
+          reviewSource: "HUMAN",
           finalizedAt: { gte: range.start, lte: range.end },
         },
       },
@@ -908,6 +909,7 @@ async function queryEvidenceRows(
       ${matchedRiskJoinPredicate(input.facet.risk)}
     WHERE r."workspaceId" = ${input.workspaceId}
       AND r.status = 'FINALIZED'::"ReviewStatus"
+      AND r."reviewSource" = 'HUMAN'::"ReviewSource"
       ${periodPredicate}
       ${agreementPredicate}
       ${sourcePredicate}

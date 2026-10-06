@@ -18,15 +18,39 @@ function isUniqueConstraintError(error: unknown) {
   );
 }
 
-function reservationFromRecord(
+async function reservationFromRecord(
   record: IdempotencyKey,
   input: {
     method: string;
     path: string;
     requestHash: string;
-  }
+  },
+  expiresAt: Date
 ) {
   const isConflict = record.requestHash !== input.requestHash || record.method !== input.method || record.path !== input.path;
+
+  if (!isConflict && record.status === "FAILED") {
+    const claimed = await prisma.idempotencyKey.updateMany({
+      where: { id: record.id, status: "FAILED", requestHash: input.requestHash, method: input.method, path: input.path },
+      data: { status: "IN_PROGRESS", responseStatus: null, responseBodyJson: null, expiresAt }
+    });
+    if (claimed.count === 1) {
+      return {
+        created: true,
+        record: { ...record, status: "IN_PROGRESS" as const, responseStatus: null, responseBodyJson: null, expiresAt },
+        isReplay: false,
+        isInProgress: false,
+        isConflict: false
+      };
+    }
+    // A concurrent retry owns the reservation. Re-read its completed/in-flight
+    // state rather than granting a second caller permission to mutate.
+    const current = await prisma.idempotencyKey.findUnique({ where: { id: record.id } });
+    if (!current || current.status === "FAILED") {
+      return { created: false, record, isReplay: false, isInProgress: true, isConflict: false };
+    }
+    return reservationFromRecord(current, input, expiresAt);
+  }
 
   return {
     created: false,
@@ -59,9 +83,13 @@ export async function reserveIdempotencyKey(input: {
     if (existing.expiresAt.getTime() <= Date.now()) {
       // Expired reservations no longer count as replays/conflicts: drop the
       // stale row and fall through to a fresh reservation.
-      await prisma.idempotencyKey.deleteMany({ where: { id: existing.id } });
+      const removed = await prisma.idempotencyKey.deleteMany({ where: { id: existing.id, expiresAt: { lte: new Date() } } });
+      if (removed.count === 0) {
+        const current = await prisma.idempotencyKey.findUnique({ where: { workspaceId_key: { workspaceId: input.workspaceId, key: input.key } } });
+        if (current) return reservationFromRecord(current, input, expiresAt);
+      }
     } else {
-      return reservationFromRecord(existing, input);
+      return reservationFromRecord(existing, input, expiresAt);
     }
   }
 
@@ -96,7 +124,7 @@ export async function reserveIdempotencyKey(input: {
       throw error;
     }
 
-    return reservationFromRecord(racedRecord, input);
+    return reservationFromRecord(racedRecord, input, expiresAt);
   }
 
   return {

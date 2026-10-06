@@ -153,6 +153,14 @@ describe("report hrefs", () => {
     );
   });
 
+  it("carries the exact analysis selection into every export format", () => {
+    const filters = { team: "team-a", source: "otrs_family", risk: "high_plus", block: "solution" };
+    for (const href of [reportExportHref(period, filters), reportExportFormatHref(period, "xlsx", filters), reportExportFormatHref(period, "pdf", filters)]) {
+      const params = new URL(href, "http://localhost").searchParams;
+      for (const [key, value] of Object.entries(filters)) expect(params.get(key)).toBe(value);
+    }
+  });
+
   it("builds reviewed-queue drilldown links scoped to the period range", () => {
     expect(reportReviewHref(period, { riskLevel: "HIGH" })).toBe(
       "/reviews?status=reviewed&finalizedFrom=2026-05-01&finalizedTo=2026-05-31&riskLevel=HIGH"

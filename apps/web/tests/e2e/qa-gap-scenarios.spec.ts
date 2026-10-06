@@ -86,7 +86,7 @@ test("VIEWER lands on pending-access without empty AppNav chrome", async ({ brow
   await expect(page).toHaveURL(/\/auth\/pending-access$/);
   await expect(page.getByText("Доступ ещё не выдан")).toBeVisible();
   await expect(page.getByText(viewer.email)).toBeVisible();
-  await expect(page.getByText("Без доступа")).toBeVisible();
+  await expect(page.getByText("Роль: Без доступа", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: /Профиль:/ }).click();
   await expect(page.getByRole("button", { name: "Выйти" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Сменить роль" })).toHaveCount(0);

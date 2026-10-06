@@ -718,31 +718,37 @@ async function DashboardPageContent() {
                         className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-baseline gap-x-3 text-sm"
                         role="row"
                       >
-                        <Link
-                          href={reviewerWorkloadHref(row.name)}
-                          className="min-w-0 truncate font-medium text-foreground underline-offset-4 hover:underline"
-                          title={`${row.name} · открыто ${row.openCount}`}
-                        >
-                          {row.name}
-                          <span className="font-normal text-muted-foreground">
-                            {" "}
-                            · {row.openCount}
-                          </span>
-                        </Link>
-                        <Link
-                          href={reviewerWorkloadHref(row.name, "QUEUED")}
-                          className="min-w-10 text-right tabular-nums text-muted-foreground underline-offset-4 hover:underline"
-                          title={`Очередь: ${row.queuedCount}`}
-                        >
-                          {row.queuedCount}
-                        </Link>
-                        <Link
-                          href={reviewerWorkloadHref(row.name, "IN_PROGRESS")}
-                          className="min-w-10 text-right tabular-nums text-muted-foreground underline-offset-4 hover:underline"
-                          title={`В работе: ${row.inProgressCount}`}
-                        >
-                          {row.inProgressCount}
-                        </Link>
+                        <span role="cell" className="min-w-0">
+                          <Link
+                            href={reviewerWorkloadHref(row.name)}
+                            className="block min-w-0 truncate font-medium text-foreground underline-offset-4 hover:underline"
+                            title={`${row.name} · открыто ${row.openCount}`}
+                          >
+                            {row.name}
+                            <span className="font-normal text-muted-foreground">
+                              {" "}
+                              · {row.openCount}
+                            </span>
+                          </Link>
+                        </span>
+                        <span role="cell" className="min-w-10 text-right">
+                          <Link
+                            href={reviewerWorkloadHref(row.name, "QUEUED")}
+                            className="min-w-10 text-right tabular-nums text-muted-foreground underline-offset-4 hover:underline"
+                            title={`Очередь: ${row.queuedCount}`}
+                          >
+                            {row.queuedCount}
+                          </Link>
+                        </span>
+                        <span role="cell" className="min-w-10 text-right">
+                          <Link
+                            href={reviewerWorkloadHref(row.name, "IN_PROGRESS")}
+                            className="min-w-10 text-right tabular-nums text-muted-foreground underline-offset-4 hover:underline"
+                            title={`В работе: ${row.inProgressCount}`}
+                          >
+                            {row.inProgressCount}
+                          </Link>
+                        </span>
                       </div>
                     ))}
                   </div>

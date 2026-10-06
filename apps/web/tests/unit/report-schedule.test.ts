@@ -65,6 +65,14 @@ describe("advanceNextRun", () => {
   it("treats unknown cadence as weekly", () => {
     expect(advanceNextRun("hourly", from).toISOString()).toBe(advanceNextRun("weekly", from).toISOString());
   });
+
+  it.each([
+    ["2026-01-31T10:15:30.123Z", "2026-02-28T10:15:30.123Z"],
+    ["2028-01-31T10:15:30.123Z", "2028-02-29T10:15:30.123Z"],
+    ["2026-08-31T10:15:30.123Z", "2026-09-30T10:15:30.123Z"]
+  ])("clamps monthly run %s to %s", (input, expected) => {
+    expect(advanceNextRun("monthly", new Date(input)).toISOString()).toBe(expected);
+  });
 });
 
 describe("computeInitialNextRun", () => {
@@ -78,13 +86,16 @@ describe("enqueueDueReportSchedules", () => {
   const now = new Date("2026-06-30T10:00:00.000Z");
 
   function buildClient(schedules: Array<Record<string, unknown>>) {
-    return {
+    const client = {
+      $transaction: vi.fn(),
       reportSchedule: {
         findMany: vi.fn().mockResolvedValue(schedules),
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
         update: vi.fn().mockResolvedValue({})
       }
     };
+    client.$transaction.mockImplementation(async (callback) => callback(client));
+    return client;
   }
 
   beforeEach(() => {
@@ -155,6 +166,14 @@ describe("enqueueDueReportSchedules", () => {
     expect(result.enqueuedCount).toBe(0);
   });
 
+  it("materializes only the requested workspace's schedules", async () => {
+    const client = buildClient([]);
+    await enqueueDueReportSchedules(now, client as never, "workspace-1");
+    expect(client.reportSchedule.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { isActive: true, nextRunAt: { lte: now }, workspaceId: "workspace-1" }
+    }));
+  });
+
   it("skips enqueue and deactivates schedule when filtersJson is invalid", async () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const client = buildClient([
@@ -174,7 +193,7 @@ describe("enqueueDueReportSchedules", () => {
     const result = await enqueueDueReportSchedules(now, client as never);
 
     expect(mocks.enqueueBackendJob).not.toHaveBeenCalled();
-    expect(client.reportSchedule.updateMany).toHaveBeenCalled();
+    expect(client.reportSchedule.updateMany).not.toHaveBeenCalled();
     expect(client.reportSchedule.update).toHaveBeenCalledWith({
       where: { id: "sched-2" },
       data: { isActive: false }

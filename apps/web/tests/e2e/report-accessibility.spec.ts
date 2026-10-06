@@ -34,7 +34,7 @@ type AxeTarget = {
 
 async function dashboardReady(page: Page) {
   await expect(
-    page.getByRole("region", { name: "Ключевые показатели" })
+    page.getByRole("region", { name: /^(Ключевые показатели|Риск и нагрузка)$/ })
   ).toBeVisible();
   await expect(page.locator('[data-slot="dashboard-primary-grid"]')).toBeVisible();
   await page.evaluate(async () => {

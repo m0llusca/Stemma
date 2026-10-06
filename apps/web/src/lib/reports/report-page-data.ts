@@ -5,6 +5,7 @@ export function reviewWhere(workspaceId: string, period: ReportPeriod) {
   return {
     workspaceId,
     status: "FINALIZED" as const,
+    reviewSource: "HUMAN" as const,
     finalizedAt: {
       gte: period.start,
       lte: period.end

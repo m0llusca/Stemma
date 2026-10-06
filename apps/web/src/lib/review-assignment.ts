@@ -26,18 +26,18 @@ export const OPEN_LOAD_QA_STATUSES = ["QUEUED", "IN_PROGRESS"] as const;
  */
 export function selectLeastLoadedReviewer(
   candidates: ReviewerCandidate[],
-  loadByName: Record<string, number>
+  loadById: Record<string, number>
 ): ReviewerCandidate | null {
   let chosen: ReviewerCandidate | null = null;
   let chosenLoad = Number.POSITIVE_INFINITY;
 
   for (const candidate of candidates) {
-    const load = loadByName[candidate.name] ?? 0;
+    const load = loadById[candidate.id] ?? 0;
 
     if (
       chosen === null ||
       load < chosenLoad ||
-      (load === chosenLoad && candidate.name < chosen.name)
+      (load === chosenLoad && (candidate.name < chosen.name || (candidate.name === chosen.name && candidate.id < chosen.id)))
     ) {
       chosen = candidate;
       chosenLoad = load;
@@ -49,7 +49,7 @@ export function selectLeastLoadedReviewer(
 
 type ReviewAssignmentClient = {
   user: Pick<Prisma.TransactionClient["user"], "findMany">;
-  conversation: Pick<Prisma.TransactionClient["conversation"], "count">;
+  conversation: Pick<Prisma.TransactionClient["conversation"], "groupBy">;
 };
 
 /**
@@ -58,8 +58,8 @@ type ReviewAssignmentClient = {
  * Candidate query: active users (lifecycleStatus = ACTIVE) in the workspace
  * whose role is one of REVIEWER_ROLES (QA_ANALYST, ADMIN, TEAM_LEAD).
  *
- * Load metric: per candidate, the count of conversations in the same workspace
- * where qaAssigneeName = candidate.name AND qaStatus in (QUEUED, IN_PROGRESS).
+ * One aggregate query counts all candidates by their unique user ID, so equal
+ * display names have separate loads and reviewer count does not add queries.
  *
  * Returns the chosen reviewer, or null when there are no eligible candidates.
  * Uses the passed prisma / transaction client so it composes inside an import
@@ -83,20 +83,15 @@ export async function assignReviewerForConversation(
     return null;
   }
 
-  const loadByName: Record<string, number> = {};
-
-  for (const user of users) {
-    loadByName[user.name] = await client.conversation.count({
-      where: {
-        workspaceId,
-        qaAssigneeName: user.name,
-        qaStatus: { in: [...OPEN_LOAD_QA_STATUSES] }
-      }
-    });
-  }
+  const loads = await client.conversation.groupBy({
+    by: ["qaAssigneeId"],
+    where: { workspaceId, qaAssigneeId: { in: users.map((user) => user.id) }, qaStatus: { in: [...OPEN_LOAD_QA_STATUSES] } },
+    _count: { _all: true }
+  });
+  const loadById = Object.fromEntries(loads.map((row) => [row.qaAssigneeId!, row._count._all]));
 
   return selectLeastLoadedReviewer(
     users.map((user) => ({ id: user.id, name: user.name })),
-    loadByName
+    loadById
   );
 }

@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import type { prisma } from "@/lib/db";
 import { enqueueBackendJob } from "@/lib/jobs/enqueue";
 
 /**
@@ -75,11 +75,12 @@ export function advanceNextRun(cadence: string, from: Date): Date {
   }
 
   if (cadence === "monthly") {
+    const lastDay = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth() + 2, 0)).getUTCDate();
     return new Date(
       Date.UTC(
         from.getUTCFullYear(),
         from.getUTCMonth() + 1,
-        from.getUTCDate(),
+        Math.min(from.getUTCDate(), lastDay),
         from.getUTCHours(),
         from.getUTCMinutes(),
         from.getUTCSeconds(),
@@ -130,17 +131,18 @@ type DueScheduleRow = {
   nextRunAt: Date;
 };
 
-type ReportScheduleClient = Pick<Prisma.TransactionClient, "reportSchedule" | "backendJob">;
+type ReportScheduleClient = Pick<typeof prisma, "reportSchedule" | "$transaction">;
 
 /**
  * Finds active schedules whose nextRunAt has passed, claims each row by advancing
- * nextRunAt (compare-and-set), then enqueues a REPORT_EXPORT job. Concurrent
- * workers cannot double-enqueue the same due schedule because only one claim wins.
+ * nextRunAt and enqueues a REPORT_EXPORT job in one transaction. A failed enqueue
+ * leaves the due slot available; only one concurrent claim can win.
  */
-export async function enqueueDueReportSchedules(now: Date, client: ReportScheduleClient) {
+export async function enqueueDueReportSchedules(now: Date, client: ReportScheduleClient, workspaceId?: string) {
   const dueSchedules = (await client.reportSchedule.findMany({
     where: {
       isActive: true,
+      ...(workspaceId ? { workspaceId } : {}),
       nextRunAt: { lte: now }
     },
     orderBy: { nextRunAt: "asc" }
@@ -149,30 +151,11 @@ export async function enqueueDueReportSchedules(now: Date, client: ReportSchedul
   let enqueuedCount = 0;
 
   for (const schedule of dueSchedules) {
-    const nextRunAt = advanceNextRun(schedule.cadence, now);
-    const claimed = await client.reportSchedule.updateMany({
-      where: {
-        id: schedule.id,
-        isActive: true,
-        nextRunAt: schedule.nextRunAt
-      },
-      data: {
-        lastRunAt: now,
-        nextRunAt
-      }
-    });
-
-    if (claimed.count === 0) {
-      // Another worker already claimed this due slot.
-      continue;
-    }
-
     let filters: Record<string, unknown>;
     try {
       filters = parseFiltersJson(schedule.filtersJson);
     } catch (error) {
-      // nextRunAt already advanced by CAS — no tight retry. Deactivate so the
-      // broken filtersJson cannot keep producing empty/wrong exports.
+      // Deactivate so invalid filters cannot produce empty/wrong exports.
       const reason = error instanceof Error ? error.message : "invalid filtersJson";
       console.error(
         `[report-schedule] skip enqueue for ${schedule.id}: ${reason}; deactivating schedule`
@@ -186,26 +169,35 @@ export async function enqueueDueReportSchedules(now: Date, client: ReportSchedul
 
     const { start, end } = resolvePeriodPreset(schedule.periodPreset, now);
 
-    await enqueueBackendJob(
-      {
-        workspaceId: schedule.workspaceId,
-        type: "REPORT_EXPORT",
-        queueName: "reports",
-        priority: 90,
-        createdById: schedule.createdById ?? undefined,
-        payload: {
-          name: schedule.name,
-          periodStart: start.toISOString(),
-          periodEnd: end.toISOString(),
-          filters,
-          format: schedule.exportFormat,
-          reportScheduleId: schedule.id
-        }
-      },
-      client
-    );
+    const enqueued = await client.$transaction(async (tx) => {
+      const claimed = await tx.reportSchedule.updateMany({
+        where: { id: schedule.id, isActive: true, nextRunAt: schedule.nextRunAt },
+        data: { lastRunAt: now, nextRunAt: advanceNextRun(schedule.cadence, now) }
+      });
+      if (claimed.count === 0) return false;
 
-    enqueuedCount += 1;
+      await enqueueBackendJob(
+        {
+          workspaceId: schedule.workspaceId,
+          type: "REPORT_EXPORT",
+          queueName: "reports",
+          priority: 90,
+          createdById: schedule.createdById ?? undefined,
+          payload: {
+            name: schedule.name,
+            periodStart: start.toISOString(),
+            periodEnd: end.toISOString(),
+            filters,
+            format: schedule.exportFormat,
+            reportScheduleId: schedule.id
+          }
+        },
+        tx
+      );
+      return true;
+    });
+
+    if (enqueued) enqueuedCount += 1;
   }
 
   return { enqueuedCount };

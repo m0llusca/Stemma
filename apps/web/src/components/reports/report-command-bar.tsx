@@ -21,7 +21,7 @@ import {
  * Menu chrome mounts after the client effect: Base UI Trigger stamps aria-* /
  * popup ids that do not match the SSR HTML on `/reports`.
  */
-export function ReportExportMenu({ period }: { period: ReportPeriod }) {
+export function ReportExportMenu({ period, filters = {} }: { period: ReportPeriod; filters?: Record<string, string> }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -37,7 +37,7 @@ export function ReportExportMenu({ period }: { period: ReportPeriod }) {
 
   if (!mounted) {
     return (
-      <Button type="button" variant="outline" size="sm">
+      <Button type="button" variant="outline" size="sm" disabled aria-busy="true">
         {trigger}
       </Button>
     );
@@ -51,13 +51,13 @@ export function ReportExportMenu({ period }: { period: ReportPeriod }) {
         {trigger}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-36">
-        <DropdownMenuItem render={<Link href={reportExportHref(period)} />} nativeButton={false}>
+        <DropdownMenuItem render={<Link href={reportExportHref(period, filters)} />} nativeButton={false}>
           CSV
         </DropdownMenuItem>
-        <DropdownMenuItem render={<Link href={reportExportFormatHref(period, "xlsx")} />} nativeButton={false}>
+        <DropdownMenuItem render={<Link href={reportExportFormatHref(period, "xlsx", filters)} />} nativeButton={false}>
           XLSX
         </DropdownMenuItem>
-        <DropdownMenuItem render={<Link href={reportExportFormatHref(period, "pdf")} />} nativeButton={false}>
+        <DropdownMenuItem render={<Link href={reportExportFormatHref(period, "pdf", filters)} />} nativeButton={false}>
           PDF
         </DropdownMenuItem>
       </DropdownMenuContent>

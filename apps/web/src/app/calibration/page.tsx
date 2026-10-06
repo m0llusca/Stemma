@@ -1,3 +1,4 @@
+import { isCalibrationSessionReview } from "@/lib/calibration/review-session";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -253,7 +254,7 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
     selectedSession?.items.flatMap((item) =>
       item.conversation.reviews.filter(
         (review) =>
-          review.reviewSource === "CALIBRATION" &&
+          isCalibrationSessionReview(review, selectedSession.id, selectedSession.scorecardId) &&
           review.status === "FINALIZED" &&
           selectedSession.participants.some((participant) => participant.userId === review.reviewerId)
       )
@@ -280,7 +281,7 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
         item.conversation.reviews.find((review) => review.reviewSource === "HUMAN" && review.status === "FINALIZED");
       const reviews = item.conversation.reviews.filter(
         (review) =>
-          review.reviewSource === "CALIBRATION" &&
+          isCalibrationSessionReview(review, selectedSession.id, selectedSession.scorecardId) &&
           review.status === "FINALIZED" &&
           selectedSession.participants.some((participant) => participant.userId === review.reviewerId)
       );
@@ -364,14 +365,14 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
     const participantIds = new Set(session.participants.map((participant) => participant.userId));
     const calibrationReviews = session.items.flatMap((item) =>
       item.conversation.reviews.filter(
-        (review) => review.reviewSource === "CALIBRATION" && review.status === "FINALIZED" && participantIds.has(review.reviewerId)
+        (review) => isCalibrationSessionReview(review, session.id, session.scorecardId) && review.status === "FINALIZED" && participantIds.has(review.reviewerId)
       )
     );
     const completedCount = new Set(calibrationReviews.map((review) => `${review.conversationId}:${review.reviewerId}`)).size;
     const expectedCount = session.items.length * session.participants.length;
     const disagreementCount = session.items.filter((item) => {
       const scores = item.conversation.reviews
-        .filter((review) => review.reviewSource === "CALIBRATION" && review.status === "FINALIZED" && participantIds.has(review.reviewerId))
+        .filter((review) => isCalibrationSessionReview(review, session.id, session.scorecardId) && review.status === "FINALIZED" && participantIds.has(review.reviewerId))
         .map((review) => Math.round(review.totalScore));
       const spread = scoreSpread(scores);
 
@@ -400,7 +401,7 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
     return session.items.map((item) => {
       const reviews = item.conversation.reviews.filter(
         (review) =>
-          review.reviewSource === "CALIBRATION" &&
+          isCalibrationSessionReview(review, session.id, session.scorecardId) &&
           review.status === "FINALIZED" &&
           participantIds.has(review.reviewerId)
       );
@@ -471,7 +472,8 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
         size="sm"
         render={
           <Link
-            href={`/reviews/${selectedFirstOpenItem.conversationId}?reviewSource=CALIBRATION&returnTo=${encodeURIComponent(`/calibration?session=${selectedSession.id}`)}`}
+            prefetch={false}
+            href={`/reviews/${selectedFirstOpenItem.conversationId}?reviewSource=CALIBRATION&calibrationSessionId=${selectedSession.id}&returnTo=${encodeURIComponent(`/calibration?session=${selectedSession.id}`)}`}
           />
         }
         nativeButton={false}
@@ -490,7 +492,7 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
       actions={
         <Button
           variant={openNewSession ? "outline" : "default"}
-          render={<Link href={openNewSession ? closeNewSessionHref : newSessionHref} />}
+          render={<Link prefetch={false} href={openNewSession ? closeNewSessionHref : newSessionHref} />}
           nativeButton={false}
         >
           {openNewSession ? <X data-icon="inline-start" size={18} aria-hidden="true" /> : <PlusCircle data-icon="inline-start" size={18} aria-hidden="true" />}
@@ -581,7 +583,7 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
                         {outcomeLabel} · {signal.createdAt.toLocaleDateString("ru-RU")}
                       </p>
                     </div>
-                    <Button size="sm" variant="outline" render={<Link href={href} />} nativeButton={false}>
+                    <Button size="sm" variant="outline" render={<Link prefetch={false} href={href} />} nativeButton={false}>
                       Открыть
                       <ArrowRight data-icon="inline-end" size={14} aria-hidden="true" />
                     </Button>
@@ -598,6 +600,7 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
           )}
           <div>
             <Link
+              prefetch={false}
               href="/reviews?process=appeal"
               className={cn(buttonVariants({ variant: "link", size: "sm" }), "px-0")}
             >
@@ -627,7 +630,7 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
                 {lowAgreementRows.map((row) => {
                   const agreementPercent =
                     row.overallAgreementRate != null ? `${Math.round(row.overallAgreementRate * 100)}%` : "—";
-                  const reviewHref = `/reviews/${row.conversationId}?reviewSource=CALIBRATION&returnTo=${encodeURIComponent(`/calibration?session=${row.sessionId}`)}`;
+                  const reviewHref = `/reviews/${row.conversationId}?reviewSource=CALIBRATION&calibrationSessionId=${row.sessionId}&returnTo=${encodeURIComponent(`/calibration?session=${row.sessionId}`)}`;
                   const sessionHref = calibrationHref({ sessionId: row.sessionId });
 
                   return (
@@ -639,7 +642,7 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
                         <p className="truncate text-sm font-medium text-foreground" title={row.conversationSubject}>{row.conversationSubject}</p>
                         <p className="text-xs text-muted-foreground">
                           {row.conversationExternalId} ·{" "}
-                          <Link href={sessionHref} className="underline-offset-4 hover:underline">
+                          <Link prefetch={false} href={sessionHref} className="underline-offset-4 hover:underline">
                             {row.sessionName}
                           </Link>
                           {" · "}
@@ -650,7 +653,7 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
                             : ""}
                         </p>
                       </div>
-                      <Button size="sm" variant="outline" render={<Link href={reviewHref} />} nativeButton={false}>
+                      <Button size="sm" variant="outline" render={<Link prefetch={false} href={reviewHref} />} nativeButton={false}>
                         Разбор
                         <ArrowRight data-icon="inline-end" size={14} aria-hidden="true" />
                       </Button>
@@ -676,7 +679,7 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
               Сколько HUMAN-проверок финализировал каждый аналитик за 30 дней. Это покрытие, не слепая переоценка.
             </CardDescription>
             <CardAction>
-              <Button size="sm" variant="outline" render={<Link href={reviewerVolumeHref} />} nativeButton={false}>
+              <Button size="sm" variant="outline" render={<Link prefetch={false} href={reviewerVolumeHref} />} nativeButton={false}>
                 Очередь
               </Button>
             </CardAction>
@@ -696,6 +699,7 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
                       <TableCell className="font-medium">{row.reviewerName}</TableCell>
                       <TableCell className="text-right tabular-nums">
                         <Link
+                          prefetch={false}
                           href={reportReviewRangeHref(volumePeriodStart, volumePeriodEnd, {
                             qaAssignee: row.reviewerName
                           })}
@@ -729,7 +733,7 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
               проверяющих. Эталон ±{ALIGNMENT_BAND} баллов — после оценок разберите расхождения.
             </CardDescription>
             <CardAction>
-              <Button variant="outline" size="sm" render={<Link href={closeNewSessionHref} />} nativeButton={false}>
+              <Button variant="outline" size="sm" render={<Link prefetch={false} href={closeNewSessionHref} />} nativeButton={false}>
                 Скрыть
               </Button>
             </CardAction>
@@ -829,6 +833,7 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
 
                 return (
                   <Link
+                    prefetch={false}
                     key={summary.session.id}
                     href={calibrationHref({ sessionId: summary.session.id })}
                     aria-current={isSelected ? "page" : undefined}
@@ -911,6 +916,7 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
                 );
               })}
               <Link
+                prefetch={false}
                 href="/admin/scorecards"
                 className="flex min-w-[7.5rem] items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 transition-colors hover:bg-muted/60"
               >
@@ -973,7 +979,8 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
                             <TableCell className="whitespace-normal">
                               <div className="flex flex-col gap-0.5">
                                 <Link
-                                  href={`/reviews/${state.item.conversationId}?reviewSource=CALIBRATION&returnTo=${encodeURIComponent(`/calibration?session=${selectedSession.id}`)}`}
+                                  prefetch={false}
+                                  href={`/reviews/${state.item.conversationId}?reviewSource=CALIBRATION&calibrationSessionId=${selectedSession.id}&returnTo=${encodeURIComponent(`/calibration?session=${selectedSession.id}`)}`}
                                   className="font-medium text-foreground underline-offset-4 hover:underline"
                                 >
                                   {state.item.conversation.subject}
@@ -984,6 +991,7 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
                                     <>
                                       {" · "}
                                       <Link
+                                        prefetch={false}
                                         href={`/reviews/${state.item.conversationId}?returnTo=${encodeURIComponent(`/calibration?session=${selectedSession.id}`)}`}
                                         className="underline-offset-4 hover:underline"
                                       >
@@ -1133,7 +1141,8 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
                               <div className="flex min-w-0 flex-1 flex-col gap-4">
                                 <div className="flex flex-wrap items-start justify-between gap-2">
                                   <Link
-                                    href={`/reviews/${item.conversationId}?reviewSource=CALIBRATION&returnTo=${encodeURIComponent(`/calibration?session=${selectedSession.id}`)}`}
+                                    prefetch={false}
+                                    href={`/reviews/${item.conversationId}?reviewSource=CALIBRATION&calibrationSessionId=${selectedSession.id}&returnTo=${encodeURIComponent(`/calibration?session=${selectedSession.id}`)}`}
                                     className="text-sm font-medium text-foreground hover:underline"
                                   >
                                     {item.conversation.subject}
@@ -1307,7 +1316,8 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
                                     size="sm"
                                     render={
                                       <Link
-                                        href={`/reviews/${item.conversationId}?reviewSource=CALIBRATION&returnTo=${encodeURIComponent(`/calibration?session=${selectedSession.id}`)}`}
+                                        prefetch={false}
+                                        href={`/reviews/${item.conversationId}?reviewSource=CALIBRATION&calibrationSessionId=${selectedSession.id}&returnTo=${encodeURIComponent(`/calibration?session=${selectedSession.id}`)}`}
                                       />
                                     }
                                     nativeButton={false}
@@ -1344,7 +1354,7 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
           title="Нет калибровок"
           description="Создайте первую сессию из проверенных обращений и выберите участников."
           action={
-            <Button render={<Link href={newSessionHref} />} nativeButton={false}>
+            <Button render={<Link prefetch={false} href={newSessionHref} />} nativeButton={false}>
               <PlusCircle data-icon="inline-start" size={16} aria-hidden="true" />
               Новая сессия
             </Button>

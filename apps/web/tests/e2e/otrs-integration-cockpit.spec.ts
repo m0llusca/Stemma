@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { expect, test, type Page } from "@playwright/test";
 import { prisma } from "@/lib/db";
+import { diagnosticStepLabel, diagnosticStatusLabel } from "@/lib/integrations/probe-honesty";
 import {
   createOtrsGenericInterfaceServer,
   type OtrsGenericInterfaceServer
@@ -173,7 +174,7 @@ test("splits integrations overview, setup, and OTRS cockpit without exposing sec
   await settingsPanel.getByLabel("Пароль или API-секрет").fill(savedPassword);
   await settingsPanel.getByLabel("CA bundle PEM").fill(savedCaBundle);
   await settingsPanel.getByRole("button", { name: "Сохранить OTRS" }).click();
-  await expect(page.getByText("Настройка OTRS сохранена.")).toBeVisible();
+  await expect(page.getByRole("alert").filter({ hasText: "Настройки OTRS сохранены." })).toBeVisible();
 
   const visibleText = await page.getByRole("main").innerText();
   expect(visibleText).not.toContain(savedPassword);
@@ -238,20 +239,20 @@ test("imports an OTRS CE 6 ticket through the cockpit against the GenericInterfa
   await settingsPanel.getByRole("tab", { name: "Авторизация" }).click();
   await settingsPanel.getByRole("textbox", { name: "UserLogin" }).fill(otrsFixtureUserLogin);
   await settingsPanel.getByRole("button", { name: "Сохранить OTRS" }).click();
-  await expect(page.getByText("Настройка OTRS сохранена.")).toBeVisible();
+  await expect(page.getByRole("alert").filter({ hasText: "Настройки OTRS сохранены." })).toBeVisible();
 
   const diagnosticsPanel = page.getByRole("region", { name: "Диагностика" });
   await diagnosticsPanel.getByLabel("Manual TicketID для TicketGet").fill(ticketId);
   await diagnosticsPanel.getByRole("button", { name: "Запустить диагностику" }).click();
-  await expect(diagnosticsPanel.getByText("Диагностика OTRS выполнена. Статус: succeeded.")).toBeVisible();
+  await expect(page.getByRole("alert").filter({ hasText: "Диагностика OTRS выполнена." })).toBeVisible();
 
   for (const step of ["config", "tls", "webservice", "auth", "ticket_get", "normalize", "db_dry_run"]) {
     await expect(
-      diagnosticsPanel.getByRole("row").filter({ hasText: step }).getByText("succeeded")
+      diagnosticsPanel.getByRole("row").filter({ hasText: diagnosticStepLabel(step) }).getByText(diagnosticStatusLabel("succeeded"))
     ).toBeVisible();
   }
   await expect(
-    diagnosticsPanel.getByRole("row").filter({ hasText: "ticket_search" }).getByText("skipped")
+    diagnosticsPanel.getByRole("row").filter({ hasText: diagnosticStepLabel("ticket_search") }).getByText(diagnosticStatusLabel("skipped"))
   ).toBeVisible();
 
   const previewPanel = page.getByRole("region", { name: "Предпросмотр / импорт" });

@@ -55,7 +55,7 @@ const markerClassByKey: Record<string, string> = {
   score: "border-chart-1",
   previous: "border-chart-2 border-dashed",
   target: "border-chart-4 border-dotted",
-  volume: "h-2.5 w-1.5 rounded-[1px] border-0 bg-chart-3/35"
+  volume: "h-2.5 w-1.5 rounded-[1px] border-0 bg-chart-3/35 forced-colors:border forced-colors:border-[CanvasText] forced-colors:bg-[Canvas]"
 };
 
 export function ChartLegendControls<TKey extends string>({

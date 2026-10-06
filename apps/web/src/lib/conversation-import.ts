@@ -52,7 +52,7 @@ export async function resolveAssigneeId(
   }
 
   const matches = await client.user.findMany({
-    where: { workspaceId, name },
+    where: { workspaceId, name, lifecycleStatus: "ACTIVE" },
     select: { id: true },
     take: 2
   });
@@ -104,11 +104,9 @@ export async function upsertCustomConversation(
 
   // Resolve the operator display name to a unique user id (fail-closed on
   // ambiguity / no match). assigneeName stays as-is from normalization; the
-  // security-relevant assigneeId is only set for an unambiguous match. Requires
-  // the client to expose user.findMany (transaction client / prisma); leaves
-  // assigneeId undefined otherwise.
+  // Clear an old security-relevant assignment when the new name cannot resolve.
   const assigneeId = await resolveAssigneeId(workspaceId, conversationData.assigneeName, client);
-  const assigneeIdData = assigneeId ? { assigneeId } : {};
+  const assigneeIdData = { assigneeId: assigneeId ?? null, assigneeName: conversationData.assigneeName ?? null };
 
   // Auto-assign a reviewer for conversations a sampling rule actively selected
   // for QA (samplingDecision.matched — the same gate as the AI_SCORE enqueue

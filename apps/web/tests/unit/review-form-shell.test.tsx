@@ -43,6 +43,12 @@ describe("ReviewFormShell", () => {
     vi.mocked(submitReviewState).mockReset();
   });
 
+  it("keeps calibration and self-review out of the normal take-next queue", () => {
+    renderWithToast(<ReviewFormShell allowTakeNext={false}><input name="summary" /></ReviewFormShell>);
+    expect(screen.queryByRole("button", { name: "Завершить и взять следующий" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Сохранить черновик" })).toBeInTheDocument();
+  });
+
   it("показывает сообщение об ошибке рядом с кнопками, если действие завершилось неудачей", async () => {
     vi.mocked(submitReviewState).mockResolvedValue({
       ok: false,

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
   const prisma = {
+    $queryRaw: vi.fn(),
     $transaction: vi.fn(),
     scorecard: {
       create: vi.fn(),
@@ -82,7 +83,8 @@ describe("scorecard actions", () => {
       id: "scorecard-1",
       version: 3,
       isActive: true,
-      criteria: [{ id: "criterion-1" }]
+      criteria: [{ id: "criterion-1", key: "tone", label: "Тон общения", block: "Коммуникация", kind: "SCALE_1_3", weight: 100, required: true, order: 1 }],
+      _count: { reviews: 0, calibrationSessions: 0 }
     });
     mocks.prisma.scorecard.update.mockResolvedValue({
       id: "scorecard-1",
@@ -107,7 +109,7 @@ describe("scorecard actions", () => {
       },
       include: {
         criteria: {
-          select: { id: true }
+          orderBy: { order: "asc" }
         }
       }
     });
@@ -140,6 +142,20 @@ describe("scorecard actions", () => {
     );
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/admin/scorecards");
     expect(mocks.redirect).toHaveBeenCalledWith("/admin/scorecards?section=overview");
+  });
+
+  it.each(["kind", "weight", "block", "label", "required"])("requires a new version to change used criterion %s", async (field) => {
+    const { updateScorecardVersion } = await import("@/lib/scorecard-actions");
+    const form = validScorecardFormData();
+    mocks.prisma.scorecard.findFirst.mockResolvedValue({ id: "scorecard-1", version: 3, _count: { reviews: 1, calibrationSessions: 0 }, criteria: [{
+      id: "criterion-1", key: "tone", label: "Тон общения", block: "Коммуникация", kind: "SCALE_1_3", weight: field === "weight" ? 50 : 100, required: true, order: 1
+    }] });
+    if (field === "required") form.delete("criterion.0.required");
+    else if (field !== "weight") form.set(`criterion.0.${field}`, field === "kind" ? "PASS_FAIL" : "Изменено");
+
+    await expect(updateScorecardVersion(form)).rejects.toThrow("Выпустите новую версию");
+    expect(mocks.prisma.scorecardCriterion.update).not.toHaveBeenCalled();
+    expect(mocks.prisma.scorecard.update).not.toHaveBeenCalled();
   });
 
   it("computes the next version inside the transaction when creating a scorecard version", async () => {

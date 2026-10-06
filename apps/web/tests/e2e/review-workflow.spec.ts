@@ -110,7 +110,7 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
 
   await page.getByLabel("Поиск в очереди проверок").fill("несуществующий клиент");
   await page.waitForURL((url) => url.searchParams.get("q") === "несуществующий клиент");
-  await expect(page.getByText("Очередь пуста", { exact: true })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("В текущем представлении нет кейсов", { exact: true })).toBeVisible({ timeout: 10_000 });
 
   await page.goto("/reviews?status=unreviewed");
   await expect(page.getByRole("link", { name: "Запрос на возврат из-за задержки доставки" })).toBeVisible();
@@ -136,6 +136,16 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await page.getByRole("button", { name: "В доказательство" }).first().click();
   await expect(firstEvidenceSelect).toHaveValue(/.+/, { timeout: 10_000 });
   await page.getByLabel("Итог проверки").fill("Оператор дал корректные варианты возврата и понятный план follow-up.");
+  for (const criterion of await page.locator("details.criterion-card").all()) {
+    if (await criterion.getAttribute("data-review-open") !== "true") {
+      await criterion.locator('summary[data-slot="review-disclosure-trigger"]').click();
+    }
+  }
+  // The current rubric requires an explicit answer; a draft may be incomplete,
+  // but finalization must not silently assume full marks for untouched fields.
+  for (const group of await page.getByRole("radiogroup").all()) {
+    await group.locator("label").filter({ hasText: /3 · стандарт|Зачет/ }).click();
+  }
 
   await page.getByRole("button", { name: "Сохранить черновик" }).click();
   await expect(page.getByText("Еще не сохранен")).not.toBeVisible();
@@ -192,13 +202,13 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await expect(page.getByLabel("Где смотреть сейчас")).toBeVisible();
   await expect(page.getByRole("button", { name: "Как считать оценку в баллах?" })).toBeVisible();
   await expect(page.getByText("Оператор для разбора", { exact: true })).toBeVisible();
-  await page.getByRole("link", { name: /Исполнение/ }).click();
+  await page.getByRole("navigation", { name: "Разделы страницы" }).getByRole("link", { name: /Исполнение/ }).click();
   await expect(page.getByText("Источник с просадкой", { exact: true })).toBeVisible();
   await expect(page.getByText("По источникам", { exact: true })).toBeVisible();
   await expect(page.getByText("По операторам", { exact: true })).toBeVisible();
   await page.getByRole("link", { name: /^Процесс\s+\d+$/ }).click();
   await expect(page.getByText("Категории", { exact: true })).toBeVisible();
-  await page.getByRole("link", { name: /Разрезы/ }).click();
+  await page.getByRole("navigation", { name: "Разделы страницы" }).getByRole("link", { name: /Разрезы/ }).click();
   await expect(page.locator("#details-sources").getByText("Источники", { exact: true })).toBeVisible();
   await expect(page.locator("#details-people").getByText("Операторы", { exact: true })).toBeVisible();
   await expect(page.getByText("Риски", { exact: true }).last()).toBeVisible();
@@ -219,11 +229,10 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await expect(page.getByLabel("Правила для разбора")).toBeVisible();
 
   await page.goto("/self-review");
-  await expect(page.getByRole("heading", { name: "Моя обратная связь" })).toBeVisible();
-  const feedbackWorkspace = page.getByRole("region", { name: "Операторская обратная связь" });
-  await expect(feedbackWorkspace.getByText("Требуют ответа", { exact: true })).toBeVisible();
-  await expect(feedbackWorkspace.getByText("История", { exact: true })).toBeVisible();
-  await expect(page.getByLabel("Учебные задачи")).toBeVisible();
+  // Operator feedback is agent-only. Admin deep links return to the admin home;
+  // the SUPPORT_AGENT flow is covered independently by qa-gap-scenarios.
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(page.getByRole("heading", { name: "Сегодня", exact: true })).toBeVisible();
 
   await page.goto("/admin/tokens");
   await expect(page.getByRole("heading", { level: 1, name: "API-доступ" })).toBeVisible();
