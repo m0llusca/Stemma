@@ -13,25 +13,11 @@ import { auditLog } from "@/lib/audit";
 import { sanitizeReturnTo } from "@/lib/auth/role-home";
 import { canFinalizeReview, canSaveReviewDraft, canSelfReview, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
-
-const DUPLICATE_CALIBRATION_REVIEW_MESSAGE =
-  "Оценка этой сессии уже есть. Обновите страницу — вторая вкладка сохранила её раньше.";
-
-function isUniqueConstraintError(error: unknown) {
-  return error !== null && typeof error === "object" && "code" in error && (error as { code?: unknown }).code === "P2002";
-}
-
-async function createReviewRow<T>(create: () => Promise<T>) {
-  try {
-    return await create();
-  } catch (error) {
-    if (isUniqueConstraintError(error)) {
-      throw new Error(DUPLICATE_CALIBRATION_REVIEW_MESSAGE);
-    }
-    throw error;
-  }
-}
 import { loadCalibrationReviewSession } from "@/lib/calibration/review-session";
+import {
+  DUPLICATE_CALIBRATION_REVIEW_MESSAGE,
+  isCalibrationReviewUniqueConflict
+} from "@/lib/review/calibration-unique-conflict";
 import { enqueueBackendJob } from "@/lib/jobs/enqueue";
 import type { MessagingDeliveryJobPayload } from "@/lib/messaging/job-contract";
 import { selectNextReviewConversationId } from "@/lib/review/select-next-review-conversation";
@@ -51,6 +37,17 @@ import {
 import { calculateReviewScore } from "@/lib/score";
 import { assertReviewRubricStable } from "@/lib/review/rubric-guard";
 import { qualityScorePointWord } from "@/lib/score-display";
+
+async function createReviewRow<T>(create: () => Promise<T>) {
+  try {
+    return await create();
+  } catch (error) {
+    if (isCalibrationReviewUniqueConflict(error)) {
+      throw new Error(DUPLICATE_CALIBRATION_REVIEW_MESSAGE);
+    }
+    throw error;
+  }
+}
 
 const ownerTypes = ["AGENT", "PROCESS", "PRODUCT", "POLICY", "AI_SYSTEM"] as const;
 const riskLevels = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const;

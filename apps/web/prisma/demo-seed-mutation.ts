@@ -3203,26 +3203,35 @@ export async function mutateDemoSeed(
     },
     select: { id: true }
   });
-  if (nameOnlyQueued) {
-    await prisma.conversation.update({
-      where: { id: nameOnlyQueued.id },
-      data: { qaAssigneeId: null, qaAssigneeName: analyst.name }
-    });
+  if (!nameOnlyQueued) {
+    throw new Error("Demo seed: no QUEUED conversation assigned to the analyst for the name-only load row.");
+  }
+  const nameOnlyUpdated = await prisma.conversation.update({
+    where: { id: nameOnlyQueued.id },
+    data: { qaAssigneeId: null, qaAssigneeName: analyst.name },
+    select: { qaAssigneeId: true, qaAssigneeName: true, qaStatus: true }
+  });
+  if (nameOnlyUpdated.qaAssigneeId !== null || nameOnlyUpdated.qaAssigneeName !== analyst.name || nameOnlyUpdated.qaStatus !== "QUEUED") {
+    throw new Error("Demo seed: name-only assignee row was not stored.");
   }
 
   const orphanConversation = await prisma.conversation.findFirst({
     where: { workspaceId: workspace.id, calibrationItems: { none: {} } },
     select: { id: true }
   });
-  if (orphanConversation) {
-    await createCalibrationReview({
-      calibrationSessionId: null,
-      conversationId: orphanConversation.id,
-      reviewerId: admin.id,
-      totalScore: 70,
-      summary: "Калибровочная оценка без сессии: не входит в матрицу, пока сессия не однозначна.",
-      finalizedAt: at(-1, { hour: 9 }),
-      notes: "Сиротская оценка для счётчика на странице калибровки."
-    });
+  if (!orphanConversation) {
+    throw new Error("Demo seed: no conversation outside calibration sessions for the orphan review.");
+  }
+  const orphanReview = await createCalibrationReview({
+    calibrationSessionId: null,
+    conversationId: orphanConversation.id,
+    reviewerId: admin.id,
+    totalScore: 70,
+    summary: "Калибровочная оценка без сессии: не входит в матрицу, пока сессия не однозначна.",
+    finalizedAt: at(-1, { hour: 9 }),
+    notes: "Сиротская оценка для счётчика на странице калибровки."
+  });
+  if (orphanReview.calibrationSessionId !== null || orphanReview.reviewSource !== "CALIBRATION") {
+    throw new Error("Demo seed: calibration orphan review was not stored without a session.");
   }
 }
