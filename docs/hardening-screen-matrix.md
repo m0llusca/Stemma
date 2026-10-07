@@ -2,7 +2,9 @@
 
 Walk checklist for epic [#116](https://github.com/m0llusca/Stemma/issues/116) (**closed**). ACCEPT for #116 = this matrix all green + Marques UX-ACCEPT + Дешон PASS.
 
-LIVE stand: https://nvqawe-ip-184-193-214-193.tunnelmole.net (ephemeral; tip **`3aedc85`** (docs [#179](https://github.com/m0llusca/Stemma/pull/179); soft code [#178](https://github.com/m0llusca/Stemma/pull/178) / [#175](https://github.com/m0llusca/Stemma/issues/175); login 200). Dead: `hospital-studies…`, `therapeutic-pond…`, `numerous-housewares…`, `bailey-pat…`. #116 walk package stayed on `dc5de92` / walk `4f2ba3a` — cells below are that walk, not a new epic pass. Density SoT: [ux-density-contract.md](ux-density-contract.md). Smoke P0 closed on `2556e9e`. Soft [#175](https://github.com/m0llusca/Stemma/issues/175) Admin `/reviews/queue` **closed** on `005ab49`: relative **307** → `/reviews?qaStatus=QUEUED` (no separate page; not `0.0.0.0`).
+LIVE stand: https://cltdjp-ip-23-21-140-149.tunnelmole.net (ephemeral; product = master **`4a8b3ea`**, stand tip **`855ed197`**; re-LIVE не нужен). Пакет [#183](https://github.com/m0llusca/Stemma/issues/183) / squash [#184](https://github.com/m0llusca/Stemma/pull/184) на master. Soft (не блокер, нового тикета нет): поповер фильтров `/reports` перекрывает подписи и столбцы драйверов на desktop (Popover@1280 / Sheet@390 — контракт #184). Dead: `hospital-studies…`, `therapeutic-pond…`, `numerous-housewares…`, `bailey-pat…`. #116 walk package stayed on `dc5de92` / walk `4f2ba3a` — cells below are that walk, not a new epic pass. Density SoT: [ux-density-contract.md](ux-density-contract.md). Smoke P0 closed on `2556e9e`. Soft [#175](https://github.com/m0llusca/Stemma/issues/175) Admin `/reviews/queue` **closed** on `005ab49`: relative **307** → `/reviews?qaStatus=QUEUED` (no separate page; not `0.0.0.0`).
+
+Закрыто в #184, ячеек PASS нет: липкое «Взять следующий» в панели фильтров (просрочка, исполнитель, голая `/reviews`) и подсказка, что пустой срез ищет внутри фильтра; агент с голой `/reviews` → `/self-review` (карточка обращения остаётся); `/calibration/undefined|null` и `?reviewSource=CALIBRATION` без сессии → `/calibration` после входа, не сырой 404; «Диагностика»/«Предпросмотр» без разрыва слова; «В доказательство» открывает критерий и панель оценки, пустой балл — честный toast, не «Заполните все критерии»; сид орфан-оценки и name-only очереди падает, если шаг не записался; P2002 только для уникального ключа калибровки.
 
 Master tip **`dc5de92`** (squash of [#148](https://github.com/m0llusca/Stemma/issues/148); PR tip was `1a12803`). [#148](https://github.com/m0llusca/Stemma/issues/148) is **merged**. LIVE walk **PASS** on `4f2ba3a` (Джамал, 0 FAIL): QA / Exec / Admin / Lead / Agent / Viewer + role-switch Admin→Exec. Matthew ACK: cells PASS with walk tip SHA. Role headers stay walk PASS on `4f2ba3a`; package is master `dc5de92`. [#116](https://github.com/m0llusca/Stemma/issues/116) **closed**. Chart SoT = Recharts (LIVE + #148). #152 docs≠code closed. Login/tokens Next 0 Issues LIVE PASS (Джамал + André probe). Soft `/reports` «1 Issue» NACK (Дешон / Джамал) — not a blocker. Do not invent PASS for the master epic re-walk.
 
@@ -24,13 +26,13 @@ Exact-filters Sheet stays closed until the user opens it (no auto-open overlay o
 
 Login / tokens Next Issues **0** LIVE PASS (Джамал + André probe). Soft `/reports` «1 Issue» NACK (Дешон / Джамал) — not a blocker. Walk PASS on `/auth/login` is DEMO picker / land / logout.
 
-LIVE: https://nvqawe-ip-184-193-214-193.tunnelmole.net (ephemeral; current stand tip `3aedc85`, #178 / #175 soft closed). #116 walk package stayed on `dc5de92`. Dead: `hospital-studies…`, `therapeutic-pond…`, `numerous-housewares…`, `bailey-pat…`.
+LIVE: https://cltdjp-ip-23-21-140-149.tunnelmole.net (ephemeral; stand tip `855ed197`, product = master `4a8b3ea`; #183/#184). #116 walk package stayed on `dc5de92`. Dead: `hospital-studies…`, `therapeutic-pond…`, `numerous-housewares…`, `bailey-pat…`.
 
 Demo seed emails, no password, all `@example.com`: `admin@`, `qa@`, `lead@`, `maria.qa@`, `exec@`, `ivan@`, `olga.agent@`, `denis.agent@`, `elena.agent@`, `viewer@`.
 
 **PASS** = control works **and** BE is honest (no silent no-op, no fake-green, no impostor `/reviews?status=unreviewed`). Soft smoke (login / bars / role-switch) is **not** enough.
 
-Cells below: `PASS` = Jamal LIVE on tip `4f2ba3a`. Not a master-`dc5de92` epic re-walk; #116 closed. Current stand tip `3aedc85`. `n/a` = stream has no surface on that row.
+Cells below: `PASS` = Jamal LIVE on tip `4f2ba3a`. Not a master-`dc5de92` epic re-walk; #116 closed. Current stand tip `855ed197` (product = master `4a8b3ea`). `n/a` = stream has no surface on that row.
 
 SoT: [`role-home.ts`](../apps/web/src/lib/auth/role-home.ts), [`navigation.ts`](../apps/web/src/lib/shell/navigation.ts) `visibleTopNavAreas`, [app-shell.md](app-shell.md).
 
@@ -73,7 +75,7 @@ Account menu **«Сменить роль»**: only when `QC_DEMO_AUTH=enabled`. 
 
 **PASS** = control works **and** BE is honest (no silent no-op, no fake-green, no impostor `/reviews?status=unreviewed`). Soft smoke (login / bars / role-switch) is **not** enough.
 
-Cells below: `PASS` = Jamal LIVE on tip `4f2ba3a`. Not a master-`dc5de92` epic re-walk; #116 closed. Current stand tip `3aedc85`. `n/a` = stream has no surface on that row.
+Cells below: `PASS` = Jamal LIVE on tip `4f2ba3a`. Not a master-`dc5de92` epic re-walk; #116 closed. Current stand tip `855ed197` (product = master `4a8b3ea`). `n/a` = stream has no surface on that row.
 
 SoT: [`role-home.ts`](../apps/web/src/lib/auth/role-home.ts), [`navigation.ts`](../apps/web/src/lib/shell/navigation.ts) `visibleTopNavAreas`, [app-shell.md](app-shell.md).
 
@@ -82,6 +84,6 @@ SoT: [`role-home.ts`](../apps/web/src/lib/auth/role-home.ts), [`navigation.ts`](
 ## Related
 
 - [app-shell.md](app-shell.md)
-- [ux-density-contract.md](ux-density-contract.md) — chrome **`dca6c00`** (#166/#167); soft package **`e325df6`** (#170/#169); **#172/#173** tip **`67635ab`**. Reports P0 + coaching empty. Open: criteria/timeline bloat; no fake empty chart points
+- [ux-density-contract.md](ux-density-contract.md) — chrome **`dca6c00`** (#166/#167); soft package **`e325df6`** (#170/#169); **#172/#173** tip **`67635ab`**. Reports P0 + coaching empty. Open: criteria/timeline bloat; no fake empty chart points; `/reports` filter popover over driver bars (soft #183/#184, no new ticket)
 - [ux-queue-hotkeys-contract.md](ux-queue-hotkeys-contract.md)
 - [#125](https://github.com/m0llusca/Stemma/issues/125)

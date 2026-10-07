@@ -115,6 +115,8 @@ Verify-DB smoke re-green on current master:
 [run 36143969457](https://github.com/m0llusca/Stemma/actions/runs/36143969457)
 (trigger tip `ca7951f` over `3aedc85`; temporary PR #180 — do not merge).
 
+Package [#183](https://github.com/m0llusca/Stemma/issues/183) / squash [#184](https://github.com/m0llusca/Stemma/pull/184) is on master [`4a8b3ea`](https://github.com/m0llusca/Stemma/commit/4a8b3eae6a2f366f30e8b5a63e784783a238538d). The smoke bug list below is unchanged.
+
 1. Reports «0-50». The range is drawn twice: a visible `tspan` and an SVG
    `<title>` with the same text. `getByText('0-50')` matched both nodes; strict
    mode failed. The spec asserts the visible `tspan`. Chart UI is unchanged.
