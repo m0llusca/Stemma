@@ -1,4 +1,4 @@
-import type { ConversationChannel, QaStatus, ReviewSource, ReviewStatus, RiskLevel } from "@prisma/client";
+import type { ConversationChannel, QaStatus, ReviewSource, ReviewStatus, RiskLevel, RoleName } from "@prisma/client";
 
 export type ReviewQueueStatus = "all" | "unreviewed" | "reviewed";
 export type ReviewQueueProcessFilter = "critical" | "reanswer" | "appeal" | "ai_exception";
@@ -116,4 +116,5 @@ export type ReviewQueuePageData = {
   savedViews: ReviewQueueSavedViewDto[];
   /** Same reviews:write gate as the topbar `canTakeNextCase` pulse. */
   canWriteReviews: boolean;
+  viewerRole: RoleName;
 };

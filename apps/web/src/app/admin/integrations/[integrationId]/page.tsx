@@ -435,8 +435,8 @@ function AdapterOperationalProfilePanel({ integration }: { integration: LoadedIn
                   className="grid min-w-0 content-start gap-1.5 border-border p-3 not-last:border-b sm:not-last:border-b-0 sm:not-last:border-r"
                   role="listitem"
                 >
-                  <div className="flex min-w-0 items-start justify-between gap-2">
-                    <span className="min-w-0 break-words text-sm font-medium">{step.label}</span>
+                  <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+                    <span className="text-sm font-medium [overflow-wrap:normal] [word-break:keep-all]">{step.label}</span>
                     <StatusBadge
                       compact
                       label={stepBadgeLabel}
@@ -1020,8 +1020,8 @@ function OtrsDetailCockpit({
                 className="grid min-w-0 content-start gap-1.5 border-border p-3 not-last:border-b sm:not-last:border-b-0 sm:not-last:border-r"
                 role="listitem"
               >
-                <div className="flex min-w-0 items-start justify-between gap-2">
-                  <span className="min-w-0 break-words text-sm font-medium">{step.label}</span>
+                <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+                  <span className="text-sm font-medium [overflow-wrap:normal] [word-break:keep-all]">{step.label}</span>
                   <StatusBadge compact label={stepBadgeLabel} value={status.label} tone={status.tone} />
                 </div>
                 <span className="min-w-0 break-words text-xs text-muted-foreground">{step.detail}</span>

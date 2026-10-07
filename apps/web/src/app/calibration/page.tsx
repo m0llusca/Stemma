@@ -38,7 +38,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { TriageStrip, type TriageStripTone } from "@/components/ui/triage-strip";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { createCalibrationSession, updateCalibrationSessionStatus } from "@/lib/calibration-actions";
-import { computeCalibrationItemAgreement, type CalibrationCriterionKind } from "@/lib/calibration/agreement";
+import {
+  CALIBRATION_AGREEMENT_NEEDS_TWO_TITLE,
+  CALIBRATION_SINGLE_PARTICIPANT_AGREEMENT_NOTE,
+  computeCalibrationItemAgreement,
+  type CalibrationCriterionKind
+} from "@/lib/calibration/agreement";
 import {
   CALIBRATION_ALIGNMENT_BAND,
   CALIBRATION_RITUAL_DEFAULT_NAME,
@@ -146,7 +151,7 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
   const openNewSession = firstParam(rawSearchParams.new) === "1";
   const volumePeriodEnd = new Date();
   const volumePeriodStart = new Date(volumePeriodEnd.getTime() - 30 * 24 * 60 * 60 * 1000);
-  const [sessions, qaUsers, conversations, appealSignalEvents, humanFinalizeVolume] = await Promise.all([
+  const [sessions, qaUsers, conversations, appealSignalEvents, humanFinalizeVolume, orphanCalibrationCount] = await Promise.all([
     prisma.calibrationSession.findMany({
       where: { workspaceId: user.workspaceId },
       include: {
@@ -206,6 +211,13 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
       select: {
         reviewerId: true,
         reviewer: { select: { name: true } }
+      }
+    }),
+    prisma.review.count({
+      where: {
+        workspaceId: user.workspaceId,
+        reviewSource: "CALIBRATION",
+        calibrationSessionId: null
       }
     })
   ]);
@@ -500,6 +512,11 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
         </Button>
       }
     >
+      {orphanCalibrationCount > 0 ? (
+        <p className="text-sm text-muted-foreground" role="status">
+          Оценки без сессии: {orphanCalibrationCount}. Они не входят в матрицу согласия, пока сессия не определена однозначно.
+        </p>
+      ) : null}
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <TriageStrip
           tone={calibrationTriageTone}
@@ -1253,7 +1270,9 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
                                     <div className="flex flex-col gap-0.5">
                                       <strong className="text-sm font-medium">По критериям</strong>
                                       <span className="text-xs text-muted-foreground">
-                                        Доля совпавших ответов участников. Сначала самые спорные.
+                                        {criterionRows.every((row) => row.participantCount < 2)
+                                          ? CALIBRATION_SINGLE_PARTICIPANT_AGREEMENT_NOTE
+                                          : "Доля совпавших ответов участников. Сначала самые спорные."}
                                       </span>
                                     </div>
                                     <ul className="flex flex-col gap-1.5">
@@ -1277,7 +1296,10 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
                                               <span className="text-sm text-foreground">{row.meta?.label}</span>
                                             </span>
                                             <span className="flex flex-wrap items-center gap-2">
-                                              <span className="text-sm font-medium tabular-nums">
+                                              <span
+                                                className="text-sm font-medium tabular-nums"
+                                                title={row.agreementRate == null ? CALIBRATION_AGREEMENT_NEEDS_TWO_TITLE : undefined}
+                                              >
                                                 {row.agreementRate != null ? `${Math.round(row.agreementRate * 100)}%` : "—"}
                                               </span>
                                               {row.scaleSpread != null && row.scaleSpread > 0 ? (

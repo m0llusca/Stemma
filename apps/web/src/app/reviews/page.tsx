@@ -1,4 +1,5 @@
 import { ArrowRight } from "lucide-react";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { QueueDay1Tour } from "@/components/guidance/queue-day1-tour";
 import { WelcomeBackBanner } from "@/components/guidance/welcome-back-banner";
@@ -91,6 +92,9 @@ export async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
   const queueEmpty = firstParam(rawParams.empty) === "1";
   const savedMarker = firstParam(rawParams.saved);
   const data = await getReviewQueuePageData(rawParams);
+  if (data.viewerRole === "SUPPORT_AGENT") {
+    redirect("/self-review");
+  }
   const filteredCount = data.conversations.length;
   const { total } = data.summary;
   // Render-only pagination: the global priority sort already happened in the
@@ -233,6 +237,17 @@ export async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
           />
         }
       >
+        {data.canWriteReviews ? (
+          <div className="flex flex-wrap items-center justify-end gap-2 border-b border-border px-3 py-2">
+            <form action={takeNextReview}>
+              <input type="hidden" name="queueHref" value={data.currentHref} />
+              <Button type="submit" size="sm">
+                <ArrowRight size={16} aria-hidden="true" data-icon="inline-start" />
+                {TAKE_NEXT_LABEL}
+              </Button>
+            </form>
+          </div>
+        ) : null}
         <QueueFilters
           filters={data.filters}
           sources={data.filterOptions.sources}

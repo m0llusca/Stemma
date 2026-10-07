@@ -172,7 +172,7 @@ describe("verify-route-budgets", () => {
     expect(measurement.richChartReachableChunks.map((chunk) => chunk.path).sort()).toEqual(["static/chunks/rich-renderer.js", "static/chunks/vendor.js"].sort());
   });
 
-  it("keeps full transitive bytes visible while capping only additional chart payload", () => {
+  it("records full transitive gzip as additional chart payload plus shared shell", () => {
     const build = syntheticBuild();
     writeChunk(build.nextDir, "static/chunks/rich-renderer.js", chunkWithDependencies([build.chunks.shared], richExportSource(RICH_EXPORTS)));
     const measurement = capture(build) as { richChartGzipBytes: number; richChartAdditionalGzipBytes: number; sharedGzipBytes: number };
@@ -364,6 +364,38 @@ describe("verify-route-budgets", () => {
       { encoding: "utf8" }
     );
 
+    expect(result.status).toBe(1);
+    expect(result.stderr).toMatch(/rich-chart.+70 KiB/is);
+  });
+
+  it("fails when shared shell inflates full rich-chart gzip past 70 KiB", () => {
+    const build = syntheticBuild();
+    const baselinePath = join(build.root, "baseline.json");
+    writeChunk(
+      build.nextDir,
+      "static/chunks/rich-renderer.js",
+      chunkWithDependencies([build.chunks.shared], richExportSource(RICH_EXPORTS, 1024))
+    );
+    writeChunk(
+      build.nextDir,
+      build.chunks.shared,
+      Buffer.concat([Buffer.from("export const route = \"shared\";\n"), bytesWithGzipLength(80 * 1024)])
+    );
+
+    execFileSync(
+      process.execPath,
+      [SCRIPT, "--next-dir", build.nextDir, "--capture-baseline", baselinePath],
+      { encoding: "utf8" }
+    );
+    const measurement = capture(build) as { richChartGzipBytes: number; richChartAdditionalGzipBytes: number };
+    expect(measurement.richChartAdditionalGzipBytes).toBeLessThan(70 * 1024);
+    expect(measurement.richChartGzipBytes).toBeGreaterThan(70 * 1024);
+
+    const result = spawnSync(
+      process.execPath,
+      [SCRIPT, "--next-dir", build.nextDir, "--baseline", baselinePath],
+      { encoding: "utf8" }
+    );
     expect(result.status).toBe(1);
     expect(result.stderr).toMatch(/rich-chart.+70 KiB/is);
   });

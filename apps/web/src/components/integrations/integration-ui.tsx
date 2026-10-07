@@ -32,11 +32,13 @@ export function IntegrationFact({
   return (
     <div
       className={cn(
-        "grid min-w-0 grid-cols-[minmax(0,auto)_minmax(0,1fr)] gap-x-3 gap-y-1 border-b border-border py-2 last:border-b-0",
+        "flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-border py-2 last:border-b-0",
         className
       )}
     >
-      <span className="min-w-0 break-words text-xs font-medium text-muted-foreground">{label}</span>
+      <span className="max-w-full shrink-0 text-xs font-medium text-muted-foreground [overflow-wrap:normal] [word-break:keep-all]">
+        {label}
+      </span>
       <div
         className={cn(
           "min-w-0 text-sm text-foreground",

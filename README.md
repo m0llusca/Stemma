@@ -40,6 +40,8 @@ npm run db:seed
 npm run dev
 ```
 
+Apply `npm run db:deploy` before treating the app as up. `/api/v1/health` fails closed until `Review.calibrationSessionId` and the `OUT_OF_SAMPLE` sampling check exist.
+
 Open [http://localhost:3000](http://localhost:3000). Demo users come from the seed — check the seed output for emails.
 
 Postgres: `localhost:55432`, user/password/db `qc_app`.

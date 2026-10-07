@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import {
   ChevronDown,
   MessageSquareWarning,
@@ -233,10 +233,12 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
   const reviewSource =
     requestedReviewSource === "CALIBRATION" || requestedReviewSource === "SELF_REVIEW" ? requestedReviewSource : "HUMAN";
   const calibrationSessionId = singleParam(rawSearchParams.calibrationSessionId);
-  const calibrationSession = reviewSource === "CALIBRATION" && calibrationSessionId
+  const calibrationSessionTokenMissing =
+    !calibrationSessionId || calibrationSessionId === "undefined" || calibrationSessionId === "null";
+  const calibrationSession = reviewSource === "CALIBRATION" && !calibrationSessionTokenMissing
     ? await loadCalibrationReviewSession({ sessionId: calibrationSessionId, workspaceId: user.workspaceId, conversationId }, prisma)
     : null;
-  if (reviewSource === "CALIBRATION" && !calibrationSession) notFound();
+  if (reviewSource === "CALIBRATION" && !calibrationSession) redirect("/calibration");
   const returnTo = singleParam(rawSearchParams.returnTo);
   const savedMarker = singleParam(rawSearchParams.saved);
   const supportAgentScope = user.role === "SUPPORT_AGENT" ? { assigneeId: user.id } : undefined;

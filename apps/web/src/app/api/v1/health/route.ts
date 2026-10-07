@@ -1,6 +1,7 @@
 import { apiJson, requestIdFromHeaders } from "@/lib/api/response";
 import { requireSessionApi } from "@/lib/api/session";
 import { prisma } from "@/lib/db";
+import { loadSchemaContractGaps } from "@/lib/db/schema-contract";
 import { getRuntimeConfigDiagnostics } from "@/lib/runtime-config";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +22,27 @@ export async function GET(request: Request) {
 
   try {
     await prisma.$queryRaw`SELECT 1`;
+    const schemaGaps = await loadSchemaContractGaps(prisma);
+
+    if (schemaGaps.length > 0) {
+      if (!includeDetails) {
+        return apiJson({ status: "degraded" }, 503, requestId);
+      }
+
+      const runtime = getRuntimeConfigDiagnostics();
+      return apiJson(
+        {
+          status: "degraded",
+          service: "support-qa-platform",
+          database: "schema_contract",
+          schemaGaps,
+          runtime,
+          latencyMs: Date.now() - startedAt
+        },
+        503,
+        requestId
+      );
+    }
 
     if (!includeDetails) {
       return apiJson({ status: "ok" }, 200, requestId);

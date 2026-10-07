@@ -143,3 +143,8 @@ export function computeCalibrationItemAgreement(input: {
     misalignedCriteria
   };
 }
+
+export const CALIBRATION_SINGLE_PARTICIPANT_AGREEMENT_NOTE =
+  "Совпадение считается от двух оценок. С одним участником здесь будет прочерк — это не пустая матрица.";
+
+export const CALIBRATION_AGREEMENT_NEEDS_TWO_TITLE = "Нужны две оценки";

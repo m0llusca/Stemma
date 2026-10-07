@@ -40,6 +40,8 @@ npm run db:seed
 npm run dev
 ```
 
+Сначала `npm run db:deploy`. Пока нет колонки `Review.calibrationSessionId` и проверки `OUT_OF_SAMPLE`, `/api/v1/health` отвечает `degraded` и приложение не считается поднятым.
+
 Откройте [http://localhost:3000](http://localhost:3000). Демо-пользователи создаются сидом — email смотрите в выводе `db:seed`.
 
 Postgres: `localhost:55432`, логин / пароль / база — `qc_app`.

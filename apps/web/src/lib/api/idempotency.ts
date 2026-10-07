@@ -18,38 +18,80 @@ function isUniqueConstraintError(error: unknown) {
   );
 }
 
+const FAILED_RECLAIM_ATTEMPTS = 3;
+
+type IdempotencyReservationInput = {
+  method: string;
+  path: string;
+  requestHash: string;
+};
+
+type IdempotencyReservation = {
+  created: boolean;
+  record: IdempotencyKey;
+  isReplay: boolean;
+  isInProgress: boolean;
+  isConflict: boolean;
+  needsRetry?: boolean;
+};
+
+function claimOwnedReservation(record: IdempotencyKey, expiresAt: Date) {
+  return {
+    created: true,
+    record: { ...record, status: "IN_PROGRESS" as const, responseStatus: null, responseBodyJson: null, expiresAt },
+    isReplay: false,
+    isInProgress: false,
+    isConflict: false
+  };
+}
+
+function needsRetryReservation(record: IdempotencyKey) {
+  return {
+    created: false,
+    record,
+    isReplay: false,
+    isInProgress: false,
+    isConflict: false,
+    needsRetry: true as const
+  };
+}
+
+async function claimFailedReservation(
+  record: IdempotencyKey,
+  input: IdempotencyReservationInput,
+  expiresAt: Date,
+  attemptsLeft: number
+): Promise<IdempotencyReservation> {
+  const claimed = await prisma.idempotencyKey.updateMany({
+    where: { id: record.id, status: "FAILED", requestHash: input.requestHash, method: input.method, path: input.path },
+    data: { status: "IN_PROGRESS", responseStatus: null, responseBodyJson: null, expiresAt }
+  });
+  if (claimed.count === 1) {
+    return claimOwnedReservation(record, expiresAt);
+  }
+
+  const current = await prisma.idempotencyKey.findUnique({ where: { id: record.id } });
+  if (!current) {
+    return needsRetryReservation(record);
+  }
+  if (current.status === "FAILED") {
+    if (attemptsLeft > 1) {
+      return claimFailedReservation(current, input, expiresAt, attemptsLeft - 1);
+    }
+    return needsRetryReservation(current);
+  }
+  return reservationFromRecord(current, input, expiresAt);
+}
+
 async function reservationFromRecord(
   record: IdempotencyKey,
-  input: {
-    method: string;
-    path: string;
-    requestHash: string;
-  },
+  input: IdempotencyReservationInput,
   expiresAt: Date
-) {
+): Promise<IdempotencyReservation> {
   const isConflict = record.requestHash !== input.requestHash || record.method !== input.method || record.path !== input.path;
 
   if (!isConflict && record.status === "FAILED") {
-    const claimed = await prisma.idempotencyKey.updateMany({
-      where: { id: record.id, status: "FAILED", requestHash: input.requestHash, method: input.method, path: input.path },
-      data: { status: "IN_PROGRESS", responseStatus: null, responseBodyJson: null, expiresAt }
-    });
-    if (claimed.count === 1) {
-      return {
-        created: true,
-        record: { ...record, status: "IN_PROGRESS" as const, responseStatus: null, responseBodyJson: null, expiresAt },
-        isReplay: false,
-        isInProgress: false,
-        isConflict: false
-      };
-    }
-    // A concurrent retry owns the reservation. Re-read its completed/in-flight
-    // state rather than granting a second caller permission to mutate.
-    const current = await prisma.idempotencyKey.findUnique({ where: { id: record.id } });
-    if (!current || current.status === "FAILED") {
-      return { created: false, record, isReplay: false, isInProgress: true, isConflict: false };
-    }
-    return reservationFromRecord(current, input, expiresAt);
+    return claimFailedReservation(record, input, expiresAt, FAILED_RECLAIM_ATTEMPTS);
   }
 
   return {
