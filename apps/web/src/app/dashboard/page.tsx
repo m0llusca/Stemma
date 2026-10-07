@@ -782,7 +782,7 @@ async function DashboardPageContent() {
                       </span>
                       <span className="grid min-w-0 gap-1 content-center">
                         <strong className="truncate text-sm font-medium text-foreground" title={item.label}>{item.label}</strong>
-                        <small className="truncate text-xs text-muted-foreground" title={item.hint}>{item.hint}</small>
+                        <small className="line-clamp-2 whitespace-normal text-xs text-muted-foreground" title={item.hint}>{item.hint}</small>
                       </span>
                       <span
                         className={cn(

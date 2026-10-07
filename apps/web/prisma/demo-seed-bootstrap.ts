@@ -32,8 +32,8 @@ export const demoEntityIds = {
 
 export const demoEntityNames = {
   workspace: "Демо Контроль качества",
-  analyst: "Проверяющий",
-  teamLead: "Руководитель контроля качества",
+  analyst: "Анна Соколова",
+  teamLead: "Алексей Орлов",
   seniorAnalyst: "Мария Кузнецова",
   supportAgent: "Иван Петров",
   supportOlga: "Ольга Иванова",

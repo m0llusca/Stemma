@@ -87,6 +87,7 @@ export async function getReviewQueuePageData(rawParams: ReviewQueueSearchParams)
     filterOptions,
     qaAssignees,
     savedViews,
-    canWriteReviews: hasPermission(user.role, "reviews:write")
+    canWriteReviews: hasPermission(user.role, "reviews:write"),
+    viewerRole: user.role
   };
 }

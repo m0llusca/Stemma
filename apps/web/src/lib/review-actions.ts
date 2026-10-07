@@ -13,6 +13,24 @@ import { auditLog } from "@/lib/audit";
 import { sanitizeReturnTo } from "@/lib/auth/role-home";
 import { canFinalizeReview, canSaveReviewDraft, canSelfReview, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
+
+const DUPLICATE_CALIBRATION_REVIEW_MESSAGE =
+  "Оценка этой сессии уже есть. Обновите страницу — вторая вкладка сохранила её раньше.";
+
+function isUniqueConstraintError(error: unknown) {
+  return error !== null && typeof error === "object" && "code" in error && (error as { code?: unknown }).code === "P2002";
+}
+
+async function createReviewRow<T>(create: () => Promise<T>) {
+  try {
+    return await create();
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      throw new Error(DUPLICATE_CALIBRATION_REVIEW_MESSAGE);
+    }
+    throw error;
+  }
+}
 import { loadCalibrationReviewSession } from "@/lib/calibration/review-session";
 import { enqueueBackendJob } from "@/lib/jobs/enqueue";
 import type { MessagingDeliveryJobPayload } from "@/lib/messaging/job-contract";
@@ -439,7 +457,7 @@ export async function saveReviewDraft(formData: FormData) {
       });
       reviewId = review.id;
     } else {
-      const review = await tx.review.create({
+      const review = await createReviewRow(() => tx.review.create({
         data: {
           workspaceId: user.workspaceId,
           conversationId,
@@ -458,7 +476,7 @@ export async function saveReviewDraft(formData: FormData) {
           findings: draftFinding ? { create: draftFinding } : undefined
         },
         select: { id: true }
-      });
+      }));
       reviewId = review.id;
     }
 
@@ -641,14 +659,14 @@ async function finalizeReviewCore(formData: FormData) {
           where: { id: existingReview.id },
           data: reviewData
         })
-      : await tx.review.create({
+      : await createReviewRow(() => tx.review.create({
           data: {
             workspaceId: user.workspaceId,
             conversationId,
             reviewerId: user.id,
             ...reviewData
           }
-        });
+        }));
     finalizedReviewId = review.id;
 
     if (reviewSource === "HUMAN") {

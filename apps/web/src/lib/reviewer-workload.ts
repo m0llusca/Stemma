@@ -6,6 +6,8 @@
 
 import type { Prisma } from "@prisma/client";
 import {
+  accumulateOpenAssignmentLoad,
+  loadOpenAssignmentGroups,
   OPEN_LOAD_QA_STATUSES,
   REVIEWER_ROLES,
   type ReviewerCandidate
@@ -100,33 +102,25 @@ export async function loadReviewerWorkload(
     return [];
   }
 
-  const groups = await client.conversation.groupBy({
-    by: ["qaAssigneeName", "qaStatus"],
-    where: {
-      workspaceId,
-      qaAssigneeName: { in: users.map((user) => user.name) },
-      qaStatus: { in: [...OPEN_LOAD_QA_STATUSES] }
-    },
-    _count: { _all: true }
-  });
+  const candidates = users.map((user) => ({ id: user.id, name: user.name }));
+  const groups = await loadOpenAssignmentGroups(workspaceId, candidates, client);
+  const loads = accumulateOpenAssignmentLoad(candidates, groups);
 
-  const openByName: ReviewerWorkloadOpenByName = {};
-  for (const group of groups) {
-    const name = group.qaAssigneeName;
-    if (!name) {
-      continue;
-    }
-    const bucket = openByName[name] ?? { queued: 0, inProgress: 0 };
-    if (group.qaStatus === "QUEUED") {
-      bucket.queued += group._count._all;
-    } else if (group.qaStatus === "IN_PROGRESS") {
-      bucket.inProgress += group._count._all;
-    }
-    openByName[name] = bucket;
-  }
-
-  return buildReviewerWorkloadRows(
-    users.map((user) => ({ id: user.id, name: user.name })),
-    openByName
-  );
+  return candidates
+    .map((reviewer) => {
+      const load = loads.get(reviewer.id) ?? { queued: 0, inProgress: 0, open: 0 };
+      return {
+        id: reviewer.id,
+        name: reviewer.name,
+        queuedCount: load.queued,
+        inProgressCount: load.inProgress,
+        openCount: load.open
+      };
+    })
+    .sort((left, right) => {
+      if (right.openCount !== left.openCount) {
+        return right.openCount - left.openCount;
+      }
+      return left.name.localeCompare(right.name, "ru");
+    });
 }

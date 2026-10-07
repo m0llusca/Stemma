@@ -20,9 +20,9 @@ const HARD_DELTA_BYTES = {
   dashboard: 10 * 1024,
   coaching: 10 * 1024
 };
-// Static charts share the app shell's existing chunks. Cap additional chart
-// payload; record the full transitive footprint separately so it stays visible.
-const RICH_CHART_ADDITIONAL_HARD_BYTES = 70 * 1024;
+// Absolute cap on the full rich-chart gzip, including shared shell chunks
+// that the closure reaches. Additional bytes stay in the report only.
+const RICH_CHART_GZIP_HARD_BYTES = 70 * 1024;
 const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const RICH_RENDERER_SPECIFIER =
   "@/components/charts/recharts-visuals.client";
@@ -558,9 +558,9 @@ function compare(current, baseline) {
   if (sharedDelta > HARD_DELTA_BYTES.shared) {
     failures.push(`shared grew by ${sharedDelta} bytes (hard limit: 0 KiB)`);
   }
-  if (current.richChartAdditionalGzipBytes > RICH_CHART_ADDITIONAL_HARD_BYTES) {
+  if (current.richChartGzipBytes > RICH_CHART_GZIP_HARD_BYTES) {
     failures.push(
-      `additional rich-chart is ${current.richChartAdditionalGzipBytes} bytes (hard limit: 70 KiB)`
+      `rich-chart is ${current.richChartGzipBytes} bytes (hard limit: 70 KiB)`
     );
   }
 

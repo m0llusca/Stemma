@@ -47,10 +47,90 @@ export function selectLeastLoadedReviewer(
   return chosen;
 }
 
+export type OpenAssignmentGroup = {
+  qaAssigneeId?: string | null;
+  qaAssigneeName?: string | null;
+  qaStatus?: string | null;
+  _count: { _all: number };
+};
+
+export type OpenAssignmentLoad = {
+  queued: number;
+  inProgress: number;
+  open: number;
+};
+
+/**
+ * Open load is id ∪ name-only.
+ * A row with `qaAssigneeId` counts only for that user (the id is authoritative).
+ * A row with a null id counts for every active reviewer whose name matches.
+ * Status-less aggregates (assignment picker) add to `open` only.
+ */
+export function accumulateOpenAssignmentLoad(
+  users: ReviewerCandidate[],
+  groups: OpenAssignmentGroup[]
+): Map<string, OpenAssignmentLoad> {
+  const byId = new Map<string, OpenAssignmentLoad>();
+  const usersByName = new Map<string, ReviewerCandidate[]>();
+
+  for (const user of users) {
+    byId.set(user.id, { queued: 0, inProgress: 0, open: 0 });
+    const named = usersByName.get(user.name) ?? [];
+    named.push(user);
+    usersByName.set(user.name, named);
+  }
+
+  for (const group of groups) {
+    const count = group._count._all;
+    const targets = group.qaAssigneeId
+      ? users.filter((user) => user.id === group.qaAssigneeId)
+      : group.qaAssigneeName
+        ? (usersByName.get(group.qaAssigneeName) ?? [])
+        : [];
+
+    for (const user of targets) {
+      const bucket = byId.get(user.id);
+      if (!bucket) {
+        continue;
+      }
+      if (group.qaStatus === "QUEUED") {
+        bucket.queued += count;
+        bucket.open += count;
+      } else if (group.qaStatus === "IN_PROGRESS") {
+        bucket.inProgress += count;
+        bucket.open += count;
+      } else {
+        bucket.open += count;
+      }
+    }
+  }
+
+  return byId;
+}
+
 type ReviewAssignmentClient = {
   user: Pick<Prisma.TransactionClient["user"], "findMany">;
   conversation: Pick<Prisma.TransactionClient["conversation"], "groupBy">;
 };
+
+export async function loadOpenAssignmentGroups(
+  workspaceId: string,
+  users: ReviewerCandidate[],
+  client: Pick<ReviewAssignmentClient, "conversation">
+) {
+  return client.conversation.groupBy({
+    by: ["qaAssigneeId", "qaAssigneeName", "qaStatus"],
+    where: {
+      workspaceId,
+      qaStatus: { in: [...OPEN_LOAD_QA_STATUSES] },
+      OR: [
+        { qaAssigneeId: { in: users.map((user) => user.id) } },
+        { qaAssigneeId: null, qaAssigneeName: { in: users.map((user) => user.name) } }
+      ]
+    },
+    _count: { _all: true }
+  });
+}
 
 /**
  * Selects the least-loaded eligible reviewer for a workspace.
@@ -83,15 +163,10 @@ export async function assignReviewerForConversation(
     return null;
   }
 
-  const loads = await client.conversation.groupBy({
-    by: ["qaAssigneeId"],
-    where: { workspaceId, qaAssigneeId: { in: users.map((user) => user.id) }, qaStatus: { in: [...OPEN_LOAD_QA_STATUSES] } },
-    _count: { _all: true }
-  });
-  const loadById = Object.fromEntries(loads.map((row) => [row.qaAssigneeId!, row._count._all]));
+  const candidates = users.map((user) => ({ id: user.id, name: user.name }));
+  const groups = await loadOpenAssignmentGroups(workspaceId, candidates, client);
+  const loads = accumulateOpenAssignmentLoad(candidates, groups);
+  const loadById = Object.fromEntries(candidates.map((user) => [user.id, loads.get(user.id)?.open ?? 0]));
 
-  return selectLeastLoadedReviewer(
-    users.map((user) => ({ id: user.id, name: user.name })),
-    loadById
-  );
+  return selectLeastLoadedReviewer(candidates, loadById);
 }

@@ -30,7 +30,10 @@ describe("health API", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.unstubAllEnvs();
-    mocks.prisma.$queryRaw.mockResolvedValue([{ "?column?": 1 }]);
+    mocks.prisma.$queryRaw
+      .mockResolvedValueOnce([{ "?column?": 1 }])
+      .mockResolvedValueOnce([{ column_name: "calibrationSessionId" }])
+      .mockResolvedValueOnce([{ definition: "CHECK (samplingType IN ('RANDOM', 'OUT_OF_SAMPLE'))" }]);
     mocks.getRuntimeConfigDiagnostics.mockReturnValue({
       status: "ok",
       environment: "test",
@@ -104,8 +107,25 @@ describe("health API", () => {
     });
   });
 
+  it("fails closed in production when the calibration schema contract is missing", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    mocks.prisma.$queryRaw.mockReset();
+    mocks.prisma.$queryRaw
+      .mockResolvedValueOnce([{ "?column?": 1 }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    const { GET } = await import("@/app/api/v1/health/route");
+
+    const response = await GET(request());
+    const body = await response.json();
+
+    expect(response.status).toBe(503);
+    expect(body).toEqual({ status: "degraded" });
+  });
+
   it("returns minimal degraded payload in production when the database check fails", async () => {
     vi.stubEnv("NODE_ENV", "production");
+    mocks.prisma.$queryRaw.mockReset();
     mocks.prisma.$queryRaw.mockRejectedValue(new Error("db down"));
     const { GET } = await import("@/app/api/v1/health/route");
 

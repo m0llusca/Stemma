@@ -1,5 +1,6 @@
 import { Inbox } from "lucide-react";
 import Link from "next/link";
+import { takeNextReview } from "@/lib/queue-view-actions";
 import { ReviewStatusChip } from "@/components/review/review-status-chip";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -35,6 +36,7 @@ import {
   QUEUE_EMPTY_RESET_FILTERS_LABEL,
   queueTableEmptyCopy
 } from "@/lib/review/queue-empty-copy";
+import { TAKE_NEXT_LABEL } from "@/lib/review/take-next-copy";
 import { filtersFromReviewsHref } from "@/lib/review/queue-href-filters";
 import { bulkUpdateReviewQueue } from "@/lib/review-workflow-actions";
 import { CONFIRM_REOPEN_WORKFLOW_ACTION } from "@/lib/review-workflow-policy";
@@ -160,7 +162,7 @@ function QueueTableRows({
                   {conversation.subject}
                 </Link>
                 <span
-                  className="truncate text-xs text-muted-foreground"
+                  className="line-clamp-2 whitespace-normal text-xs text-muted-foreground"
                   title={[
                     conversation.priorityReason,
                     conversation.customerName,
@@ -279,10 +281,22 @@ export function QueueTable({
             title={emptyCopy.title}
             description={emptyCopy.description}
             action={
-              hasActiveFilters ? (
-                <Button render={<Link href={resetHref} />} nativeButton={false}>
-                  {QUEUE_EMPTY_RESET_FILTERS_LABEL}
-                </Button>
+              hasActiveFilters || canWriteReviews ? (
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  {hasActiveFilters ? (
+                    <Button render={<Link href={resetHref} />} nativeButton={false}>
+                      {QUEUE_EMPTY_RESET_FILTERS_LABEL}
+                    </Button>
+                  ) : null}
+                  {canWriteReviews ? (
+                    <form action={takeNextReview}>
+                      <input type="hidden" name="queueHref" value={returnTo} />
+                      <Button type="submit" variant={hasActiveFilters ? "outline" : "default"}>
+                        {TAKE_NEXT_LABEL}
+                      </Button>
+                    </form>
+                  ) : null}
+                </div>
               ) : undefined
             }
           />

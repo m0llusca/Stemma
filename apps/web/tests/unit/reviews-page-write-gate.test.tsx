@@ -5,7 +5,15 @@ import type { ReviewQueuePageData } from "@/lib/contracts/review-queue";
 
 const mocks = vi.hoisted(() => ({
   getReviewQueuePageData: vi.fn(),
-  takeNextReview: vi.fn()
+  takeNextReview: vi.fn(),
+  redirect: vi.fn()
+}));
+
+vi.mock("next/navigation", () => ({
+  redirect: (url: string) => {
+    mocks.redirect(url);
+    throw new Error(`REDIRECT:${url}`);
+  }
 }));
 
 vi.mock("@/lib/review-queue-page-data", () => ({
@@ -88,6 +96,7 @@ function pageData(overrides: Partial<ReviewQueuePageData> = {}): ReviewQueuePage
     qaAssignees: [{ id: "qa-1", name: "Мария" }],
     savedViews: [],
     canWriteReviews: true,
+    viewerRole: "QA_ANALYST",
     ...overrides
   };
 }
@@ -120,6 +129,14 @@ describe("reviews page write gate", () => {
     expect(screen.getByText("Массовые действия")).toBeInTheDocument();
     expect(screen.getByTestId("queue-day1-tour")).toBeInTheDocument();
     expect(screen.getByText(/массовые действия/)).toBeInTheDocument();
+  });
+
+  it("sends a support agent away from the ops queue", async () => {
+    mocks.getReviewQueuePageData.mockResolvedValue(pageData({ canWriteReviews: false, viewerRole: "SUPPORT_AGENT" }));
+    const { ReviewsPageContent } = await import("@/app/reviews/page");
+
+    await expect(ReviewsPageContent({ searchParams: Promise.resolve({}) })).rejects.toThrow("REDIRECT:/self-review");
+    expect(mocks.redirect).toHaveBeenCalledWith("/self-review");
   });
 
   it("hides write CTAs for EXEC / SUPPORT_AGENT so take-next cannot hit generic error.tsx", async () => {

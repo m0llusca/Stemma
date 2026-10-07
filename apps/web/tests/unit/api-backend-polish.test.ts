@@ -86,6 +86,23 @@ describe("idempotency key reservation expiry", () => {
     expect(results.find((result) => result.created)?.record.expiresAt.getTime()).toBeGreaterThan(Date.now() + 60_000);
   });
 
+  it("does not report a lost FAILED claim as already in progress", async () => {
+    const { reserveIdempotencyKey } = await import("@/lib/api/idempotency");
+    const record = {
+      id: "reservation-1", status: "FAILED", requestHash: "hash-1", method: "POST",
+      path: input.path, expiresAt: new Date(Date.now() + 60_000), responseStatus: 500, responseBodyJson: "{}"
+    };
+    mocks.prisma.idempotencyKey.findUnique.mockResolvedValue(record);
+    mocks.prisma.idempotencyKey.updateMany.mockResolvedValue({ count: 0 });
+
+    const result = await reserveIdempotencyKey(input);
+
+    expect(result.isInProgress).toBe(false);
+    expect(result.created).toBe(false);
+    expect(result).toMatchObject({ needsRetry: true });
+    expect(mocks.prisma.idempotencyKey.updateMany).toHaveBeenCalledTimes(3);
+  });
+
   it("rejects a changed payload without reclaiming the failed reservation", async () => {
     const { reserveIdempotencyKey } = await import("@/lib/api/idempotency");
     mocks.prisma.idempotencyKey.findUnique.mockResolvedValue({

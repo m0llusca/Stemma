@@ -10,7 +10,7 @@ export const QUEUE_TABLE_EMPTY_GLOBAL_DESCRIPTION =
 
 export const QUEUE_TABLE_EMPTY_FILTERED_TITLE = "В текущем представлении нет кейсов";
 export const QUEUE_TABLE_EMPTY_FILTERED_DESCRIPTION =
-  "По выбранным фильтрам свободных обращений нет. Сбросьте фильтры, чтобы увидеть остальные кейсы рабочей области.";
+  "По выбранным фильтрам свободных обращений нет. «Взять следующий» ищет только внутри этого среза. Сбросьте фильтры, чтобы увидеть остальные кейсы рабочей области.";
 
 export function queueEmptyBannerMessage(hasActiveFilters: boolean): string {
   return hasActiveFilters ? QUEUE_EMPTY_BANNER_FILTERED : QUEUE_EMPTY_BANNER_GLOBAL;

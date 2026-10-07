@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { assignReviewerForConversation, selectLeastLoadedReviewer } from "@/lib/review-assignment";
+import { accumulateOpenAssignmentLoad, assignReviewerForConversation, selectLeastLoadedReviewer } from "@/lib/review-assignment";
 
 describe("selectLeastLoadedReviewer", () => {
   it("returns null when there are no candidates", () => {
@@ -42,6 +42,33 @@ describe("selectLeastLoadedReviewer", () => {
     const candidates = [{ id: "u-2", name: "Анна" }, { id: "u-1", name: "Анна" }];
     expect(selectLeastLoadedReviewer(candidates, { "u-1": 5, "u-2": 1 })?.id).toBe("u-2");
     expect(selectLeastLoadedReviewer(candidates, {} )?.id).toBe("u-1");
+  });
+});
+
+describe("accumulateOpenAssignmentLoad", () => {
+  const users = [
+    { id: "u-1", name: "Анна" },
+    { id: "u-2", name: "Анна" },
+    { id: "u-3", name: "Борис" }
+  ];
+
+  it("counts a name-only row for every reviewer with that name", () => {
+    const loads = accumulateOpenAssignmentLoad(users, [
+      { qaAssigneeId: null, qaAssigneeName: "Анна", qaStatus: "QUEUED", _count: { _all: 2 } }
+    ]);
+
+    expect(loads.get("u-1")).toMatchObject({ queued: 2, open: 2 });
+    expect(loads.get("u-2")).toMatchObject({ queued: 2, open: 2 });
+    expect(loads.get("u-3")?.open).toBe(0);
+  });
+
+  it("does not add an id-owned row to the name bucket", () => {
+    const loads = accumulateOpenAssignmentLoad(users, [
+      { qaAssigneeId: "u-1", qaAssigneeName: "Анна", qaStatus: "IN_PROGRESS", _count: { _all: 3 } }
+    ]);
+
+    expect(loads.get("u-1")).toMatchObject({ inProgress: 3, open: 3 });
+    expect(loads.get("u-2")?.open).toBe(0);
   });
 });
 

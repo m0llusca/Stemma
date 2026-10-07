@@ -249,6 +249,14 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    if (reserved && "needsRetry" in reserved && reserved.needsRetry) {
+      await recordApiTokenError(auth.apiTokenId, "Idempotency key claim lost.");
+      return apiError("conflict", "Не удалось занять Idempotency-Key. Повторите запрос.", 409, {
+        requestId,
+        includeDetails: false
+      });
+    }
+
     if (reserved?.isReplay) {
       await recordApiTokenSuccess(auth.apiTokenId);
       return apiData(JSON.parse(reserved.record.responseBodyJson || "{}"), {
