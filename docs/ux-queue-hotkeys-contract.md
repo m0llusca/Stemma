@@ -37,7 +37,11 @@ Three write CTAs share **one path**: `takeNextReview` / `selectNextReviewConvers
 
 **Not in the next-case preview:** identity only. No second **«Взять следующий»**.
 
-**Not in the top-nav pulse chrome:** the blue pulse **«Взять следующий»** was removed from the app shell header (desktop button + mobile pulse menu). Take next stays on the queue page header, ⌘K, and workbench finalize_next.
+**Not in the top-nav pulse chrome:** the blue pulse **«Взять следующий»** was removed from the app shell header (desktop button + mobile pulse menu). Take next stays on the queue page header, the sticky filter bar, the empty-slice action, ⌘K, and workbench finalize_next.
+
+**Sticky filter panel:** the command bar («Фильтры и виды очереди») repeats **«Взять следующий»** with the same hidden `queueHref` and the same `takeNextReview`. It stays while the bar is stuck — overdue, assignee, bare `/reviews`, and other filtered views (`qaStatus=QUEUED`). Stuck state does not change eligibility.
+
+**Empty slice:** the empty table keeps that button and the current `queueHref`. Hint: «Взять следующий» ищет только внутри этого среза. «Сбросить фильтры» leaves the slice. Not a second selector.
 
 **Killed:** ⌘K must not navigate to hardcoded `/reviews?status=unreviewed`. That URL is an impostor filter, not take-next.
 
@@ -48,6 +52,8 @@ All take-next surfaces require `reviews:write`. UI flag: `canTakeNextCase` (shel
 | Surface | Gate |
 | --- | --- |
 | Queue **«Взять следующий»** | `canWriteReviews` — omit the page action |
+| Sticky filter bar **«Взять следующий»** | `canWriteReviews` — same form and `queueHref` as the page header |
+| Empty-slice **«Взять следующий»** | `canWriteReviews` — same `queueHref`; hint that the search stays inside the filter |
 | ⌘K **«Взять следующий»** | drop `actionId: take-next` when `!canTakeNextCase` |
 | Next-case preview | no Take-next — header owns the only CTA |
 | Empty-queue **«Взять без фильтра»** | `canWriteReviews` |
@@ -80,6 +86,8 @@ Do not silently drop filters from take-next, and do not invent a second eligibil
 | Queue table rows | Yes | URL / saved view query |
 | «Следующий кейс» preview | Yes | First row of the filtered list |
 | Queue **«Взять следующий»** | **Yes** | `queueHref` → `filtersFromReviewsHref` → same selector |
+| Sticky filter bar **«Взять следующий»** | **Yes** | same `queueHref` → same selector |
+| Empty-slice **«Взять следующий»** | **Yes** | current filters; the hint names the slice |
 | Workbench **finalize_next** | **Yes** | `returnTo` → same parser and selector |
 | ⌘K **«Взять следующий»** | **Yes** | `takeNextFormDataFromLocation` → same `queueHref` / `takeNextReview` |
 

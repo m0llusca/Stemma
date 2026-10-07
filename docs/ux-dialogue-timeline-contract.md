@@ -24,7 +24,7 @@ Locked. Tip **`dd49657`** (squash [#155](https://github.com/m0llusca/Stemma/pull
 
 Сохранить: coaching pins, выбор evidence, Enter/клик на модулях оценки.
 
-Финализированная HUMAN-проверка: `allowEvidenceAttach={canShowReviewPanel}`. Если панели оценки нет — «В доказательство» нет. Кнопка без селектов — тупик.
+Финализированная HUMAN-проверка: `allowEvidenceAttach={canShowReviewPanel}`. Если панели оценки нет — «В доказательство» нет. Кнопка без селектов — тупик. Пустой балл: кнопка открывает критерий и панель оценки и показывает «Реплика привязана к критерию. Поставьте оценку — без неё проверку не завершить.», не «Заполните все критерии» ([#184](https://github.com/m0llusca/Stemma/pull/184) / [#183](https://github.com/m0llusca/Stemma/issues/183)).
 
 ## Внутренние заметки (`isPrivate`) и коучинг
 

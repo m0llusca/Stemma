@@ -1,6 +1,6 @@
 # UX-контракт: плотность экранов
 
-Locked density chrome: **`dca6c00`** ([#167](https://github.com/m0llusca/Stemma/pull/167) / [#166](https://github.com/m0llusca/Stemma/issues/166)). Soft package tip **`e325df6`** ([#170](https://github.com/m0llusca/Stemma/pull/170) / [#169](https://github.com/m0llusca/Stemma/issues/169)). **#172/#173** tip **`67635ab`**. LIVE: https://nvqawe-ip-184-193-214-193.tunnelmole.net (tip **`3aedc85`**, docs [#179](https://github.com/m0llusca/Stemma/pull/179); soft [#178](https://github.com/m0llusca/Stemma/pull/178) / [#175](https://github.com/m0llusca/Stemma/issues/175) closed). Verify-DB smoke tip **`2556e9e`** ([#176](https://github.com/m0llusca/Stemma/pull/176)).
+Locked density chrome: **`dca6c00`** ([#167](https://github.com/m0llusca/Stemma/pull/167) / [#166](https://github.com/m0llusca/Stemma/issues/166)). Soft package tip **`e325df6`** ([#170](https://github.com/m0llusca/Stemma/pull/170) / [#169](https://github.com/m0llusca/Stemma/issues/169)). **#172/#173** tip **`67635ab`**. Master **`4a8b3ea`** ([#184](https://github.com/m0llusca/Stemma/pull/184) / [#183](https://github.com/m0llusca/Stemma/issues/183)). LIVE: https://cltdjp-ip-23-21-140-149.tunnelmole.net (stand tip **`855ed197`**, product = master; re-LIVE не нужен). Verify-DB smoke tip **`2556e9e`** ([#176](https://github.com/m0llusca/Stemma/pull/176)).
 
 Appearance density доходит до page chrome. Пустые слоты не растягивают экран. Менять ритм PageShell / Card / Empty / графиков — только явным продуктовым решением. Тихий дрейф запрещён.
 
@@ -64,7 +64,7 @@ Appearance density доходит до page chrome. Пустые слоты не
 
 ## Очередь `/reviews`
 
-- Next-case preview: без `h-full`. Preview над таблицей на всю ширину — без правой колонки и дыры после скролла. **«Взять следующий»** один раз — в шапке страницы, не в preview.
+- Next-case preview: без `h-full`. Preview над таблицей на всю ширину — без правой колонки и дыры после скролла. **«Взять следующий»** в шапке и в липкой панели фильтров — один `queueHref`, не второй путь; в preview нет. [ux-queue-hotkeys-contract.md](ux-queue-hotkeys-contract.md).
 - SLA/OTRS helper фильтров: `sr-only` на повторных визитах. Первый визит — компактный info-баннер в один ряд: иконка + короткий текст + dismiss. Не `AlertTitle` / не карточка на полэкрана. Условия показа не менять.
 - Строки таблицы: две линии, `h-auto py-1.5`.
 - Workspace: `gap-(--section-gap)`, main — `flex-col`.
@@ -123,6 +123,7 @@ Jamal / Дешон вне `/reports` (пакет `#173`, tip **`67635ab`**):
 | --- | --- |
 | Критерии / таймлайн | Вертикальный bloat не трогали: `--interactive-min-size` + #164 |
 | Пустые графики | Не изобретать точки |
+| `/reports` фильтры | Поповер наезжает на подписи и столбцы драйверов (desktop). Popover@1280 / Sheet@390 — контракт [#184](https://github.com/m0llusca/Stemma/pull/184). Soft [#183](https://github.com/m0llusca/Stemma/issues/183)/[#184](https://github.com/m0llusca/Stemma/pull/184), нового тикета нет |
 
 ## Ownership
 
