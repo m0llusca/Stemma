@@ -47,6 +47,8 @@ type AuthSessionRow = {
   workspaceId: string;
   userId: string;
   sessionTokenHash: string;
+  providerId: string | null;
+  provider: { type: "DEMO" | "OIDC"; workspaceId: string; status: string } | null;
   status: "ACTIVE" | "REVOKED" | "EXPIRED";
   expiresAt: Date;
   revokedAt: Date | null;
@@ -96,6 +98,8 @@ function authSessionRow(overrides: Partial<AuthSessionRow> = {}): AuthSessionRow
     userId: user.id,
     sessionTokenHash: hashSessionToken("raw-session-token"),
     status: "ACTIVE",
+    providerId: null,
+    provider: null,
     expiresAt: futureExpiry,
     revokedAt: null,
     lastSeenAt: new Date("2026-05-28T08:00:00.000Z"),
@@ -118,6 +122,7 @@ describe("Auth.js AuthSession adapter", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllEnvs();
   });
 
   it("wires the custom adapter into Auth.js config", async () => {
@@ -574,6 +579,53 @@ describe("Auth.js AuthSession adapter", () => {
     } else {
       expect(mocks.prisma.authSession.update).not.toHaveBeenCalled();
     }
+  });
+
+  it.each(["getSessionAndUser", "updateSession"] as const)("%s invalidates demo sessions immediately after demo auth is disabled", async (method) => {
+    const adapter = await createAdapter();
+    mocks.prisma.authSession.findUnique.mockResolvedValue(authSessionRow({
+      providerId: "demo-provider",
+      provider: { type: "DEMO", workspaceId: "workspace-1", status: "active" }
+    }));
+    vi.stubEnv("QC_DEMO_AUTH", "enabled");
+    await expect(adapter.getSessionAndUser?.("raw-session-token")).resolves.not.toBeNull();
+    vi.stubEnv("QC_DEMO_AUTH", "");
+    mocks.prisma.authSession.update.mockClear();
+    const result = method === "getSessionAndUser"
+      ? adapter.getSessionAndUser?.("raw-session-token")
+      : adapter.updateSession?.({ sessionToken: "raw-session-token", expires: futureExpiry });
+    await expect(result).resolves.toBeNull();
+    expect(mocks.prisma.authSession.update).toHaveBeenCalledWith({
+      where: { id: "session-1" }, data: { status: "REVOKED", revokedAt: fixedNow }
+    });
+  });
+
+  it.each(["getSessionAndUser", "updateSession"] as const)("%s rejects workspace mismatches and unavailable providers", async (method) => {
+    const adapter = await createAdapter();
+    for (const invalidSession of [
+      authSessionRow({ workspaceId: "other-workspace" }),
+      authSessionRow({ providerId: "oidc", provider: { type: "OIDC", workspaceId: "other-workspace", status: "active" } }),
+      authSessionRow({ providerId: "oidc", provider: null }),
+      authSessionRow({ providerId: "oidc", provider: { type: "OIDC", workspaceId: "workspace-1", status: "disabled" } })
+    ]) {
+      mocks.prisma.authSession.findUnique.mockResolvedValue(invalidSession);
+      const result = method === "getSessionAndUser"
+        ? adapter.getSessionAndUser?.("raw-session-token")
+        : adapter.updateSession?.({ sessionToken: "raw-session-token", expires: futureExpiry });
+      await expect(result).resolves.toBeNull();
+      expect(mocks.prisma.authSession.update).toHaveBeenCalledWith({
+        where: { id: "session-1" }, data: { status: "REVOKED", revokedAt: fixedNow }
+      });
+    }
+  });
+
+  it("continues to authenticate active SSO sessions with demo auth disabled", async () => {
+    vi.stubEnv("QC_DEMO_AUTH", "");
+    const adapter = await createAdapter();
+    mocks.prisma.authSession.findUnique.mockResolvedValue(authSessionRow({
+      providerId: "oidc", provider: { type: "OIDC", workspaceId: "workspace-1", status: "active" }
+    }));
+    await expect(adapter.getSessionAndUser?.("raw-session-token")).resolves.not.toBeNull();
   });
 
   it("deleteSession marks active sessions revoked with revokedAt", async () => {

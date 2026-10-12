@@ -2,6 +2,7 @@ import type { UserLifecycleStatus } from "@prisma/client";
 import type { Adapter, AdapterSession, AdapterUser } from "next-auth/adapters";
 import "@/auth/types";
 import { hashSessionToken } from "@/lib/auth/session";
+import { sessionInvalidation, sessionProviderSelect } from "@/lib/auth/session-policy";
 import { prisma } from "@/lib/db";
 
 type QcAdapterUser = {
@@ -302,6 +303,7 @@ export function createQcAuthAdapter(): Adapter {
       const session = await prisma.authSession.findUnique({
         where: { sessionTokenHash: hashSessionToken(sessionToken) },
         include: {
+          provider: { select: sessionProviderSelect },
           user: {
             select: adapterUserSelect
           }
@@ -312,21 +314,11 @@ export function createQcAuthAdapter(): Adapter {
         return null;
       }
 
-      if (session.expiresAt <= now) {
+      const invalidation = sessionInvalidation(session, now);
+      if (invalidation) {
         await prisma.authSession.update({
           where: { id: session.id },
-          data: { status: "EXPIRED" }
-        });
-        return null;
-      }
-
-      if (session.user.lifecycleStatus !== "ACTIVE") {
-        await prisma.authSession.update({
-          where: { id: session.id },
-          data: {
-            status: "REVOKED",
-            revokedAt: now
-          }
+          data: invalidation
         });
         return null;
       }
@@ -352,18 +344,20 @@ export function createQcAuthAdapter(): Adapter {
       const currentSession = await prisma.authSession.findUnique({
         where: { sessionTokenHash },
         include: {
+          provider: { select: sessionProviderSelect },
           user: {
             select: adapterUserSelect
           }
         }
       });
 
-      if (
-        !currentSession ||
-        currentSession.status !== "ACTIVE" ||
-        currentSession.expiresAt <= now ||
-        currentSession.user.lifecycleStatus !== "ACTIVE"
-      ) {
+      if (!currentSession || currentSession.status !== "ACTIVE") {
+        return null;
+      }
+
+      const invalidation = sessionInvalidation(currentSession, now);
+      if (invalidation) {
+        await prisma.authSession.update({ where: { id: currentSession.id }, data: invalidation });
         return null;
       }
 

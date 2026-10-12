@@ -1,16 +1,14 @@
 /**
- * Клиентская валидация поля filtersJson в форме расписаний отчетов
- * (#20). Сервер (normalizedFiltersJson в report-schedule-actions.ts) отклоняет
- * невалидный JSON и не-объекты — fail-closed, без тихой подмены на "{}".
+ * Поддерживаемая область фильтров для расписаний и задач REPORT_EXPORT.
+ * team/source/risk/block используют канонический контракт аналитики отчета;
+ * атрибуты обращения применяются дополнительно через AND в loadReportExportRows.
  *
- * Список ключей отражает атрибуты обращения, которые реально попадают в строки
- * выгрузки (loadReportExportRows в report-export.ts: supportLine, csatBucket,
- * externalSource, assigneeName) — тот же контракт использует пример
- * {"supportLine":"L1"} в тестах report-schedule.test.ts. Неизвестные ключи
- * сохраняются как есть (payload REPORT_EXPORT принимает произвольный объект),
- * поэтому они дают мягкое предупреждение, а не блокировку.
+ * Клиентская проверка filtersJson предупреждает о неизвестных ключах без
+ * блокировки. Сервер отклоняет невалидный JSON и не-объекты; загрузчик экспорта
+ * проверяет известные значения и доступность фильтров аналитики.
  */
-export const reportScheduleFilterKeys = ["supportLine", "csatBucket", "externalSource", "assigneeName"] as const;
+export const reportConversationFilterKeys = ["supportLine", "csatBucket", "externalSource", "assigneeName"] as const;
+export const reportScheduleFilterKeys = [...reportConversationFilterKeys, "team", "source", "risk", "block"] as const;
 
 export type ReportScheduleFiltersValidation = {
   status: "empty" | "valid" | "invalid";

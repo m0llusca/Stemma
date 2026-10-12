@@ -378,16 +378,8 @@ describe("user actions", () => {
         sameSite: "lax"
       })
     );
-    expect(mocks.cookieSet).toHaveBeenCalledWith(
-      "qc_current_user_id",
-      "demo-user",
-      expect.objectContaining({
-        httpOnly: true,
-        path: "/",
-        sameSite: "lax"
-      })
-    );
-  });
+    expect(mocks.cookieDelete).toHaveBeenCalledWith("qc_current_user_id");
+    expect(mocks.cookieSet).not.toHaveBeenCalledWith("qc_current_user_id", expect.anything(), expect.anything());  });
 
   it("switches demo users back to the dashboard when the shell form omits returnTo", async () => {
     mocks.prisma.user.findFirst.mockResolvedValue({

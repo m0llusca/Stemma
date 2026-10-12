@@ -63,7 +63,7 @@ async function getAuthJsSession() {
 /**
  * Per-request memo. Layout, AppNav, loading.tsx, and page gates all call this
  * on the same RSC render; without cache() each call re-imports Auth.js, re-reads
- * the session, and (legacy cookie path) may refresh `lastSeenAt` (throttled).
+ * the session, and may refresh `lastSeenAt` (throttled).
  */
 export const getCurrentUser = cache(async function getCurrentUser() {
   const authSession = await getAuthJsSession();
@@ -75,7 +75,7 @@ export const getCurrentUser = cache(async function getCurrentUser() {
       include: { workspace: true }
     });
 
-    if (!user || user.lifecycleStatus !== "ACTIVE") {
+    if (!user || user.lifecycleStatus !== "ACTIVE" || user.workspaceId !== authSession?.user?.workspaceId) {
       throw new AuthRequiredError();
     }
 
@@ -83,7 +83,8 @@ export const getCurrentUser = cache(async function getCurrentUser() {
   }
 
   const cookieStore = await cookies();
-  const session = await getValidAuthSession(cookieStore.get(sessionCookieName)?.value);
+  const sessionToken = cookieStore.get(sessionCookieName)?.value;
+  const session = await getValidAuthSession(sessionToken);
 
   if (session) {
     if (session.providerId && !isDemoAuthEnabled()) {
@@ -100,20 +101,14 @@ export const getCurrentUser = cache(async function getCurrentUser() {
     return session.user;
   }
 
-  if (!isDemoAuthEnabled()) {
+  if (
+    !isDemoAuthEnabled() ||
+    sessionToken ||
+    cookieStore.get("authjs.session-token")?.value ||
+    cookieStore.get("__Secure-authjs.session-token")?.value ||
+    cookieStore.get(currentUserCookieName)?.value
+  ) {
     throw new AuthRequiredError();
-  }
-
-  const requestedUserId = cookieStore.get(currentUserCookieName)?.value;
-  const user = requestedUserId
-    ? await prisma.user.findUnique({
-        where: { id: requestedUserId },
-        include: { workspace: true }
-      })
-    : null;
-
-  if (user) {
-    return user;
   }
 
   const requestHost = (await headers()).get("host");
@@ -122,7 +117,17 @@ export const getCurrentUser = cache(async function getCurrentUser() {
   }
 
   const fallbackUser = await prisma.user.findFirst({
-    where: { role: { in: ["QA_ANALYST", "ADMIN", "TEAM_LEAD"] } },
+    where: {
+      workspaceId: "demo-workspace",
+      lifecycleStatus: "ACTIVE",
+      role: { in: ["QA_ANALYST", "ADMIN", "TEAM_LEAD"] },
+      externalIdentities: {
+        some: {
+          disabledAt: null,
+          provider: { workspaceId: "demo-workspace", type: "DEMO", status: "active" }
+        }
+      }
+    },
     orderBy: {
       role: "asc"
     },

@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import type { AuthSession, IdentityProviderType, Prisma, UserLifecycleStatus } from "@prisma/client";
 import { auditLog } from "@/lib/audit";
 import { authCookieOptions, type AuthCookieOptions } from "@/lib/auth/cookies";
+import { sessionInvalidation, sessionProviderSelect } from "@/lib/auth/session-policy";
 import { prisma } from "@/lib/db";
 
 export const sessionCookieName = "qc_session";
@@ -127,6 +128,7 @@ export async function getValidAuthSession(token: string | undefined): Promise<
   const session = await prisma.authSession.findUnique({
     where: { sessionTokenHash: hashSessionToken(token) },
     include: {
+      provider: { select: sessionProviderSelect },
       user: {
         include: {
           workspace: true
@@ -135,39 +137,22 @@ export async function getValidAuthSession(token: string | undefined): Promise<
     }
   });
 
-  if (!session || session.status !== "ACTIVE" || session.expiresAt <= new Date() || session.user.lifecycleStatus !== "ACTIVE") {
-    if (session?.status === "ACTIVE") {
-      await prisma.authSession.update({
-        where: { id: session.id },
-        data:
-          session.expiresAt <= new Date()
-            ? { status: "EXPIRED" }
-            : {
-                status: "REVOKED",
-                revokedAt: new Date()
-              }
-      });
-    }
-
+  if (!session || session.status !== "ACTIVE") {
     return null;
   }
 
-  // Session row and user must stay in the same workspace. A mismatch is treated
-  // as a stolen/stale session boundary and revoked fail-closed.
-  if (session.workspaceId !== session.user.workspaceId) {
+  const now = new Date();
+  const invalidation = sessionInvalidation(session, now);
+  if (invalidation) {
     await prisma.authSession.update({
       where: { id: session.id },
-      data: {
-        status: "REVOKED",
-        revokedAt: new Date()
-      }
+      data: invalidation
     });
     return null;
   }
 
   // Soft-nav and layout remounts hit this path often; skip writes within 60s
   // so section switches do not serialize on a session UPDATE every request.
-  const now = new Date();
   if (now.getTime() - session.lastSeenAt.getTime() >= 60_000) {
     await prisma.authSession.update({
       where: { id: session.id },

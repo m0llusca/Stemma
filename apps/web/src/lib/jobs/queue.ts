@@ -625,9 +625,10 @@ async function runReportExportJob(client: JobClient, job: BackendJob, payload: B
 
   const periodStart = payload.periodStart ? new Date(String(payload.periodStart)) : new Date();
   const periodEnd = payload.periodEnd ? new Date(String(payload.periodEnd)) : new Date();
-  const filtersRaw = payload.filters && typeof payload.filters === "object" && !Array.isArray(payload.filters)
-    ? (payload.filters as Record<string, unknown>)
-    : {};
+  if (payload.filters !== undefined && (!payload.filters || typeof payload.filters !== "object" || Array.isArray(payload.filters))) {
+    throw new Error("Некорректные фильтры отчета.");
+  }
+  const filtersRaw = (payload.filters ?? {}) as Record<string, unknown>;
 
   const { loadReportExportRows, summarizeReportExportMetrics } = await import("@/lib/report-export");
   const { reportScheduleFilterKeys } = await import("@/lib/report-schedule-filters");
@@ -640,9 +641,11 @@ async function runReportExportJob(client: JobClient, job: BackendJob, payload: B
 
   for (const key of reportScheduleFilterKeys) {
     const value = filtersRaw[key];
-    if (typeof value === "string" && value.trim()) {
-      rawParams[key] = value.trim();
+    if (value === undefined) continue;
+    if (typeof value !== "string" || !value.trim()) {
+      throw new Error(`Некорректное значение фильтра отчета: ${key}.`);
     }
+    rawParams[key] = value.trim();
   }
 
   // Same filtered loader as on-demand CSV/XLSX/PDF export routes.

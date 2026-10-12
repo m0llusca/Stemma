@@ -131,6 +131,31 @@ describe("auth session lifecycle hardening", () => {
     });
   });
 
+  it.each([
+    { type: "DEMO", workspaceId: "workspace-1", status: "active" },
+    { type: "OIDC", workspaceId: "other-workspace", status: "active" },
+    { type: "OIDC", workspaceId: "workspace-1", status: "disabled" },
+    null
+  ])("revokes sessions rejected by the provider policy (%j)", async (provider) => {
+    const originalDemoAuth = process.env.QC_DEMO_AUTH;
+    delete process.env.QC_DEMO_AUTH;
+    try {
+      mocks.prisma.authSession.findUnique.mockResolvedValue({
+        id: "session-1", status: "ACTIVE", workspaceId: "workspace-1", providerId: "provider-1",
+        provider, expiresAt: new Date(Date.now() + 60_000),
+        user: { workspaceId: "workspace-1", lifecycleStatus: "ACTIVE" }
+      });
+      const { getValidAuthSession } = await import("@/lib/auth/session");
+      await expect(getValidAuthSession("session-token")).resolves.toBeNull();
+      expect(mocks.prisma.authSession.update).toHaveBeenCalledWith({
+        where: { id: "session-1" }, data: { status: "REVOKED", revokedAt: expect.any(Date) }
+      });
+    } finally {
+      if (originalDemoAuth === undefined) delete process.env.QC_DEMO_AUTH;
+      else process.env.QC_DEMO_AUTH = originalDemoAuth;
+    }
+  });
+
   it("revokes active sessions for lifecycle actions and writes redacted audit-safe metadata", async () => {
     mocks.prisma.authSession.updateMany.mockResolvedValue({ count: 2 });
     const { revokeActiveSessionsForUser } = await import("@/lib/auth/session");

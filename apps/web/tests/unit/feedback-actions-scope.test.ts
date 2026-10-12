@@ -56,6 +56,7 @@ vi.mock("@/lib/audit", () => ({
 
 vi.mock("@/lib/current-user", () => ({
   canAcknowledgeFeedback: mocks.canAcknowledgeFeedback,
+  canAccessTraining: (role: string) => ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT"].includes(role),
   canManageReviewWorkflow: mocks.canManageReviewWorkflow,
   canManageTraining: mocks.canManageTraining,
   canResolveAppeal: mocks.canResolveAppeal,
@@ -346,6 +347,21 @@ describe("feedback action scope enforcement", () => {
       where: { id: "assignment-1", workspaceId: "workspace-1", assigneeId: "agent-1" },
       data: { status: "done" }
     });
+  });
+
+  it.each(["VIEWER", "EXEC"])("rejects a %s training update before any database access", async (role) => {
+    const { updateTrainingAssignmentStatus } = await import("@/lib/feedback-actions");
+    mocks.getCurrentUser.mockResolvedValue(agentUser({ role }));
+    mocks.canManageTraining.mockReturnValue(false);
+    const formData = new FormData();
+    formData.set("id", "assignment-1");
+    formData.set("status", "done");
+
+    await expect(updateTrainingAssignmentStatus(formData)).rejects.toThrow("Нет прав");
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
+    expect(mocks.tx.trainingAssignment.updateMany).not.toHaveBeenCalled();
+    expect(mocks.auditLog).not.toHaveBeenCalled();
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
   });
 
   it("does not self-scope a manager's training status update", async () => {

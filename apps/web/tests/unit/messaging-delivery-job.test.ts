@@ -83,7 +83,7 @@ beforeEach(() => {
     return { id: `delivery-${counter}` };
   });
   mocks.findMessagingDeliveryForJobChannel.mockResolvedValue(null);
-  mocks.prisma.messagingDelivery.update.mockResolvedValue({});
+  mocks.prisma.messagingDelivery.update.mockReset().mockResolvedValue({});
   mocks.prisma.messagingChannel.update.mockResolvedValue({});
   mocks.prisma.backendJobEvent.create.mockResolvedValue({});
 });
@@ -129,10 +129,10 @@ describe("runMessagingDeliveryJob", () => {
     mocks.prisma.messagingChannel.findMany.mockResolvedValue([
       { id: "chan-1", kind: "slack", configJson: JSON.stringify({ webhookUrl: "https://x" }), secretRef: null }
     ]);
-    const send = fakeSend({ ok: false, error: "Канал вернул HTTP 500." });
+    const send = fakeSend({ ok: false, error: "Канал вернул HTTP 500.", statusCode: 500 });
     const { runMessagingDeliveryJob } = await import("@/lib/jobs/messaging-delivery-job");
 
-    const result = await runMessagingDeliveryJob(backendJob(), payload(), { sendToChannel: send });
+    await expect(runMessagingDeliveryJob(backendJob(), payload(), { sendToChannel: send })).rejects.toThrow("повторная попытка");
 
     expect(mocks.prisma.messagingDelivery.update).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -143,7 +143,66 @@ describe("runMessagingDeliveryJob", () => {
     expect(mocks.prisma.messagingChannel.update).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: "chan-1" }, data: { lastError: "Канал вернул HTTP 500." } })
     );
-    expect(result).toMatchObject({ sent: 0, failed: 1 });
+    expect(mocks.prisma.backendJobEvent.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ level: "warn", metadata: expect.stringContaining('"failed":1') })
+    }));
+  });
+
+  it("processes all channels before retry and never repeats a successful delivery", async () => {
+    const channels = [
+      { id: "chan-failed", kind: "slack", configJson: "{}", secretRef: null },
+      { id: "chan-ok", kind: "teams", configJson: "{}", secretRef: null }
+    ];
+    mocks.prisma.messagingChannel.findMany.mockResolvedValue(channels);
+    const deliveries = new Map<string, { id: string; status: string; channelId: string; payloadJson: string }>();
+    mocks.recordMessagingDelivery.mockImplementation(async (input) => {
+      const row = { id: input.channelId, status: "queued", channelId: input.channelId, payloadJson: JSON.stringify(input.payload) };
+      deliveries.set(input.channelId, row);
+      return row;
+    });
+    mocks.findMessagingDeliveryForJobChannel.mockImplementation(async ({ channelId }) => deliveries.get(channelId) ?? null);
+    mocks.prisma.messagingDelivery.update.mockImplementation(async ({ where, data }) => {
+      const row = deliveries.get(where.id)!;
+      Object.assign(row, data);
+      return row;
+    });
+    const send = vi.fn<SendToChannelFn>()
+      .mockResolvedValueOnce({ ok: false, statusCode: 500, error: "HTTP 500" })
+      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValueOnce({ ok: true });
+    const { runMessagingDeliveryJob } = await import("@/lib/jobs/messaging-delivery-job");
+
+    await expect(runMessagingDeliveryJob(backendJob(), payload(), { sendToChannel: send })).rejects.toThrow("повторная попытка");
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(deliveries.get("chan-ok")?.status).toBe("delivered");
+    await expect(runMessagingDeliveryJob(backendJob({ attempts: 2 }), payload(), { sendToChannel: send })).resolves.toMatchObject({ sent: 2, failed: 0 });
+    expect(send).toHaveBeenCalledTimes(3);
+    expect(send.mock.calls.map(([channel]) => channel.kind)).toEqual(["slack", "teams", "slack"]);
+    expect(mocks.recordMessagingDelivery).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    { ok: false, error: "Канал не ответил за отведенное время." },
+    { ok: false, statusCode: 401, error: "Неверные учетные данные." }
+  ])("allows retry after transport or configuration repair: %j", async (failure) => {
+    mocks.prisma.messagingChannel.findMany.mockResolvedValue([
+      { id: "chan-1", kind: "slack", configJson: "{}", secretRef: null }
+    ]);
+    const send = vi.fn<SendToChannelFn>().mockResolvedValueOnce(failure).mockResolvedValueOnce({ ok: true });
+    const { runMessagingDeliveryJob } = await import("@/lib/jobs/messaging-delivery-job");
+    await expect(runMessagingDeliveryJob(backendJob(), payload(), { sendToChannel: send })).rejects.toThrow("повторная попытка");
+    mocks.findMessagingDeliveryForJobChannel.mockResolvedValue({ id: "delivery-1", status: "failed", channelId: "chan-1", payloadJson: JSON.stringify({ backendJobId: "job-1" }) });
+    await expect(runMessagingDeliveryJob(backendJob({ attempts: 1 }), payload(), { sendToChannel: send })).resolves.toMatchObject({ sent: 1, failed: 0 });
+    expect(send).toHaveBeenCalledTimes(2);
+  });
+
+  it("leaves unsupported channels terminal without requesting a retry", async () => {
+    mocks.prisma.messagingChannel.findMany.mockResolvedValue([
+      { id: "chan-unsupported", kind: "whatsapp", configJson: "{}", secretRef: null }
+    ]);
+    const send = fakeSend({ ok: false, unsupported: true, error: "Не поддерживается" });
+    const { runMessagingDeliveryJob } = await import("@/lib/jobs/messaging-delivery-job");
+    await expect(runMessagingDeliveryJob(backendJob(), payload(), { sendToChannel: send })).resolves.toMatchObject({ skipped: 1, failed: 0, sent: 0 });
   });
 
   it("no-ops gracefully (records an event, succeeds) when there are no active channels", async () => {

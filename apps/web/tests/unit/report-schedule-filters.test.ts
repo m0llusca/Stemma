@@ -7,8 +7,11 @@ describe("validateReportScheduleFiltersJson", () => {
     expect(validateReportScheduleFiltersJson("   \n")).toEqual({ status: "empty", unknownKeys: [] });
   });
 
-  it("accepts a valid JSON object with supported keys", () => {
-    expect(validateReportScheduleFiltersJson('{"supportLine":"L1"}')).toEqual({
+  it("accepts all supported canonical and conversation filters without unknown-key warnings", () => {
+    expect(validateReportScheduleFiltersJson(JSON.stringify({
+      supportLine: "L1", csatBucket: "positive", externalSource: "otrs", assigneeName: "Оператор",
+      team: "team-a", source: "otrs", risk: "high_plus", block: "block-a"
+    }))).toEqual({
       status: "valid",
       unknownKeys: []
     });
@@ -32,10 +35,9 @@ describe("validateReportScheduleFiltersJson", () => {
     expect(result.unknownKeys).toEqual(["totallyUnknown"]);
   });
 
-  it("keeps the supported key list aligned with the export row contract", () => {
-    expect(reportScheduleFilterKeys).toContain("supportLine");
-    expect(reportScheduleFilterKeys).toContain("csatBucket");
-    expect(reportScheduleFilterKeys).toContain("externalSource");
-    expect(reportScheduleFilterKeys).toContain("assigneeName");
+  it("keeps the supported key list aligned with queued and scheduled export scope", () => {
+    expect(reportScheduleFilterKeys).toEqual([
+      "supportLine", "csatBucket", "externalSource", "assigneeName", "team", "source", "risk", "block"
+    ]);
   });
 });

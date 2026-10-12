@@ -6,6 +6,7 @@ import { emitActivationEvent } from "@/lib/activation-events";
 import { auditLog } from "@/lib/audit";
 import {
   canAcknowledgeFeedback,
+  canAccessTraining,
   canManageReviewWorkflow,
   canManageTraining,
   canResolveAppeal,
@@ -574,6 +575,9 @@ export async function createTrainingAssignment(formData: FormData) {
 
 export async function updateTrainingAssignmentStatus(formData: FormData) {
   const user = await getCurrentUser();
+  if (!canAccessTraining(user.role)) {
+    throw new Error("Нет прав на работу с учебными задачами.");
+  }
   const id = stringField(formData, "id");
   const status = stringField(formData, "status");
 

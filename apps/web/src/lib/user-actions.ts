@@ -9,7 +9,6 @@ import { demoUserByIdWhere } from "@/lib/auth/demo-users";
 import { loginFlashCookieName, loginFlashCookieOptions } from "@/lib/auth/login-flash";
 import { normalizeLocalLogin } from "@/lib/auth/local-credentials";
 import { resolvePostLoginPath, sanitizeReturnTo } from "@/lib/auth/role-home";
-import { demoUserCookieOptions } from "@/lib/auth/cookies";
 import { createAuthSession, setAuthSessionCookies } from "@/lib/auth/session";
 import { currentUserCookieName, isDemoAuthEnabled } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -131,16 +130,19 @@ async function createDemoUserSession(formData: FormData, options: { requireDemoA
     },
     select: { id: true }
   });
+  if (!demoProvider) {
+    throw new Error("Активный демо-провайдер не найден.");
+  }
   const headerStore = await headers();
   const { token } = await createAuthSession({
     userId: user.id,
-    providerId: demoProvider?.id,
+    providerId: demoProvider.id,
     userAgent: headerStore.get("user-agent")
   });
   const cookieStore = await cookies();
   await setAuthSessionCookies(cookieStore, token);
   cookieStore.delete(loginFlashCookieName);
-  cookieStore.set(currentUserCookieName, user.id, demoUserCookieOptions(60 * 60 * 24 * 30));
+  cookieStore.delete(currentUserCookieName);
 
   revalidatePath("/");
   redirect(resolvePostLoginPath(returnTo, user));

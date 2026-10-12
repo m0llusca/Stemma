@@ -49,8 +49,10 @@ const mocks = vi.hoisted(() => ({
     },
     review: {
       findMany: vi.fn()
-    }
+    },
+    criterionScore: { findMany: vi.fn() }
   },
+  loadReportFilterCatalog: vi.fn(),
   logBackendEvent: vi.fn(),
   runIntegrationConnector: vi.fn(),
   runSelectedOtrsImportConnector: vi.fn(),
@@ -60,6 +62,10 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/db", () => ({
   prisma: mocks.prisma
+}));
+
+vi.mock("@/lib/reports/report-filter-catalog", () => ({
+  loadReportFilterCatalog: mocks.loadReportFilterCatalog
 }));
 
 vi.mock("@/lib/observability", () => ({
@@ -111,6 +117,12 @@ describe("backend job queue", () => {
     vi.clearAllMocks();
     mocks.prisma.$transaction.mockImplementation(async (callback) => callback(mocks.prisma));
     mocks.prisma.review.findMany.mockResolvedValue([]);
+    mocks.prisma.criterionScore.findMany.mockResolvedValue([]);
+    mocks.loadReportFilterCatalog.mockResolvedValue({
+      teams: [{ slug: "team-a", value: "Team A" }],
+      sources: ["otrs"],
+      blocks: [{ slug: "block-a", value: "Block A" }]
+    });
     // Bridge SKIP LOCKED claims to the legacy findFirst/updateMany mocks so
     // execute/dispatch tests stay focused on job handlers, not claim SQL.
     mocks.prisma.$queryRaw.mockImplementation(async () => {
@@ -982,7 +994,7 @@ describe("backend job queue", () => {
         name: "Weekly quality",
         periodStart: "2026-05-01T00:00:00.000Z",
         periodEnd: "2026-05-07T23:59:59.999Z",
-        filters: { supportLine: "L1" },
+        filters: { supportLine: "L1", team: "team-a", source: "otrs", risk: "high_plus", block: "block-a" },
         format: "xlsx"
       })
     });
@@ -998,8 +1010,12 @@ describe("backend job queue", () => {
     mocks.prisma.backendJob.findFirst.mockResolvedValueOnce(queuedJob);
     mocks.prisma.backendJob.updateMany.mockResolvedValue({ count: 1 });
     mocks.prisma.backendJob.findUnique.mockResolvedValue(runningJob);
+    mocks.prisma.criterionScore.findMany.mockResolvedValue([
+      { reviewId: "review-1", value: 2.4, passed: null, isNotApplicable: false, criterion: { kind: "SCALE_1_3", block: "Block A", weight: 100 } }
+    ]);
     mocks.prisma.review.findMany.mockResolvedValue([
       {
+        id: "review-1",
         finalizedAt: new Date("2026-05-03T12:00:00.000Z"),
         totalScore: 80,
         criticalError: true,
@@ -1038,6 +1054,9 @@ describe("backend job queue", () => {
     expect(mocks.prisma.review.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
+          conversation: { is: { teamName: "Team A", externalSource: "otrs" } },
+          scores: { some: { criterion: { block: "Block A" } } },
+          findings: { some: { riskLevel: { in: ["HIGH", "CRITICAL"] } } },
           AND: [{ conversation: { supportLine: "L1" } }]
         })
       })
@@ -1045,6 +1064,7 @@ describe("backend job queue", () => {
     expect(mocks.prisma.reportSnapshot.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         name: "Weekly quality",
+        filtersJson: JSON.stringify({ period: "custom", start: "2026-05-01", end: "2026-05-07", supportLine: "L1", team: "team-a", source: "otrs", risk: "high_plus", block: "block-a" }),
         metricsJson: JSON.stringify({
           finalizedCount: 1,
           averageScore: 80,
@@ -1055,6 +1075,33 @@ describe("backend job queue", () => {
         })
       })
     });
+  });
+
+  it.each([
+    { team: "removed-team" },
+    { source: "missing-source" },
+    { risk: "invalid" },
+    { block: "missing-block" },
+    { team: 7 },
+    { risk: "" },
+    { supportLine: null },
+    []
+  ])("rejects invalid report filters without creating a widened snapshot: %j", async (filters) => {
+    const { runDueBackendJobs } = await import("@/lib/jobs/queue");
+    const runningJob = backendJob({
+      type: "REPORT_EXPORT", status: "RUNNING", attempts: 1, lockedBy: "worker-a",
+      lockedAt: new Date(), payloadJson: JSON.stringify({ periodStart: "2026-05-01", periodEnd: "2026-05-07", filters })
+    });
+    mocks.prisma.backendJob.findMany.mockResolvedValue([]);
+    mocks.prisma.backendJob.findFirst.mockResolvedValueOnce(runningJob);
+    mocks.prisma.backendJob.findUnique.mockResolvedValue(runningJob);
+    mocks.prisma.backendJob.updateMany.mockResolvedValue({ count: 1 });
+    mocks.prisma.backendJobEvent.create.mockResolvedValue({});
+
+    const result = await runDueBackendJobs({ workerId: "worker-a", limit: 1 });
+    expect(result[0].status).not.toBe("SUCCEEDED");
+    expect(mocks.prisma.review.findMany).not.toHaveBeenCalled();
+    expect(mocks.prisma.reportSnapshot.create).not.toHaveBeenCalled();
   });
 
   it("propagates a workspace filter to stale recovery and job claiming", async () => {

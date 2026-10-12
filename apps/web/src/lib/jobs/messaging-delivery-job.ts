@@ -207,6 +207,10 @@ export async function runMessagingDeliveryJob(
     }
   });
 
+  if (failed > 0) {
+    throw new Error(`Не удалось доставить уведомление в ${failed} канал(а). Требуется повторная попытка.`);
+  }
+
   return {
     eventType: parsed.eventType,
     channelsConsidered: channels.length,

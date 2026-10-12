@@ -200,7 +200,17 @@ describe("current user resolution", () => {
     expect(mocks.getValidAuthSession).toHaveBeenCalledWith(undefined);
     expect(mocks.headerGet).toHaveBeenCalledWith("host");
     expect(mocks.prisma.user.findFirst).toHaveBeenCalledWith({
-      where: { role: { in: ["QA_ANALYST", "ADMIN", "TEAM_LEAD"] } },
+      where: {
+        workspaceId: "demo-workspace",
+        lifecycleStatus: "ACTIVE",
+        role: { in: ["QA_ANALYST", "ADMIN", "TEAM_LEAD"] },
+        externalIdentities: {
+          some: {
+            disabledAt: null,
+            provider: { workspaceId: "demo-workspace", type: "DEMO", status: "active" }
+          }
+        }
+      },
       orderBy: {
         role: "asc"
       },
@@ -219,6 +229,36 @@ describe("current user resolution", () => {
 
     await expect(getCurrentUser()).rejects.toBeInstanceOf(AuthRequiredError);
     expect(mocks.prisma.user.findFirst).not.toHaveBeenCalled();
+  });
+
+  it.each(["ACTIVE", "SUSPENDED", "DEPROVISIONED"])("rejects forged unsigned identity cookies (%s) on public hosts", async (lifecycleStatus) => {
+    vi.stubEnv("QC_DEMO_AUTH", "enabled");
+    mocks.cookieGet.mockImplementation((name: string) => name === "qc_current_user_id" ? { value: "arbitrary-user" } : undefined);
+    mocks.headerGet.mockReturnValue("stemma-demo.example.com");
+    mocks.prisma.user.findUnique.mockResolvedValue(user({ id: "arbitrary-user", role: "ADMIN", lifecycleStatus }));
+    const { AuthRequiredError, getCurrentUser } = await import("@/lib/current-user");
+    await expect(getCurrentUser()).rejects.toBeInstanceOf(AuthRequiredError);
+    expect(mocks.prisma.user.findUnique).not.toHaveBeenCalled();
+    expect(mocks.prisma.user.findFirst).not.toHaveBeenCalled();
+  });
+
+  it.each(["qc_session", "authjs.session-token", "__Secure-authjs.session-token", "qc_current_user_id"])(
+    "does not revive an invalid %s credential through loopback demo fallback", async (cookieName) => {
+      vi.stubEnv("QC_DEMO_AUTH", "enabled");
+      mocks.cookieGet.mockImplementation((name: string) => name === cookieName ? { value: "stale-token" } : undefined);
+      mocks.prisma.user.findFirst.mockResolvedValue(user({ id: "other-demo-user" }));
+      const { AuthRequiredError, getCurrentUser } = await import("@/lib/current-user");
+      await expect(getCurrentUser()).rejects.toBeInstanceOf(AuthRequiredError);
+      expect(mocks.prisma.user.findFirst).not.toHaveBeenCalled();
+      expect(mocks.prisma.user.findUnique).not.toHaveBeenCalled();
+    }
+  );
+
+  it("rejects an Auth.js user whose workspace changed since the session was read", async () => {
+    mocks.auth.mockResolvedValue({ user: { id: "user-1", workspaceId: "old-workspace" } });
+    mocks.prisma.user.findUnique.mockResolvedValue(user());
+    const { AuthRequiredError, getCurrentUser } = await import("@/lib/current-user");
+    await expect(getCurrentUser()).rejects.toBeInstanceOf(AuthRequiredError);
   });
 
   it("lists demo-identity users for the nav switcher, not the whole workspace", async () => {

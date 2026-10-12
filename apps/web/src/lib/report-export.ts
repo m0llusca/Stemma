@@ -3,7 +3,7 @@ import PDFDocument from "pdfkit";
 import { prisma } from "@/lib/db";
 import type { RiskLevel } from "@prisma/client";
 import { resolveReportPeriod, type ReportPeriod } from "@/lib/report-period";
-import { reportScheduleFilterKeys } from "@/lib/report-schedule-filters";
+import { reportConversationFilterKeys } from "@/lib/report-schedule-filters";
 import { formatQualityScore } from "@/lib/score-display";
 import { loadReportFilterCatalog } from "@/lib/reports/report-filter-catalog";
 import { parseReportAnalysisState, reportFilterValue } from "@/lib/reports/report-analysis-state";
@@ -228,7 +228,7 @@ export async function loadReportExportRows(workspaceId: string, rawParams: Recor
     ? state.risk === "high_plus" ? ["HIGH", "CRITICAL"] : [state.risk.toUpperCase() as RiskLevel]
     : undefined;
 
-  for (const key of reportScheduleFilterKeys) {
+  for (const key of reportConversationFilterKeys) {
     const value = rawParams[key]?.trim();
     if (value) {
       conversationFilter[key] = value;

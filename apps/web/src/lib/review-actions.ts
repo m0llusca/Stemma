@@ -165,6 +165,10 @@ async function assertCalibrationReviewContext(
   input: { sessionId: string | null; workspaceId: string; conversationId: string; reviewerId: string; scorecardId: string }
 ) {
   if (!input.sessionId) return;
+  // Rubric locks are acquired first by both grade paths. Keep this row stable
+  // until the grade commits; status updates must wait, and a status update that
+  // won the lock is visible to the fresh active-session read below.
+  await tx.$queryRaw`SELECT id FROM "CalibrationSession" WHERE id = ${input.sessionId} AND "workspaceId" = ${input.workspaceId} FOR SHARE`;
   const session = await loadCalibrationReviewSession({ ...input, sessionId: input.sessionId, activeOnly: true }, tx);
   if (!session) {
     throw new Error("Калибровочная оценка доступна только участнику активной сессии по ее обращениям и форме оценки.");

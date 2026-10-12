@@ -120,6 +120,7 @@ function baseFinalizeForm() {
 describe("review action lifecycle guards", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.tx.$queryRaw.mockResolvedValue([]);
     mocks.prisma.$transaction.mockImplementation(async (callback) => callback(mocks.tx));
     mocks.getCurrentUser.mockResolvedValue(reviewerUser());
     mocks.canFinalizeReview.mockReturnValue(true);
@@ -180,6 +181,32 @@ describe("review action lifecycle guards", () => {
     });
     expect(mocks.tx.review.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ calibrationSessionId: "session-2" }) }));
     expect(mocks.tx.conversation.updateMany).not.toHaveBeenCalled();
+  });
+
+  it.each(["draft", "finalize"])("locks the calibration session after the rubric and rechecks active status before %s writes", async (operation) => {
+    const { finalizeReview, saveReviewDraft } = await import("@/lib/review-actions");
+    const form = baseFinalizeForm();
+    form.set("reviewSource", "CALIBRATION");
+    form.set("calibrationSessionId", "session-2");
+    const events: string[] = [];
+    mocks.tx.$queryRaw.mockImplementation(async (strings: TemplateStringsArray) => {
+      const sql = strings.join("?");
+      if (sql.includes('"Scorecard"')) events.push("rubric-lock");
+      if (sql.includes('"CalibrationSession"')) {
+        events.push("session-lock");
+        expect(sql).toContain("FOR SHARE");
+      }
+      return [];
+    });
+    mocks.tx.calibrationSession.findFirst.mockImplementation(async () => {
+      events.push("active-session-read");
+      return null; // A completion/archival committed before the lock was acquired.
+    });
+
+    await expect((operation === "draft" ? saveReviewDraft : finalizeReview)(form)).rejects.toThrow("активной сессии");
+    expect(events).toEqual(["rubric-lock", "session-lock", "active-session-read"]);
+    expect(mocks.tx.review.create).not.toHaveBeenCalled();
+    expect(mocks.tx.review.update).not.toHaveBeenCalled();
   });
 
   it.each(["missing-id", "denied-session", "human-with-session"])("rejects invalid calibration context %s before writing", async (scenario) => {
