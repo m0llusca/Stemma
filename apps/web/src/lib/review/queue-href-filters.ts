@@ -1,5 +1,5 @@
 import type { ReviewQueueFilters, ReviewQueueSearchParams } from "@/lib/contracts/review-queue";
-import { parseReviewQueueFilters } from "@/lib/review-repository";
+import { parseReviewQueueFilters } from "@/lib/review/queue-filters";
 
 export function safeReviewsHref(value: string) {
   if (!value || !value.startsWith("/reviews") || value.startsWith("//")) {

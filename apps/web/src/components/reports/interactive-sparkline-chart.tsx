@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Curve, Rectangle } from "recharts";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   CHART_MARKER_RADIUS,
@@ -201,7 +202,7 @@ export function InteractiveSparklineChart({
             );
           })}
           {targetBandY != null ? (
-            <rect
+            <Rectangle
               x={chart.padX}
               y={chart.padY}
               width={chart.width - chart.padX * 2}
@@ -236,10 +237,9 @@ export function InteractiveSparklineChart({
               vectorEffect="non-scaling-stroke"
             />
           ) : null}
-          <path
-            d={chart.path}
+          <Curve
+            path={chart.path}
             data-slot="sparkline-line"
-            pathLength={1}
             fill="none"
             stroke={CHART_SERIES_STROKE}
             strokeLinecap="round"

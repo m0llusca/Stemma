@@ -22,7 +22,13 @@ import {
   samplingTypeLabels
 } from "@/lib/labels";
 import type { ReviewQueueFilters } from "@/lib/review-repository";
-import { qaQueueStatuses, queueCsatBuckets, queueProcessFilters, queueSamplingTypes, reviewQueueStatuses } from "@/lib/review-repository";
+import {
+  qaQueueStatuses,
+  queueCsatBuckets,
+  queueProcessFilters,
+  queueSamplingTypes,
+  reviewQueueStatuses
+} from "@/lib/review/queue-filters";
 
 type QueueFiltersProps = {
   filters: ReviewQueueFilters;

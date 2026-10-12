@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { reserveIdempotencyKey } from "@/lib/api/idempotency";
@@ -52,6 +53,39 @@ describe.skipIf(!process.env.TEST_DATABASE_URL).sequential("audit regressions â€
   });
 
   afterAll(async () => { if (isLocalPlaywrightVerifyDatabase()) await cleanup(); });
+
+  it.each([
+    { label: "occupied", bound: true, legacyCount: 1, attaches: false },
+    { label: "duplicate", bound: false, legacyCount: 2, attaches: false },
+    { label: "unique", bound: false, legacyCount: 1, attaches: true }
+  ])("backfills $label calibration slots without violating uniqueness or guessing", async ({ label, bound, legacyCount, attaches }) => {
+    const conversation = await prisma.conversation.create({ data: {
+      workspaceId, externalSource: "backfill-audit", externalId: label, channel: "CHAT",
+      subject: label, status: "closed", tags: "", customerName: "Fixture", samplingReason: "Audit", openedAt: period.start
+    } });
+    const session = await prisma.calibrationSession.create({ data: {
+      workspaceId, ownerId: userId, scorecardId, name: label, status: "active",
+      participants: { create: { userId } }, items: { create: { conversationId: conversation.id } }
+    } });
+    const grade = { workspaceId, conversationId: conversation.id, reviewerId: userId, scorecardId,
+      reviewSource: "CALIBRATION" as const, status: "DRAFT" as const, totalScore: 20, rubricVersion: 1, summary: "Backfill fixture" };
+    if (bound) await prisma.review.create({ data: { ...grade, calibrationSessionId: session.id } });
+    const legacy = await Promise.all(Array.from({ length: legacyCount }, () => prisma.review.create({ data: grade })));
+    const source = readFileSync("prisma/migrations/20261007120000_backfill_calibration_review_session/migration.sql", "utf8");
+    // Run the actual backfill in a transaction, scoped to this fixture workspace.
+    const query = source.slice(source.indexOf("WITH matched AS"), source.lastIndexOf("COMMIT;"))
+      .trim().replace(/;$/, "")
+      .replace("WHERE review.id = matched.review_id", 'WHERE review.id = matched.review_id AND review."workspaceId" = $1');
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe('LOCK TABLE "Review" IN SHARE ROW EXCLUSIVE MODE');
+      await tx.$executeRawUnsafe(query, workspaceId);
+    });
+    for (const review of legacy) {
+      expect((await prisma.review.findUniqueOrThrow({ where: { id: review.id } })).calibrationSessionId)
+        .toBe(attaches ? session.id : null);
+    }
+    expect(await prisma.review.count({ where: { calibrationSessionId: session.id } })).toBe(bound || attaches ? 1 : 0);
+  });
 
   it("counts only human production grades in both SQL KPIs and report rows", async () => {
     expect(await loadReportPeriodKpis(workspaceId, period)).toMatchObject({ finalizedCount: 1, averageScore: 80 });

@@ -6,9 +6,9 @@ import {
   getReviewQueue,
   getReviewQueueFilterOptions,
   getReviewQueueSummary,
-  parseReviewQueueFilters,
   type ReviewQueueSearchParams
 } from "@/lib/review-repository";
+import { parseReviewQueueFilters } from "@/lib/review/queue-filters";
 import { requirePagePermission } from "@/lib/page-permission";
 
 function reviewQueueHref(params: ReviewQueueSearchParams) {

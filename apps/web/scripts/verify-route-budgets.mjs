@@ -631,6 +631,7 @@ function main() {
   }
 
   process.stdout.write("Route budget check passed.\n");
+  process.stdout.write(`Shared gzip: ${current.sharedGzipBytes} bytes; full rich-chart: ${current.richChartGzipBytes}/${RICH_CHART_GZIP_HARD_BYTES} bytes.\n`);
 }
 
 try {

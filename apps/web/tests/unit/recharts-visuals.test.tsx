@@ -618,15 +618,14 @@ describe("lean Recharts visuals", () => {
     expect(container.querySelector("[data-animation-active=false]")).toBeNull();
   });
 
-  it("distribution preserves a zero bar without removing its label", () => {
+  it("distribution preserves zero bucket labels without drawing a zero-height bar", () => {
     const { container } = render(
       <task6Visuals.ScoreDistributionVisual model={distributionModel} />
     );
 
-    expect(container.querySelectorAll('[data-series="count"] rect')).toHaveLength(4);
-    expect(
-      container.querySelector('[data-point-id="bucket-0"]')
-    ).toHaveAttribute("height", "0");
+    expect(container.querySelectorAll('[data-series="count"] .recharts-rectangle')).toHaveLength(2);
+    expect(container.querySelectorAll('[data-series="count"] [data-slot="score-count"]')).toHaveLength(4);
+    expect(container.querySelector('[data-point-id="bucket-0"]')).toBeNull();
     expect(container).toHaveTextContent("0-50");
     const scoreCounts = [...container.querySelectorAll('[data-slot="score-count"]')].map(
       (node) => node.textContent

@@ -1,0 +1,222 @@
+{
+  "sharedGzipBytes": 470909,
+  "richChartGzipBytes": 111234,
+  "richChartAdditionalGzipBytes": 20583,
+  "richStaticTargets": [
+    {
+      "source": "src/components/charts/quality-trend-chart.client.tsx",
+      "specifier": "@/components/charts/recharts-visuals.client",
+      "export": "QualityTrendVisual",
+      "seedChunks": [
+        "static/chunks/2vap05a3s4aev.js"
+      ]
+    },
+    {
+      "source": "src/components/charts/ranked-driver-chart.client.tsx",
+      "specifier": "@/components/charts/recharts-visuals.client",
+      "export": "RankedDriverVisual",
+      "seedChunks": [
+        "static/chunks/2vap05a3s4aev.js"
+      ]
+    },
+    {
+      "source": "src/components/charts/score-distribution-chart.client.tsx",
+      "specifier": "@/components/charts/recharts-visuals.client",
+      "export": "ScoreDistributionVisual",
+      "seedChunks": [
+        "static/chunks/2vap05a3s4aev.js"
+      ]
+    },
+    {
+      "source": "src/components/charts/paired-ai-drift-charts.client.tsx",
+      "specifier": "@/components/charts/recharts-visuals.client",
+      "export": "PairedAiDriftVisual",
+      "seedChunks": [
+        "static/chunks/2vap05a3s4aev.js"
+      ]
+    },
+    {
+      "source": "src/components/charts/reason-trend-chart.client.tsx",
+      "specifier": "@/components/charts/recharts-visuals.client",
+      "export": "ReasonTrendVisual",
+      "seedChunks": [
+        "static/chunks/2vap05a3s4aev.js"
+      ]
+    },
+    {
+      "source": "src/components/charts/ranked-breakdown-chart.client.tsx",
+      "specifier": "@/components/charts/recharts-visuals.client",
+      "export": "RankedBreakdownVisual",
+      "seedChunks": [
+        "static/chunks/2vap05a3s4aev.js"
+      ]
+    }
+  ],
+  "richChartReachableChunks": [
+    {
+      "path": "static/chunks/111zli7346pg0.js",
+      "kind": "seed-or-transitive-dependency",
+      "rawBytes": 101206,
+      "gzipBytes": 32243,
+      "sha256": "e22bcd172e8935723ddf2c9b204edcb22a22cd9ed99028f21db696aa5b0b5134"
+    },
+    {
+      "path": "static/chunks/14u5-bth6dn5j.js",
+      "kind": "seed-or-transitive-dependency",
+      "rawBytes": 62493,
+      "gzipBytes": 19925,
+      "sha256": "7c1027105d414fd4d2d2cb19846d17fe7f72e2ebf3eea566651267e268410941"
+    },
+    {
+      "path": "static/chunks/1rinhoxuz_rln.js",
+      "kind": "seed-or-transitive-dependency",
+      "rawBytes": 29290,
+      "gzipBytes": 8626,
+      "sha256": "79d20637b98700cf959f87a6f7615d72db9567de5318c6d9a6849a2b66bfe546"
+    },
+    {
+      "path": "static/chunks/1wiw3sz7_w02l.js",
+      "kind": "seed-or-transitive-dependency",
+      "rawBytes": 28873,
+      "gzipBytes": 7568,
+      "sha256": "08b01b90083dba8bfe15385fcfcfc8a0573e4c51b3b8cb68d180d62d5edb0f18"
+    },
+    {
+      "path": "static/chunks/2a43bq1f2xi_a.js",
+      "kind": "seed-or-transitive-dependency",
+      "rawBytes": 30216,
+      "gzipBytes": 10323,
+      "sha256": "91314e0c53de9f16633fc12890db992386d8b9559c08ec6393492135aa9d8f95"
+    },
+    {
+      "path": "static/chunks/2rwcgc8bceqa5.js",
+      "kind": "seed-or-transitive-dependency",
+      "rawBytes": 6082,
+      "gzipBytes": 2076,
+      "sha256": "fd60eb9dedfca9158741837dda9c69705b49df3a75bc55f9c98ba5d5df35a2e0"
+    },
+    {
+      "path": "static/chunks/2ud7q1yybz36m.js",
+      "kind": "seed-or-transitive-dependency",
+      "rawBytes": 26209,
+      "gzipBytes": 9186,
+      "sha256": "7ef7563a39e6e3c88dfa368ae5a2b51a200318de2fe097773cf9053203122689"
+    },
+    {
+      "path": "static/chunks/2vap05a3s4aev.js",
+      "kind": "seed-or-transitive-dependency",
+      "rawBytes": 39554,
+      "gzipBytes": 11957,
+      "sha256": "3e3f26bf8876560d6d327ce220ad51cf642f6f9e4aaaca73387659143cc4b90b"
+    },
+    {
+      "path": "static/chunks/3pr93z7xog6n9.js",
+      "kind": "seed-or-transitive-dependency",
+      "rawBytes": 29114,
+      "gzipBytes": 9330,
+      "sha256": "002f6cab4779737bc86eaa9ec20e8525b8129433cea1bc139e1bde377da3addc"
+    }
+  ],
+  "richChartEdges": [
+    {
+      "from": "static/chunks/2vap05a3s4aev.js",
+      "to": "static/chunks/1wiw3sz7_w02l.js"
+    },
+    {
+      "from": "static/chunks/2vap05a3s4aev.js",
+      "to": "static/chunks/3pr93z7xog6n9.js"
+    },
+    {
+      "from": "static/chunks/2vap05a3s4aev.js",
+      "to": "static/chunks/1rinhoxuz_rln.js"
+    },
+    {
+      "from": "static/chunks/2vap05a3s4aev.js",
+      "to": "static/chunks/2rwcgc8bceqa5.js"
+    },
+    {
+      "from": "static/chunks/2vap05a3s4aev.js",
+      "to": "static/chunks/2ud7q1yybz36m.js"
+    },
+    {
+      "from": "static/chunks/2vap05a3s4aev.js",
+      "to": "static/chunks/111zli7346pg0.js"
+    },
+    {
+      "from": "static/chunks/2vap05a3s4aev.js",
+      "to": "static/chunks/14u5-bth6dn5j.js"
+    },
+    {
+      "from": "static/chunks/111zli7346pg0.js",
+      "to": "static/chunks/1wiw3sz7_w02l.js"
+    },
+    {
+      "from": "static/chunks/111zli7346pg0.js",
+      "to": "static/chunks/3pr93z7xog6n9.js"
+    },
+    {
+      "from": "static/chunks/111zli7346pg0.js",
+      "to": "static/chunks/2a43bq1f2xi_a.js"
+    },
+    {
+      "from": "static/chunks/2a43bq1f2xi_a.js",
+      "to": "static/chunks/1wiw3sz7_w02l.js"
+    },
+    {
+      "from": "static/chunks/2ud7q1yybz36m.js",
+      "to": "static/chunks/1wiw3sz7_w02l.js"
+    },
+    {
+      "from": "static/chunks/2ud7q1yybz36m.js",
+      "to": "static/chunks/3pr93z7xog6n9.js"
+    },
+    {
+      "from": "static/chunks/2rwcgc8bceqa5.js",
+      "to": "static/chunks/1wiw3sz7_w02l.js"
+    },
+    {
+      "from": "static/chunks/2rwcgc8bceqa5.js",
+      "to": "static/chunks/3pr93z7xog6n9.js"
+    },
+    {
+      "from": "static/chunks/1rinhoxuz_rln.js",
+      "to": "static/chunks/1wiw3sz7_w02l.js"
+    },
+    {
+      "from": "static/chunks/1rinhoxuz_rln.js",
+      "to": "static/chunks/3pr93z7xog6n9.js"
+    }
+  ],
+  "initialRichChartGzipBytesByRoute": {
+    "reports": 111234,
+    "dashboard": 90651,
+    "coaching": 102608
+  },
+  "initialForbiddenLibraryChunksByRoute": {
+    "reports": [],
+    "dashboard": [],
+    "coaching": []
+  },
+  "routes": {
+    "reports": {
+      "unionGzipBytes": 514214,
+      "routeSpecificGzipBytes": 43305
+    },
+    "dashboard": {
+      "unionGzipBytes": 563762,
+      "routeSpecificGzipBytes": 92853
+    },
+    "coaching": {
+      "unionGzipBytes": 491690,
+      "routeSpecificGzipBytes": 20781
+    }
+  },
+  "provenance": {
+    "sourceCommit": "edf72b135d1aea9f3aeec812bff4d1b7d1b8c93e",
+    "sourceLockSha256": "9407435cbf94513e4f4c19c28dd67363f3e6f71817c5f34476104071b01685c1",
+    "capturedOn": "2026-10-12",
+    "nodeVersion": "24.21.0",
+    "platform": "darwin-arm64",
+    "description": "Measured production build before dependency and SVG optimizations; no budget thresholds changed."
+  }
+}

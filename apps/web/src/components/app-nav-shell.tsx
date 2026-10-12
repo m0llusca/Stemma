@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   Activity,
   Bell,
@@ -23,7 +23,7 @@ import {
   X,
   type LucideIcon
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
 import { isAuthPath } from "@/lib/auth/auth-path";
 import {
   activeAreaForPath,
@@ -37,24 +37,13 @@ import {
   resolveWorkspaceBranding,
   type WorkspaceBranding
 } from "@/lib/ui-branding";
-import { takeNextReview } from "@/lib/queue-view-actions";
-import { takeNextFormDataFromLocation } from "@/lib/review/queue-href-filters";
 import { cn } from "@/lib/utils";
 import { AccountMenuDisclosure } from "@/components/auth/demo-role-switch";
 import { DisclosureMorphChevron } from "@/components/ui/disclosure-morph-chevron";
 import { MorphIcon } from "@/components/ui/morph-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  Command,
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandShortcut
-} from "@/components/ui/command";
+import { CommandDialog } from "@/components/ui/command-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -167,17 +156,7 @@ function AreaNavLink({
   );
 }
 
-function commandMatches(command: ShellCommandItem, query: string) {
-  const normalized = query.trim().toLowerCase();
-  if (!normalized) {
-    return true;
-  }
-
-  return [command.label, command.description, command.modeLabel, ...command.aliases].some((value) =>
-    value.toLowerCase().includes(normalized)
-  );
-}
-
+const AppCommandList = lazy(() => import("@/components/app-command-list"));
 
 export function AppNavShell(props: AppNavShellProps) {
   const pathname = usePathname();
@@ -202,11 +181,9 @@ function AppNavShellChrome({
 }: AppNavShellProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const router = useRouter();
   const [commandOpen, setCommandOpen] = useState(false);
 
   const [areaMenuOpen, setAreaMenuOpen] = useState(false);
-  const [query, setQuery] = useState("");
   const [activeBranding, setActiveBranding] = useState<WorkspaceBranding>(branding);
   const search = searchParams.toString();
   const activeAreaId = useMemo(
@@ -215,20 +192,8 @@ function AppNavShellChrome({
   );
   const activeArea = areas.find((area) => area.id === activeAreaId);
   // Pulse chrome is badges only — Take next lives on the queue page / ⌘K, not the top bar.
-  const visibleCommands = useMemo(
-    () =>
-      navigation.commandItems
-        .filter((command) => canTakeNextCase || command.actionId !== "take-next")
-        .filter((command) => commandMatches(command, query))
-        .slice(0, 9),
-    [navigation.commandItems, query, canTakeNextCase]
-  );
   const roleLabel = user.roleLabel;
   const hasDemoMenu = demoMenuSlot != null;
-
-  const openCommand = useCallback(() => {
-    setCommandOpen(true);
-  }, []);
 
   useEffect(() => {
     setActiveBranding(branding);
@@ -247,44 +212,19 @@ function AppNavShellChrome({
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        openCommand();
+        setCommandOpen(true);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [openCommand]);
+  }, []);
 
   // Mobile area menu: close on route change so a navigation always dismisses the panel.
   useEffect(() => {
     setAreaMenuOpen(false);
   }, [pathname]);
 
-  // Reset search text when the palette closes so the next open starts clean.
-  useEffect(() => {
-    if (!commandOpen) {
-      setQuery("");
-    }
-  }, [commandOpen]);
-
-  const runTakeNext = useCallback(() => {
-    const { pathname, search } = window.location;
-    void takeNextReview(takeNextFormDataFromLocation(pathname, search));
-  }, []);
-
-  const runCommand = useCallback(
-    (command: ShellCommandItem) => {
-      setCommandOpen(false);
-      if (command.actionId === "take-next") {
-        runTakeNext();
-        return;
-      }
-      if (command.href) {
-        router.push(command.href);
-      }
-    },
-    [router, runTakeNext]
-  );
 
   return (
     <header
@@ -411,7 +351,7 @@ function AppNavShellChrome({
           aria-label="Поиск или команда"
           aria-haspopup="dialog"
           aria-expanded={commandOpen}
-          onClick={openCommand}
+          onClick={() => setCommandOpen(true)}
         >
           <MorphIcon icon={commandOpen ? X : Search} data-icon="inline-start" />
           <span className="hidden truncate xl:inline" title="Поиск или команда">Поиск или команда</span>
@@ -486,44 +426,11 @@ function AppNavShellChrome({
         description="Найти раздел, очередь, интеграцию или действие"
         className="sm:max-w-lg"
       >
-        <Command shouldFilter={false} className="rounded-xl!">
-          <CommandInput
-            value={query}
-            onValueChange={setQuery}
-            placeholder="Найти раздел, очередь, интеграцию или действие"
-            aria-label="Поиск или команда"
-          />
-          <CommandList>
-            <CommandEmpty>
-              Ничего не найдено. Попробуйте “очередь”, “интеграции” или “обучение”.
-            </CommandEmpty>
-            <CommandGroup>
-              {visibleCommands.map((command) => (
-                <CommandItem
-                  key={`${command.kind}:${command.actionId ?? command.href}:${command.label}`}
-                  value={`${command.label} ${command.description} ${command.modeLabel} ${command.aliases.join(" ")}`}
-                  onSelect={() => runCommand(command)}
-                  className="items-start py-2"
-                >
-                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span className="font-medium">{command.label}</span>
-                    <span className="text-xs text-muted-foreground">{command.description}</span>
-                  </span>
-                  <span className="ml-auto flex shrink-0 items-center gap-1.5 self-center">
-                    {command.kind === "action" ? (
-                      <Badge variant="outline" className="font-normal">
-                        Действие
-                      </Badge>
-                    ) : null}
-                    <CommandShortcut className="tracking-normal normal-case">
-                      {command.modeLabel}
-                    </CommandShortcut>
-                  </span>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
+        {commandOpen ? (
+          <Suspense fallback={<div role="status" className="p-4 text-sm text-muted-foreground">Загрузка команд…</div>}>
+            <AppCommandList commands={navigation.commandItems} canTakeNextCase={canTakeNextCase} onClose={() => setCommandOpen(false)} />
+          </Suspense>
+        ) : null}
       </CommandDialog>
     </header>
   );

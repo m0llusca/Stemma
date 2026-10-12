@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Curve } from "recharts";
+import { Curve, Rectangle } from "recharts";
 import { AnimatedRectangle } from "@/components/charts/animated-rectangle";
 import {
   StaticChartContainer,
@@ -107,10 +107,6 @@ const agreementConfig = {
     color: "var(--chart-4)"
   }
 } satisfies ChartConfig;
-
-function polylinePoints(points: readonly { x: number; y: number }[]) {
-  return points.map((point) => `${point.x},${point.y}`).join(" ");
-}
 
 function AxisCategoryTick({
   x,
@@ -302,7 +298,7 @@ export function QualityTrendVisual({
             data-segment-count={previousSegments.length}
           >
             {previousSegments.map((segment, index) => (
-              <polyline
+              <Curve
                 key={`segment-${index}`}
                 fill="none"
                 stroke="var(--color-previous)"
@@ -311,7 +307,7 @@ export function QualityTrendVisual({
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 vectorEffect="non-scaling-stroke"
-                points={segment.map((point) => `${point.x},${point.y}`).join(" ")}
+                points={segment}
               />
             ))}
             {/* Endpoint diamonds only — a marker on every day turns a flat
@@ -556,13 +552,13 @@ export function ScoreDistributionVisual({
         <g data-series="count">
           {geometry.bars.map((bar, index) => (
             <g key={bar.pointId}>
-              <rect
+              <Rectangle
                 data-point-id={bar.pointId}
                 x={bar.x}
                 y={bar.y}
                 width={bar.width}
                 height={bar.height}
-                rx={4}
+                radius={4}
                 fill="var(--color-count)"
               />
               <text
@@ -666,9 +662,10 @@ export function PairedAiDriftVisual({
           data-segment-count={confidenceSegments.length}
         >
           {confidenceSegments.map((segment, index) => (
-            <polyline
+            <Curve
               key={index}
-              points={polylinePoints(segment)}
+              type="linear"
+              points={segment}
               fill="none"
               stroke="var(--color-confidence)"
               strokeWidth={2.5}
@@ -696,9 +693,10 @@ export function PairedAiDriftVisual({
           data-segment-count={reserveSegments.length}
         >
           {reserveSegments.map((segment, index) => (
-            <polyline
+            <Curve
               key={index}
-              points={polylinePoints(segment)}
+              type="linear"
+              points={segment}
               fill="none"
               stroke="var(--color-reserve)"
               strokeWidth={2}
@@ -816,9 +814,10 @@ export function ReasonTrendVisual({
           data-segment-count={previousSegments.length}
         >
           {previousSegments.map((segment, index) => (
-            <polyline
+            <Curve
               key={index}
-              points={polylinePoints(segment)}
+              type="linear"
+              points={segment}
               fill="none"
               stroke="var(--color-previous)"
               strokeWidth={1.75}
@@ -843,9 +842,10 @@ export function ReasonTrendVisual({
         </g>
         <g data-series="current" data-segment-count={currentSegments.length}>
           {currentSegments.map((segment, index) => (
-            <polyline
+            <Curve
               key={index}
-              points={polylinePoints(segment)}
+              type="linear"
+              points={segment}
               fill="none"
               stroke="var(--color-current)"
               strokeWidth={2.5}
@@ -932,13 +932,13 @@ export function RankedBreakdownVisual({
             const labelInside = bar.x + bar.width - 6 >= margin.left + 22;
             return (
             <g key={bar.pointId}>
-              <rect
+              <Rectangle
                 data-point-id={bar.pointId}
                 x={bar.x}
                 y={bar.y}
                 width={bar.width}
                 height={bar.height}
-                rx={4}
+                radius={4}
                 fill="var(--color-agreement)"
               />
               <text

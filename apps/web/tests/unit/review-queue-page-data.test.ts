@@ -20,13 +20,14 @@ vi.mock("@/lib/page-permission", () => ({
 vi.mock("@/lib/review-repository", () => ({
   getReviewQueue: mocks.getReviewQueue,
   getReviewQueueSummary: mocks.getReviewQueueSummary,
-  getReviewQueueFilterOptions: mocks.getReviewQueueFilterOptions,
-  parseReviewQueueFilters: mocks.parseReviewQueueFilters
+  getReviewQueueFilterOptions: mocks.getReviewQueueFilterOptions
 }));
 
 vi.mock("@/lib/db", () => ({
   prisma: mocks.prisma
 }));
+
+vi.mock("@/lib/review/queue-filters", () => ({ parseReviewQueueFilters: mocks.parseReviewQueueFilters }));
 
 function user(role: RoleName) {
   return {

@@ -1,11 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   filtersFromReviewsHref,
   hasActiveQueueFilters,
   queueHrefFromLocation,
   takeNextFormDataFromLocation
 } from "@/lib/review/queue-href-filters";
-import { parseReviewQueueFilters } from "@/lib/review-repository";
+import { parseReviewQueueFilters } from "@/lib/review/queue-filters";
+
+vi.mock("@/lib/db", () => { throw new Error("Client queue URL parsing must not import the database"); });
 
 describe("queueHrefFromLocation", () => {
   it("keeps the active queue URL including filters", () => {

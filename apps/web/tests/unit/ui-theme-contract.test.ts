@@ -278,7 +278,6 @@ describe("canonical UI theme contract", () => {
     expect(globals).toContain("@keyframes qc-chart-enter");
     expect(globals).toContain("@keyframes qc-chart-bar-grow-y");
     expect(globals).toContain("@keyframes qc-chart-bar-grow-x");
-    expect(globals).toContain("@keyframes qc-chart-line-draw");
     expect(globals).toContain("@keyframes qc-chart-line-fade");
     expect(globals).toContain("@keyframes qc-chart-mark-in");
     expect(globals).toContain("@keyframes qc-chart-mark-fade");

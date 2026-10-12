@@ -48,7 +48,15 @@ const nextConfig: NextConfig = {
     return config;
   },
   experimental: {
-    authInterrupts: true
+    authInterrupts: true,
+    turbopackScopeHoisting: false,
+    // Keep chart/vendor dependencies reusable instead of merging them with
+    // unrelated shell UI. The route-budget gate measures the emitted chunks.
+    turbopackChunking: {
+      minChunkSize: 5000,
+      maxMergeChunkSize: 10000,
+      maxChunkCountPerGroup: 80
+    }
   },
   async headers() {
     return [

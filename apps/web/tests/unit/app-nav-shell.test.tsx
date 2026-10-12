@@ -225,7 +225,7 @@ describe("app nav shell", () => {
     );
   });
 
-  it("opens the command palette with the ⌘K keybinding and filters items", () => {
+  it("opens the command palette with the ⌘K keybinding and filters items", async () => {
     render(<AppNavShell {...baseProps} />);
 
     expect(screen.queryByRole("dialog", { name: "Поиск и команды" })).toBeNull();
@@ -235,7 +235,7 @@ describe("app nav shell", () => {
     const dialog = screen.getByRole("dialog", { name: "Поиск и команды" });
     expect(dialog).not.toBeNull();
 
-    fireEvent.change(screen.getByPlaceholderText(/Найти раздел/), { target: { value: "калибров" } });
+    fireEvent.change(await screen.findByPlaceholderText(/Найти раздел/), { target: { value: "калибров" } });
     const results = within(dialog).getAllByRole("option");
     expect(results.length).toBeGreaterThan(0);
     expect(results.every((item) => /калибров/i.test(item.textContent ?? ""))).toBe(true);
@@ -245,7 +245,7 @@ describe("app nav shell", () => {
     expect(screen.queryByRole("dialog", { name: "Поиск и команды" })).toBeNull();
   });
 
-  it("exposes the command trigger as a dialog-opening button via aria attributes", () => {
+  it("exposes the command trigger as a dialog-opening button via aria attributes", async () => {
     render(<AppNavShell {...baseProps} />);
 
     const trigger = screen.getByRole("button", { name: /Поиск или команда/ });
@@ -268,10 +268,10 @@ describe("app nav shell", () => {
     expect(screen.queryByRole("dialog", { name: "Поиск и команды" })).toBeNull();
   }
 
-  function runCommandTakeNext() {
+  async function runCommandTakeNext() {
     fireEvent.keyDown(window, { key: "k", metaKey: true });
     const dialog = screen.getByRole("dialog", { name: "Поиск и команды" });
-    const input = screen.getByPlaceholderText(/Найти раздел/);
+    const input = await screen.findByPlaceholderText(/Найти раздел/);
     fireEvent.change(input, { target: { value: "следующий кейс" } });
     const options = within(dialog).getAllByRole("option");
     expect(options).toHaveLength(1);
@@ -286,12 +286,12 @@ describe("app nav shell", () => {
     }
   ] as const)(
     "runs $surface through takeNextReview with the current queue filters",
-    ({ run }) => {
+    async ({ run }) => {
       // Tester on a saved/filtered queue (due + process) — not the unreviewed impostor.
       window.history.replaceState(null, "", "/reviews?due=overdue&process=ai_exception");
       render(<AppNavShell {...baseProps} />);
 
-      run();
+      await run();
 
       expectTakeNextFormData("/reviews?due=overdue&process=ai_exception");
     }
@@ -309,17 +309,17 @@ describe("app nav shell", () => {
     ).toBeNull();
   });
 
-  it("does not substitute /reviews?status=unreviewed when take-next runs off the queue", () => {
+  it("does not substitute /reviews?status=unreviewed when take-next runs off the queue", async () => {
     window.history.replaceState(null, "", "/dashboard");
     mocks.pathname = "/dashboard";
     render(<AppNavShell {...baseProps} />);
 
-    runCommandTakeNext();
+    await runCommandTakeNext();
 
     expectTakeNextFormData(null);
   });
 
-  it("hides every take-next surface when the reviewer cannot write reviews", () => {
+  it("hides every take-next surface when the reviewer cannot write reviews", async () => {
     render(<AppNavShell {...baseProps} canTakeNextCase={false} />);
 
     expect(screen.queryByRole("button", { name: "Взять следующий" })).toBeNull();
@@ -332,7 +332,7 @@ describe("app nav shell", () => {
     fireEvent.keyDown(screen.getByRole("menu", { name: "Рабочий пульс" }), { key: "Escape" });
 
     fireEvent.keyDown(window, { key: "k", metaKey: true });
-    const input = screen.getByPlaceholderText(/Найти раздел/);
+    const input = await screen.findByPlaceholderText(/Найти раздел/);
     fireEvent.change(input, { target: { value: "следующий кейс" } });
     expect(screen.queryByRole("option", { name: /Взять следующий/ })).toBeNull();
   });
@@ -352,12 +352,12 @@ describe("app nav shell", () => {
     expect(screen.queryByRole("button", { name: "Взять следующий" })).toBeNull();
   });
 
-  it("moves a highlighted result with Up/Down and activates it with Enter", () => {
+  it("moves a highlighted result with Up/Down and activates it with Enter", async () => {
     render(<AppNavShell {...baseProps} />);
 
     fireEvent.keyDown(window, { key: "k", metaKey: true });
     const dialog = screen.getByRole("dialog", { name: "Поиск и команды" });
-    const input = screen.getByPlaceholderText(/Найти раздел/);
+    const input = await screen.findByPlaceholderText(/Найти раздел/);
     fireEvent.change(input, { target: { value: "калибров" } });
     const options = within(dialog).getAllByRole("option");
     expect(options).toHaveLength(2);

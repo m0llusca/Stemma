@@ -1,7 +1,8 @@
+import { Curve, Dot } from "@/components/ui/recharts-primitives";
 import { clampQualityScore } from "@/lib/score-display";
 
 /**
- * Tiny inline-SVG sparkline of a quality-score series (oldest -> newest).
+ * Tiny Recharts sparkline of a quality-score series (oldest -> newest).
  * Chart geometry unchanged; colors use currentColor / muted primary tokens.
  */
 export function ScoreSparkline({
@@ -40,9 +41,9 @@ export function ScoreSparkline({
       aria-label={`Динамика балла: ${values.length} последних проверок`}
       preserveAspectRatio="xMidYMid meet"
     >
-      <path className="fill-primary/15 stroke-none" d={area} />
-      <path className="fill-none stroke-current stroke-2 [stroke-linecap:round] [stroke-linejoin:round]" d={line} />
-      <circle className="fill-current" cx={last.x} cy={last.y} r={2.6} />
+      <Curve className="fill-primary/15 stroke-none" path={area} />
+      <Curve className="fill-none stroke-current stroke-2 [stroke-linecap:round] [stroke-linejoin:round]" path={line} />
+      <Dot className="fill-current" cx={last.x} cy={last.y} r={2.6} />
     </svg>
   );
 }

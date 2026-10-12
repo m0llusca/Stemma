@@ -302,7 +302,8 @@ describe("review queue frontend/backend contract", () => {
 
   it("turns analytics drilldown params into concrete reviewed queue filters", async () => {
     mocks.prisma.conversation.findMany.mockResolvedValue([]);
-    const { getReviewQueue, parseReviewQueueFilters } = await import("@/lib/review-repository");
+    const { getReviewQueue } = await import("@/lib/review-repository");
+    const { parseReviewQueueFilters } = await import("@/lib/review/queue-filters");
     const filters = parseReviewQueueFilters({
       status: "reviewed",
       riskLevel: "HIGH_OR_CRITICAL",
@@ -369,7 +370,8 @@ describe("review queue frontend/backend contract", () => {
 
   it("filters reviewed queues by support team of the checked agent", async () => {
     mocks.prisma.conversation.findMany.mockResolvedValue([]);
-    const { getReviewQueue, parseReviewQueueFilters } = await import("@/lib/review-repository");
+    const { getReviewQueue } = await import("@/lib/review-repository");
+    const { parseReviewQueueFilters } = await import("@/lib/review/queue-filters");
     const filters = parseReviewQueueFilters({
       teamName: "ФГИС",
       supportLine: "2ЛП"
@@ -388,7 +390,8 @@ describe("review queue frontend/backend contract", () => {
 
   it("excludes OUT_OF_SAMPLE from default queue listing unless samplingType is explicit", async () => {
     mocks.prisma.conversation.findMany.mockResolvedValue([]);
-    const { buildReviewQueueWhere, parseReviewQueueFilters } = await import("@/lib/review-repository");
+    const { buildReviewQueueWhere } = await import("@/lib/review-repository");
+    const { parseReviewQueueFilters } = await import("@/lib/review/queue-filters");
 
     const defaultWhere = buildReviewQueueWhere("workspace-1", parseReviewQueueFilters({}));
     expect(defaultWhere.AND).toEqual(
@@ -420,7 +423,8 @@ describe("review queue frontend/backend contract", () => {
   });
 
   it("parses process=ai_exception and filters by low-confidence / decided score drafts", async () => {
-    const { buildReviewQueueWhere, parseReviewQueueFilters } = await import("@/lib/review-repository");
+    const { buildReviewQueueWhere } = await import("@/lib/review-repository");
+    const { parseReviewQueueFilters } = await import("@/lib/review/queue-filters");
     const { aiExceptionDraftWhere } = await import("@/lib/ai-quality/exceptions");
 
     const filters = parseReviewQueueFilters({ process: "ai_exception" });
@@ -441,7 +445,8 @@ describe("review queue frontend/backend contract", () => {
   });
 
   it("parses qaScoreBand and filters HUMAN totalScore for QA×CSAT drill-downs", async () => {
-    const { buildReviewQueueWhere, parseReviewQueueFilters } = await import("@/lib/review-repository");
+    const { buildReviewQueueWhere } = await import("@/lib/review-repository");
+    const { parseReviewQueueFilters } = await import("@/lib/review/queue-filters");
 
     const filters = parseReviewQueueFilters({
       status: "reviewed",

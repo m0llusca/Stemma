@@ -262,7 +262,7 @@ describe("app nav", () => {
 
     fireEvent.keyDown(window, { key: "k", metaKey: true });
     const dialog = screen.getByRole("dialog", { name: "Поиск и команды" });
-    const input = screen.getByPlaceholderText(/Найти раздел/);
+    const input = await screen.findByPlaceholderText(/Найти раздел/);
     fireEvent.change(input, { target: { value: "следующий кейс" } });
     expect(within(dialog).getByRole("option", { name: /Взять следующий/ })).not.toBeNull();
   });

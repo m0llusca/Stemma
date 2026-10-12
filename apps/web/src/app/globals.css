@@ -1,6 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "shadcn/tailwind.css";
+@import "./shadcn-primitives.css";
 @import "@stemma/kinetics/tokens.css";
 
 @custom-variant dark (&:is(.dark *));
@@ -690,15 +690,6 @@
   }
 }
 
-@keyframes qc-chart-line-draw {
-  from {
-    stroke-dashoffset: 1;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
 @keyframes qc-chart-line-fade {
   from {
     opacity: 0;
@@ -740,14 +731,6 @@
     var(--motion-ease-spring-panel) both;
 }
 
-/* Native sparkline `<path pathLength={1}>` — dash-draw is safe here. */
-[data-animation-active="true"] path[data-slot="sparkline-line"] {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  animation: qc-chart-line-draw var(--motion-duration-spring-enter)
-    var(--motion-ease-spring-panel) both;
-}
-
 /* Circles can scale; diamond `rect` markers must not — scale overrides SVG rotate(45). */
 [data-animation-active="true"] circle[data-point-id],
 [data-animation-active="true"] circle[data-slot="sparkline-point"] {
@@ -766,15 +749,15 @@
 }
 
 svg[data-animation-active="true"] rect[data-slot="category-bar"],
-svg[data-animation-active="true"] g[data-series="count"] rect,
-svg[data-animation-active="true"] g[data-series="agreement"] rect {
+svg[data-animation-active="true"] g[data-series="count"] .recharts-rectangle,
+svg[data-animation-active="true"] g[data-series="agreement"] .recharts-rectangle {
   transform-box: fill-box;
   transform-origin: center bottom;
   animation: qc-chart-bar-grow-y var(--motion-duration-spring-enter)
     var(--motion-ease-spring-panel) both;
 }
 
-svg[data-animation-active="true"] g[data-series="agreement"] rect {
+svg[data-animation-active="true"] g[data-series="agreement"] .recharts-rectangle {
   transform-origin: left center;
   animation-name: qc-chart-bar-grow-x;
 }
@@ -899,6 +882,7 @@ svg[data-animation-active="true"] g[data-series="agreement"] rect {
   [data-animation-active="true"] rect[data-marker],
   [data-animation-active="true"] circle[data-slot="sparkline-point"],
   svg[data-animation-active="true"] rect[data-slot="category-bar"],
+  svg[data-animation-active="true"] g[data-series] .recharts-rectangle,
   svg[data-animation-active="true"] g[data-series] rect {
     animation: none;
     /* Base rules set opacity:0 before the enter animation; without a final

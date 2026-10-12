@@ -44,6 +44,14 @@ jobs:
       - run: npm ci
       - run: npx prisma generate
       - run: npx prisma migrate deploy
+      - run: npm run test:integration
       - run: npm run build
+      - run: npm run test:budgets
       - run: npx playwright install --with-deps chromium
-      - run: npx playwright test --project=chromium tests/e2e/demo-data-current.spec.ts
+      - run: npx playwright test --project=chromium tests/e2e/demo-data-current.spec.ts tests/e2e/reports-chart-loading.spec.ts tests/e2e/report-reduced-motion.spec.ts tests/e2e/app-command-palette.spec.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: route-budgets
+          path: apps/web/.next/route-budgets.json
+          if-no-files-found: ignore
