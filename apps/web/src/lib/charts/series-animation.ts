@@ -1,6 +1,6 @@
 "use client";
 
-import { kineticsDurationMs } from "@stemma/kinetics";
+import { kineticsDurationMs } from "@stemma/kinetics/durations";
 import { useEffect, useState } from "react";
 
 /** Entrance / update duration — Kinetics spring-enter. */

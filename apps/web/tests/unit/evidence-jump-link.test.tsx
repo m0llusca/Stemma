@@ -36,7 +36,9 @@ describe("EvidenceJumpLink motion and timer safety", () => {
       setReducedMotion(reduced);
       const target = document.createElement("article");
       target.id = "msg-42";
+      target.tabIndex = -1;
       target.scrollIntoView = vi.fn();
+      const focus = vi.spyOn(target, "focus");
       document.body.appendChild(target);
       render(<EvidenceJumpLink messageId="42" timeLabel="12:30" />);
 
@@ -46,6 +48,8 @@ describe("EvidenceJumpLink motion and timer safety", () => {
         behavior,
         block: "center"
       });
+      expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+      expect(document.activeElement).toBe(target);
       expect(target).toHaveAttribute("data-evidence-flash");
     }
   );

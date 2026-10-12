@@ -2,10 +2,8 @@
 
 import type { MouseEvent } from "react";
 import { useEffect, useRef } from "react";
-import {
-  kineticsDurationMs,
-  prefersReducedMotion
-} from "@stemma/kinetics";
+import { kineticsDurationMs } from "@stemma/kinetics/durations";
+import { prefersReducedMotion } from "@stemma/kinetics";
 import { cn } from "@/lib/utils";
 
 /** How long the target message keeps the transient highlight attribute. */
@@ -51,6 +49,8 @@ export function EvidenceJumpLink({ messageId, timeLabel, className }: EvidenceJu
     }
 
     event.preventDefault();
+    document.getElementById("review-workspace")?.setAttribute("data-active-pane", "dialog");
+    target.focus({ preventScroll: true });
     target.scrollIntoView({
       behavior: prefersReducedMotion() ? "auto" : "smooth",
       block: "center"

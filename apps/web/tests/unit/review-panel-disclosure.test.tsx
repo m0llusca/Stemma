@@ -147,6 +147,14 @@ function renderPanel(
   );
 }
 
+function criterionTrigger(name: RegExp) {
+  const triggers = screen.getAllByRole("button", { name }).filter(
+    (button) => button.getAttribute("data-slot") === "review-disclosure-trigger"
+  );
+  expect(triggers).toHaveLength(1);
+  return triggers[0];
+}
+
 function setDisclosureOpen(trigger: HTMLElement, nextOpen: boolean) {
   const host = trigger.closest("details");
   if (!(host instanceof HTMLDetailsElement)) {
@@ -167,8 +175,8 @@ describe("ReviewPanel criterion disclosures", () => {
   it("expands and collapses score modules without submitting the review form", () => {
     renderPanel();
 
-    const first = screen.getByRole("button", { name: /Решение/ });
-    const second = screen.getByRole("button", { name: /Тон/ });
+    const first = criterionTrigger(/Решение/);
+    const second = criterionTrigger(/Тон/);
 
     expect(first.tagName).toBe("SUMMARY");
     expect(second.tagName).toBe("SUMMARY");
@@ -197,7 +205,7 @@ describe("ReviewPanel criterion disclosures", () => {
   it("does not leave a defaultOpen score module aria-expanded true while closed", () => {
     renderPanel();
 
-    const first = screen.getByRole("button", { name: /Решение/ });
+    const first = criterionTrigger(/Решение/);
     const host = first.closest("details");
     expect(host).toBeInstanceOf(HTMLDetailsElement);
     expect(first.getAttribute("aria-expanded")).toBe(String((host as HTMLDetailsElement).open));
@@ -213,7 +221,7 @@ describe("ReviewPanel criterion disclosures", () => {
   it("opens a closed score module and keeps aria-expanded true", () => {
     renderPanel();
 
-    const second = screen.getByRole("button", { name: /Тон/ });
+    const second = criterionTrigger(/Тон/);
     const host = second.closest("details");
     expect(host).toBeInstanceOf(HTMLDetailsElement);
     expect(second.getAttribute("aria-expanded")).toBe("false");
@@ -229,7 +237,7 @@ describe("ReviewPanel criterion disclosures", () => {
   it("flips aria-expanded from a summary click, not a details.open write", () => {
     renderPanel();
 
-    const first = screen.getByRole("button", { name: /Решение/ });
+    const first = criterionTrigger(/Решение/);
     const host = first.closest("details");
     expect(host).toBeInstanceOf(HTMLDetailsElement);
     expect(first).toHaveAttribute("aria-expanded", "true");
@@ -244,7 +252,7 @@ describe("ReviewPanel criterion disclosures", () => {
   it("toggles a closed score module open with Enter and Space on the trigger", () => {
     renderPanel();
 
-    const second = screen.getByRole("button", { name: /Тон/ });
+    const second = criterionTrigger(/Тон/);
     const host = second.closest("details");
     expect(host).toBeInstanceOf(HTMLDetailsElement);
     expect(second).toHaveAttribute("aria-expanded", "false");
@@ -264,7 +272,7 @@ describe("ReviewPanel criterion disclosures", () => {
   it("toggles an open focused criterion closed with Enter and collapses with Escape", () => {
     renderPanel();
 
-    const first = screen.getByRole("button", { name: /Решение/ });
+    const first = criterionTrigger(/Решение/);
     const host = first.closest("details");
     expect(host).toBeInstanceOf(HTMLDetailsElement);
     expect(first).toHaveAttribute("aria-expanded", "true");
@@ -288,7 +296,7 @@ describe("ReviewPanel criterion disclosures", () => {
   it("keeps the evidence jump link out of the criterion trigger", () => {
     renderPanel({ draftReview });
 
-    const trigger = screen.getByRole("button", { name: /Тон/ });
+    const trigger = criterionTrigger(/Тон/);
     expect(trigger).toHaveAttribute("aria-expanded", "true");
     expect(trigger.querySelector("a")).toBeNull();
     expect(trigger).toHaveTextContent("доказательство");
@@ -336,7 +344,7 @@ describe("ReviewPanel criterion disclosures", () => {
     };
 
     const { unmount } = renderPanel({ draftReview: issueReview });
-    const trigger = screen.getByRole("button", { name: /Решение/ });
+    const trigger = criterionTrigger(/Решение/);
     expect(trigger).toHaveAttribute("aria-expanded", "true");
 
     fireEvent.click(trigger);
@@ -346,7 +354,7 @@ describe("ReviewPanel criterion disclosures", () => {
     unmount();
     renderPanel({ draftReview: issueReview });
 
-    expect(screen.getByRole("button", { name: /Решение/ })).toHaveAttribute(
+    expect(criterionTrigger(/Решение/)).toHaveAttribute(
       "aria-expanded",
       "false"
     );

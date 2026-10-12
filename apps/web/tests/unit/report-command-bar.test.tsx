@@ -828,6 +828,9 @@ describe("ReportExportMenu", () => {
   it("does not SSR dropdown trigger attributes", () => {
     const html = renderToStaticMarkup(
       <ReportExportMenu
+        filters={{}}
+        currentHref="/reports?view=overview&period=vk-current"
+        catalog={{ teams: [], blocks: [], sources: [] }}
         period={{
           preset: "vk-current",
           start: new Date("2026-08-22T00:00:00.000Z"),
@@ -840,5 +843,54 @@ describe("ReportExportMenu", () => {
     expect(html).toContain("Экспорт");
     expect(html).not.toContain("data-slot=\"dropdown-menu-trigger\"");
     expect(html).not.toContain("aria-haspopup");
+  });
+});
+
+describe("Report actions and custom range contracts", () => {
+  const catalog = { teams: [{ slug: "team-one", value: "Команда 1" }], blocks: [{ slug: "block-one", value: "Блок 1" }], sources: ["freshdesk"] };
+  const href = "/reports?view=performance&period=custom&start=2026-10-01&end=2026-10-12&compare=year&grain=week&team=team-one&source=freshdesk&risk=high_plus&block=block-one&chartView=table&series=score";
+
+  it("uses one menubar and preserves canonical export and view queries", async () => {
+    render(<ReportExportMenu
+      period={{ preset: "custom", start: new Date("2026-10-01T00:00:00Z"), end: new Date("2026-10-12T23:59:59Z"), label: "Произвольный" }}
+      filters={{ team: "team-one", source: "freshdesk", risk: "high_plus", block: "block-one" }}
+      currentHref={href}
+      catalog={catalog}
+    />);
+    expect(await screen.findByRole("menubar", { name: "Действия отчёта" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Экспорт" }));
+    for (const [label, pathname] of [["CSV", "/reports/export"], ["XLSX", "/reports/export/xlsx"], ["PDF", "/reports/export/pdf"]]) {
+      const item = await screen.findByRole("menuitem", { name: label });
+      const url = new URL(item.getAttribute("href")!, "http://localhost");
+      expect(url.pathname).toBe(pathname);
+      expect(Object.fromEntries(url.searchParams)).toEqual({ period: "custom", start: "2026-10-01", end: "2026-10-12", team: "team-one", source: "freshdesk", risk: "high_plus", block: "block-one" });
+    }
+    fireEvent.keyDown(screen.getByRole("menuitem", { name: "CSV" }), { key: "Escape" });
+    fireEvent.click(screen.getByRole("menuitem", { name: "Представление" }));
+    const view = await screen.findByRole("menuitem", { name: "Процесс" });
+    const next = new URL(view.getAttribute("href")!, "http://localhost");
+    expect(next.searchParams.get("view")).toBe("process");
+    for (const key of ["start", "end", "compare", "grain", "team", "source", "risk", "block", "chartView", "series"]) {
+      expect(next.searchParams.get(key)).toBe(new URL(href, "http://localhost").searchParams.get(key));
+    }
+  });
+
+  it("applies both custom dates in one navigation and retains the entity filters and comparison", async () => {
+    navigation.searchParams = href.split("?")[1];
+    window.history.replaceState(null, "", href);
+    navigation.refresh.mockClear();
+    render(<ReportParameterLens currentHref={href} state={{ view: "performance", period: "custom", start: "2026-10-01", end: "2026-10-12", compare: "year", grain: "week", chartView: "table", series: ["score"], team: "team-one", source: "freshdesk", risk: "high_plus", block: "block-one" }} catalog={catalog} savedViews={[]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Фильтры (4)" }));
+    const dialog = await screen.findByRole("dialog", { name: "Фильтры отчёта" });
+    fireEvent.change(within(dialog).getByLabelText("С даты"), { target: { value: "2026-10-03" } });
+    fireEvent.change(within(dialog).getByLabelText("По дату"), { target: { value: "2026-10-09" } });
+    expect(navigation.refresh).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Применить период" }));
+    expect(navigation.refresh).toHaveBeenCalledOnce();
+    expect(new URLSearchParams(window.location.search).get("start")).toBe("2026-10-03");
+    expect(new URLSearchParams(window.location.search).get("end")).toBe("2026-10-09");
+    for (const key of ["compare", "grain", "team", "source", "risk", "block", "chartView", "series"]) {
+      expect(new URLSearchParams(window.location.search).get(key)).toBe(new URL(href, "http://localhost").searchParams.get(key));
+    }
   });
 });

@@ -53,8 +53,8 @@ const nextConfig: NextConfig = {
     // Keep chart/vendor dependencies reusable instead of merging them with
     // unrelated shell UI. The route-budget gate measures the emitted chunks.
     turbopackChunking: {
-      minChunkSize: 5000,
-      maxMergeChunkSize: 10000,
+      minChunkSize: 1000,
+      maxMergeChunkSize: 3000,
       maxChunkCountPerGroup: 80
     }
   },

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   canAcknowledgeFeedback: vi.fn(),
@@ -123,7 +123,13 @@ function conversation() {
 }
 
 describe("review detail page", () => {
+  afterEach(() => vi.unstubAllGlobals());
   beforeEach(() => {
+    vi.stubGlobal("ResizeObserver", class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    });
     vi.clearAllMocks();
     mocks.requireCurrentUserPermission.mockResolvedValue({
       id: "support-1",

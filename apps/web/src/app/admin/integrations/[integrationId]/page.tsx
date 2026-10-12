@@ -1,3 +1,4 @@
+import { PageBreadcrumbs } from "@/components/ui/page-breadcrumbs";
 import { ListChecks, Plus } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -830,6 +831,7 @@ async function IntegrationDetailsPageContent({ params, searchParams }: Integrati
 
   return (
     <PageShell
+      breadcrumb={<PageBreadcrumbs items={[{ label: "Интеграции", href: "/admin/integrations" }, { label: integration.displayName }]} />}
       eyebrow={adminEyebrow}
       title={integration.displayName}
       description={`${externalSourceLabel(integration.source)} · ${integrationTypeLabel(integration.type)} · ${opsStatusLabel} · последний запуск ${formatDate(latestRun?.startedAt)}`}

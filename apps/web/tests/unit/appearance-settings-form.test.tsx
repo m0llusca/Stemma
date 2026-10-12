@@ -83,6 +83,9 @@ describe("AppearanceSettingsForm persistence reconciliation", () => {
     );
     openThemeTab();
 
+    const themePreview = screen.getByRole("radio", { name: /Signal Blue/ }).closest("label")?.querySelector('[data-slot="aspect-ratio"]');
+    expect(themePreview).toHaveStyle({ "--ratio": "3" });
+
     fireEvent.click(screen.getByRole("radio", { name: /Signal Blue/ }));
     act(() => {
       vi.advanceTimersByTime(180);
@@ -266,7 +269,8 @@ describe("AppearanceSettingsForm persistence reconciliation", () => {
     expect(document.documentElement.classList.contains("dark")).toBe(false);
   });
 
-  it("replaces rapid debounce timers and clears the pending save on unmount", () => {
+  it("debounces to the latest appearance and cancels the pending save on unmount", async () => {
+    mocks.updateWorkspaceAppearance.mockResolvedValue(undefined);
     const { unmount } = render(
       <AppearanceSettingsForm
         workspaceName="Демо-пространство"
@@ -274,21 +278,36 @@ describe("AppearanceSettingsForm persistence reconciliation", () => {
       />
     );
     openThemeTab();
-    const frameworkTimerCount = vi.getTimerCount();
+
+    fireEvent.click(screen.getByRole("radio", { name: /Signal Blue/ }));
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+    fireEvent.click(screen.getByRole("radio", { name: /Mint Steel/ }));
+    act(() => {
+      vi.advanceTimersByTime(179);
+    });
+    expect(mocks.updateWorkspaceAppearance).not.toHaveBeenCalled();
 
     act(() => {
-      fireEvent.click(screen.getByRole("radio", { name: /Signal Blue/ }));
-      fireEvent.click(screen.getByRole("radio", { name: /Mint Steel/ }));
+      vi.advanceTimersByTime(1);
     });
+    await flushAsyncWork();
+    expect(mocks.updateWorkspaceAppearance).toHaveBeenCalledTimes(1);
+    expect((mocks.updateWorkspaceAppearance.mock.calls[0]?.[0] as FormData).get("uiTheme")).toBe("emerald");
 
-    expect(vi.getTimerCount()).toBe(frameworkTimerCount + 1);
+    fireEvent.click(screen.getByRole("radio", { name: /Night Ops/ }));
+    act(() => {
+      vi.advanceTimersByTime(179);
+    });
     unmount();
-    expect(vi.getTimerCount()).toBe(frameworkTimerCount);
 
     act(() => {
       vi.advanceTimersByTime(500);
     });
-    expect(mocks.updateWorkspaceAppearance).not.toHaveBeenCalled();
+    await flushAsyncWork();
+    expect(mocks.updateWorkspaceAppearance).toHaveBeenCalledTimes(1);
+    expect(mocks.refresh).toHaveBeenCalledTimes(1);
   });
 
   it("shows Применено on the header badge only after a confirmed save", async () => {

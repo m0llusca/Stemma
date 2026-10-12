@@ -1,13 +1,13 @@
 "use client"
 
 import * as React from "react"
+import { createPortal } from "react-dom"
 import { Menu as MenuPrimitive } from "@base-ui/react/menu"
 import { Menubar as MenubarPrimitive } from "@base-ui/react/menubar"
 
 import { cn } from "@/lib/utils"
 import {
   DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -22,12 +22,17 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { CheckIcon } from "lucide-react"
 
+// Hidden sentinels keep their tab stops and forwarding handlers, with no pointer
+// hit area. VoiceOver's exposed role=button sentinels retain Base UI's 1px size.
+const menubarFocusGuardStyles = "[&_[data-base-ui-focus-guard][aria-hidden=true]]:size-0! [&_[data-base-ui-focus-guard][aria-hidden=true]]:pointer-events-none"
+
 function Menubar({ className, ...props }: MenubarPrimitive.Props) {
   return (
     <MenubarPrimitive
       data-slot="menubar"
       className={cn(
         "flex h-8 items-center gap-0.5 rounded-lg border p-[3px]",
+        menubarFocusGuardStyles,
         className
       )}
       {...props}
@@ -46,9 +51,23 @@ function MenubarGroup({
 }
 
 function MenubarPortal({
+  className,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPortal>) {
-  return <DropdownMenuPortal data-slot="menubar-portal" {...props} />
+  const [container, setContainer] = React.useState<HTMLElement | null>(null)
+  React.useEffect(() => setContainer(document.body), [])
+
+  // Menu.Portal places its outside focus guards at its React-tree location.
+  // VoiceOver exposes those as buttons, which cannot belong to role=menubar.
+  // Portal the whole composition outside that DOM role; React keeps the menu
+  // context and keyboard event path intact. The effect keeps SSR/hydration stable.
+  if (!container) return null
+  return createPortal(
+    <div data-slot="menubar-portal-layer" className={cn("contents", menubarFocusGuardStyles)}>
+      <MenuPrimitive.Portal data-slot="menubar-portal" className={cn(menubarFocusGuardStyles, className)} {...props} />
+    </div>,
+    container
+  )
 }
 
 function MenubarTrigger({
@@ -71,18 +90,27 @@ function MenubarContent({
   className,
   align = "start",
   alignOffset = -4,
+  side = "bottom",
   sideOffset = 8,
   ...props
-}: React.ComponentProps<typeof DropdownMenuContent>) {
+}: MenuPrimitive.Popup.Props &
+  Pick<MenuPrimitive.Positioner.Props, "align" | "alignOffset" | "side" | "sideOffset">) {
   return (
-    <DropdownMenuContent
-      data-slot="menubar-content"
-      align={align}
-      alignOffset={alignOffset}
-      sideOffset={sideOffset}
-      className={cn("min-w-36 rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95", className )}
-      {...props}
-    />
+    <MenubarPortal>
+      <MenuPrimitive.Positioner
+        className="isolate z-50 outline-none"
+        align={align}
+        alignOffset={alignOffset}
+        side={side}
+        sideOffset={sideOffset}
+      >
+        <MenuPrimitive.Popup
+          data-slot="menubar-content"
+          className={cn("z-50 max-h-(--available-height) w-(--anchor-width) min-w-36 origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 outline-none data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:overflow-hidden data-closed:fade-out-0 data-closed:zoom-out-95", className)}
+          {...props}
+        />
+      </MenuPrimitive.Positioner>
+    </MenubarPortal>
   )
 }
 

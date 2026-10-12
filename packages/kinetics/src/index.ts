@@ -8,30 +8,6 @@ export const KINETICS_ORIGIN = "https://kinetics.colorion.co/#library" as const;
 /** Package identity — Colorion Kinetics is not on npm; this is Stemma's catalog. */
 export const KINETICS_PACKAGE = "@stemma/kinetics" as const;
 
-export const kineticsDurations = {
-  spring: "400ms",
-  springEnter: "550ms",
-  springPanel: "450ms",
-  springGlide: "400ms",
-  morph: "350ms",
-  shimmer: "1.5s"
-} as const;
-
-/**
- * Millisecond mirrors for JS APIs (scroll timers, Recharts, Morphicons windows).
- * Keep in sync with `kineticsDurations` / `tokens.css`.
- */
-export const kineticsDurationMs = {
-  spring: 400,
-  springEnter: 550,
-  springPanel: 450,
-  springGlide: 400,
-  morph: 350,
-  shimmer: 1500,
-  /** Transient evidence / focus flash (product timing, not a Colorion demo). */
-  feedbackFlash: 1200
-} as const;
-
 export const kineticsEasings = {
   /** Switch / progress overshoot spring. */
   overshoot: "cubic-bezier(0.34, 1.56, 0.64, 1)",
@@ -167,8 +143,4 @@ export const kineticsSurfaces: readonly KineticsSurface[] = [
   "inline-bar"
 ] as const;
 
-export {
-  kineticsDurations as durations,
-  kineticsDurationMs as durationMs,
-  kineticsEasings as easings
-};
+export { kineticsEasings as easings };

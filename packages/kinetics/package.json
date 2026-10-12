@@ -10,6 +10,10 @@
       "types": "./src/index.ts",
       "default": "./src/index.ts"
     },
+    "./durations": {
+      "types": "./src/durations.ts",
+      "default": "./src/durations.ts"
+    },
     "./tokens.css": "./src/tokens.css",
     "./react": {
       "types": "./src/react.ts",

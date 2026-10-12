@@ -1,3 +1,4 @@
+import { PageBreadcrumbs } from "@/components/ui/page-breadcrumbs";
 import { isCalibrationSessionReview } from "@/lib/calibration/review-session";
 import Link from "next/link";
 import {
@@ -498,6 +499,7 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
 
   return (
     <PageShell
+      breadcrumb={selectedSession ? <PageBreadcrumbs items={[{ label: "Калибровки", href: "/calibration" }, { label: selectedSession.name }]} /> : undefined}
       eyebrow="Контроль качества"
       title="Калибровка"
       description="Проверяющие оценивают одни и те же обращения. Руководитель видит расхождения и фиксирует единое правило."

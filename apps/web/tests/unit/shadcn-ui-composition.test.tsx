@@ -47,7 +47,7 @@ const reviewDetailBemPrefix =
   /(?:conversation-message|coaching-pin(?:-composer)?|step-header|review-conversation-panel)(?:__|--)/;
 
 const remainingBemSurfaceFiles = [
-  "src/components/ui/master-detail.tsx",
+  "src/components/review/workbench-layout.tsx",
   "src/app/dashboard/page.tsx",
   "src/app/reviews/[conversationId]/page.tsx"
 ] as const;
@@ -237,7 +237,7 @@ describe("shadcn UI composition primitives", () => {
       );
     }
 
-    const masterDetailSource = readFileSync(join(process.cwd(), "src/components/ui/master-detail.tsx"), "utf8");
+    const masterDetailSource = readFileSync(join(process.cwd(), "src/components/review/workbench-layout.tsx"), "utf8");
     expect(masterDetailSource).not.toMatch(/[a-z0-9-]+__[a-z0-9-]+/);
   });
 

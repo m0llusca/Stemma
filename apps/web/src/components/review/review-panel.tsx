@@ -12,6 +12,7 @@ import { kineticsStyle } from "@stemma/kinetics";
 import type { ReactNode } from "react";
 import { DisclosureMorphChevron } from "@/components/ui/disclosure-morph-chevron";
 import { criterionPredictionChipLabel } from "@/components/review/ai-prediction-chip";
+import { CriterionGuidance } from "@/components/review/criterion-guidance";
 import {
   EnsureEvidenceDraft,
   EvidenceFieldHint,
@@ -140,7 +141,7 @@ const segmentLabelScaleClass = cn(segmentLabelBaseClass, "border-t first:border-
 const segmentLabelBinaryClass = cn(
   segmentLabelBaseClass,
   "flex-col items-center justify-center gap-0.5 border-t text-center first:border-t-0",
-  "sm:border-t-0 sm:border-l sm:first:border-l-0"
+  "@sm/review:border-t-0 @sm/review:border-l @sm/review:first:border-l-0"
 );
 
 const segmentLabelDangerClass = cn(
@@ -370,7 +371,7 @@ export function ReviewPanel({
       )}
       allowedMessageIds={messages.map((message) => message.id)}
     >
-    <ReviewFormShell className="review-panel-form panel overflow-clip bg-card" allowTakeNext={reviewSource === "HUMAN"}>
+    <ReviewFormShell className="review-panel-form panel @container/review overflow-clip bg-card" allowTakeNext={reviewSource === "HUMAN"}>
       <EvidencePickerListener />
       <LiveEvidenceHighlights />
       <input type="hidden" name="conversationId" value={conversationId} />
@@ -503,14 +504,14 @@ export function ReviewPanel({
 
               return (
                 <section key={group.block} className="overflow-clip rounded-lg border border-border bg-card">
-                  <header className="flex min-w-0 flex-col items-start justify-between gap-2.5 border-b border-border bg-muted/70 px-3 py-2.5 sm:flex-row sm:items-center">
+                  <header className="flex min-w-0 flex-col items-start justify-between gap-2.5 border-b border-border bg-muted/70 px-3 py-2.5 @sm/review:flex-row @sm/review:items-center">
                     <div className="min-w-0">
                       <span className="block text-[10px] font-extrabold uppercase leading-none text-muted-foreground">
                         Группа процесса
                       </span>
                       <h4 className="mt-0.5 truncate text-sm font-bold leading-tight text-foreground">{group.block}</h4>
                     </div>
-                    <div className="flex min-w-0 flex-wrap items-center justify-start gap-1.5 sm:justify-end">
+                    <div className="flex min-w-0 flex-wrap items-center justify-start gap-1.5 @sm/review:justify-end">
                       <Chip tone={issueCount > 0 ? "warning" : "success"}>
                         {issueCount > 0 ? `${issueCount} замеч.` : "без замечаний"}
                       </Chip>
@@ -585,7 +586,7 @@ export function ReviewPanel({
                                 {criterion.order}
                               </span>
                               <div className="min-w-0">
-                                <div className="flex min-w-0 flex-col items-start justify-between gap-1.5 sm:flex-row sm:items-center sm:gap-2">
+                                <div className="flex min-w-0 flex-col items-start justify-between gap-1.5 @sm/review:flex-row @sm/review:items-center @sm/review:gap-2">
                                   <h4 className="min-w-0 text-[13px] font-bold leading-snug text-foreground">{criterion.label}</h4>
                                   <span className="flex flex-wrap items-center gap-1.5">
                                     {prediction ? (
@@ -631,7 +632,8 @@ export function ReviewPanel({
                             </>
                           }
                         >
-                            <div className="grid grid-cols-1 items-end gap-2.5 sm:grid-cols-[minmax(0,1fr)_auto]">
+                            <CriterionGuidance label={criterion.label} kind={criterion.kind} weight={criterion.weight} required={criterion.required} />
+                            <div className="grid grid-cols-1 items-end gap-2.5 @sm/review:grid-cols-[minmax(0,1fr)_auto]">
                               {criterion.kind === "SCALE_1_3" ? (
                                 <FieldSet className="min-w-0 gap-1.5">
                                   <FieldLegend
@@ -689,7 +691,7 @@ export function ReviewPanel({
                                     aria-labelledby={`review-criterion-${criterion.id}-result-legend`}
                                     name={`criterion.${criterion.id}.passed`}
                                     defaultValue={passFailDefaultValue(draftScore)}
-                                    className="grid w-full grid-cols-1 gap-0 overflow-clip rounded-md border border-border bg-card sm:grid-cols-2"
+                                    className="grid w-full grid-cols-1 gap-0 overflow-clip rounded-md border border-border bg-card @sm/review:grid-cols-2"
                                   >
                                     <label className={segmentLabelBinaryClass}>
                                       <RadioGroupItem value="true" className={segmentRadioClass} />
@@ -713,7 +715,7 @@ export function ReviewPanel({
                                 </FieldSet>
                               )}
 
-                              <label className="flex min-h-9 min-w-0 cursor-pointer items-center gap-2 self-stretch whitespace-normal rounded-md border border-dashed border-border bg-card px-2.5 py-1.5 text-sm font-medium text-foreground transition-colors hover:border-border hover:bg-muted focus-within:outline focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-ring/50 sm:self-end sm:whitespace-nowrap">
+                              <label className="flex min-h-9 min-w-0 cursor-pointer items-center gap-2 self-stretch whitespace-normal rounded-md border border-dashed border-border bg-card px-2.5 py-1.5 text-sm font-medium text-foreground transition-colors hover:border-border hover:bg-muted focus-within:outline focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-ring/50 @sm/review:self-end @sm/review:whitespace-nowrap">
                                 <Checkbox
                                   name={`criterion.${criterion.id}.notApplicable`}
                                   defaultChecked={draftScore?.isNotApplicable ?? false}
@@ -722,7 +724,7 @@ export function ReviewPanel({
                               </label>
                             </div>
 
-                            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-[minmax(150px,0.9fr)_minmax(190px,1.1fr)]">
+                            <div className="grid grid-cols-1 gap-2.5 @sm/review:grid-cols-[minmax(150px,0.9fr)_minmax(190px,1.1fr)]">
                               <Field className="rounded-md border border-border bg-card/80 p-2.5">
                                 <FieldLabel htmlFor={`review-criterion-${criterion.id}-evidence-message`}>
                                   Сообщение-доказательство
@@ -773,7 +775,7 @@ export function ReviewPanel({
           <div className="grid gap-4">
             <SummaryTemplatePicker templates={summaryTemplates} defaultValue={draftReview?.summary ?? ""} />
 
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 @md/review:grid-cols-3">
               <Field>
                 <FieldLabel htmlFor="review-category">Категория</FieldLabel>
                 <Input
@@ -883,7 +885,7 @@ export function ReviewPanel({
                 />
               </Field>
 
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 @md/review:grid-cols-2">
                 <Field>
                   <FieldLabel htmlFor="review-positive-notes">Положительные моменты</FieldLabel>
                   <Textarea
@@ -917,7 +919,7 @@ export function ReviewPanel({
               detail="Причина ошибки, доказательство, действие для разбора и заметки."
               defaultOpen={hasAnalysisDetails}
             >
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 @md/review:grid-cols-2">
                 <Field>
                   <FieldLabel htmlFor="review-root-cause">Корневая причина</FieldLabel>
                   <Textarea
@@ -941,7 +943,7 @@ export function ReviewPanel({
                 </Field>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-[1fr_1fr_160px]">
+              <div className="grid gap-4 @md/review:grid-cols-[1fr_1fr_160px]">
                 <Field>
                   <FieldLabel htmlFor="review-coaching-action">Действие для разбора</FieldLabel>
                   <Input

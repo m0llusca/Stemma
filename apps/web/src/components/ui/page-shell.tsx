@@ -24,6 +24,7 @@ export function PageShell({
   title,
   description,
   actions,
+  breadcrumb,
   tabs,
   children,
   className
@@ -32,6 +33,7 @@ export function PageShell({
   title: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;
+  breadcrumb?: ReactNode;
   tabs?: PageShellTab[];
   children?: ReactNode;
   className?: string;
@@ -44,6 +46,7 @@ export function PageShell({
         className
       )}
     >
+      {breadcrumb}
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 flex-col gap-1.5">
           {eyebrow != null ? (

@@ -213,6 +213,18 @@ export function ReviewKeyboard() {
     }
 
     function onKeyDown(event: KeyboardEvent) {
+      // Let the browser activate links; cancelling Enter suppresses their click.
+      if (
+        event.key === "Enter" &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        event.target instanceof Element &&
+        event.target.closest("a[href]")
+      ) {
+        return;
+      }
+
       // UX-ACCEPT: Enter/Space on the module trigger toggles. preventDefault so
       // native <summary> and ReviewKeyboard cannot fight (expand-only steal).
       if (

@@ -20,6 +20,8 @@ import {
 import { Suspense } from "react";
 import { PageSkeleton } from "@/components/loading-states";
 import { KnowledgeCategoryFields } from "@/components/coaching/knowledge-category-fields";
+import { CoachingAssignmentItem } from "@/components/coaching/coaching-assignment-item";
+import { CoachingPlanProgress } from "@/components/coaching/coaching-plan-progress";
 import { SparklineChart, type SparklineDatum } from "@/components/reports/report-charts";
 import { ToastActionForm } from "@/app/coaching/toast-action-form";
 import { CoachingViewNavLink } from "@/app/coaching/coaching-view-nav-link";
@@ -31,6 +33,7 @@ import { Chip, type ChipTone } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Item, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { PageShell } from "@/components/ui/page-shell";
 import {
@@ -41,7 +44,6 @@ import {
   PaginationPrevious
 } from "@/components/ui/pagination";
 import { StatKpi } from "@/components/ui/stat-kpi";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { TriageStrip, type TriageStripTone } from "@/components/ui/triage-strip";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
@@ -1050,23 +1052,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="flex flex-col gap-3">
-                        <div className="flex items-center gap-2" aria-label="Прогресс плана">
-                          <div
-                            className="relative h-1 w-full overflow-hidden rounded-full bg-muted"
-                            role="progressbar"
-                            aria-valuemin={0}
-                            aria-valuemax={plan.progress.total}
-                            aria-valuenow={plan.progress.done}
-                          >
-                            <span
-                              className="absolute inset-y-0 left-0 bg-primary transition-all"
-                              style={{ width: `${plan.progress.percent}%` }}
-                            />
-                          </div>
-                          <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
-                            {plan.progress.done}/{plan.progress.total} закрыто
-                          </span>
-                        </div>
+                        <CoachingPlanProgress title={plan.title} done={plan.progress.done} total={plan.progress.total} />
 
                         {summary ? (
                           <div
@@ -1085,34 +1071,32 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                         ) : null}
 
                         {planAssignments.length > 0 ? (
-                          <ul className="flex flex-col gap-1.5">
+                          <ItemGroup aria-label={`Задания плана «${plan.title}»`}>
                             {planAssignments.map((assignment) => {
                               const assignmentImpact = assignmentImpacts.get(assignment.id);
                               const assignmentSummary = assignmentImpact ? impactSummary(assignmentImpact) : null;
 
                               return (
-                                <li
+                                <Item
                                   key={assignment.id}
-                                  className="flex flex-wrap items-center gap-2 rounded-md border border-border/70 px-2 py-1.5 text-sm"
+                                  role="listitem"
+                                  variant="outline"
+                                  size="xs"
                                 >
-                                  <span className="min-w-0 flex-1 font-medium">{assignment.title}</span>
+                                  <ItemContent className="min-w-0">
+                                    <ItemTitle>{assignment.title}</ItemTitle>
+                                    {assignmentSummary ? (
+                                      <ItemDescription>
+                                        {assignmentSummary.text}
+                                        {assignmentSummary.sampleAdequate ? "" : " · мало данных для вывода"}
+                                      </ItemDescription>
+                                    ) : null}
+                                  </ItemContent>
                                   <Chip tone={trainingStatusTone(assignment.status)}>{trainingStatusLabel(assignment.status)}</Chip>
-                                  {assignmentSummary ? (
-                                    <span
-                                      className={cn(
-                                        "text-xs text-muted-foreground",
-                                        assignmentSummary.trend === "up" && "text-emerald-700 dark:text-emerald-300",
-                                        assignmentSummary.trend === "down" && "text-destructive"
-                                      )}
-                                    >
-                                      {assignmentSummary.text}
-                                      {assignmentSummary.sampleAdequate ? "" : " · мало данных для вывода"}
-                                    </span>
-                                  ) : null}
-                                </li>
+                                </Item>
                               );
                             })}
-                          </ul>
+                          </ItemGroup>
                         ) : (
                           <p className="text-sm text-muted-foreground">К плану ещё не привязаны разборы.</p>
                         )}
@@ -1484,106 +1468,73 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
           </AutoSubmitFilterForm>
 
           {filteredAssignments.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Задача</TableHead>
-                  <TableHead>Исполнитель</TableHead>
-                  <TableHead>Срок</TableHead>
-                  <TableHead>Статус</TableHead>
-                  <TableHead>Контекст</TableHead>
-                  <TableHead className="text-right">Действия</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredAssignments.map((assignment) => {
-                  const overdue = assignment.status !== "done" && isOverdue(assignment.dueAt, now);
-                  const dueThisWeek = assignment.status !== "done" && isDueThisWeek(assignment.dueAt, now);
-                  const conversation = assignment.review?.conversation;
-                  const finding = assignment.review?.findings[0];
-                  const isPriority = nextAssignment?.id === assignment.id;
-                  const trainingEffect = trainingEffects.get(assignment.id);
+            <ItemGroup aria-label="Учебные задачи">
+              {filteredAssignments.map((assignment) => {
+                const overdue = assignment.status !== "done" && isOverdue(assignment.dueAt, now);
+                const dueThisWeek = assignment.status !== "done" && isDueThisWeek(assignment.dueAt, now);
+                const conversation = assignment.review?.conversation;
+                const finding = assignment.review?.findings[0];
+                const isPriority = nextAssignment?.id === assignment.id;
+                const trainingEffect = trainingEffects.get(assignment.id);
 
-                  return (
-                    <TableRow
-                      key={assignment.id}
-                      className={cn(
-                        overdue && "bg-destructive/5",
-                        isPriority && !overdue && "bg-primary/5"
-                      )}
-                      data-state={isPriority ? "selected" : undefined}
-                    >
-                      <TableCell className="max-w-[22rem] whitespace-normal">
-                        <div className="flex flex-col gap-1.5">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="font-medium text-foreground">{assignment.title}</span>
-                            {isPriority ? <Chip tone="accent">Следующий</Chip> : null}
-                          </div>
-                          <p className="line-clamp-2 text-sm text-muted-foreground">{assignment.description}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>{assignment.assigneeName}</TableCell>
-                      <TableCell>
-                        <span
-                          className={cn(
-                            overdue && "font-medium text-destructive",
-                            dueThisWeek && !overdue && "font-medium text-primary"
-                          )}
-                        >
-                          {dueText(assignment.dueAt)}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <Chip tone={trainingStatusTone(assignment.status)}>{trainingStatusLabel(assignment.status)}</Chip>
-                      </TableCell>
-                      <TableCell className="max-w-[18rem] whitespace-normal">
-                        <div className="flex flex-wrap gap-1.5">
-                          {conversation ? (
-                            <Chip tone="neutral">{conversation.externalId}</Chip>
-                          ) : (
-                            <Chip tone="neutral">без проверки</Chip>
-                          )}
-                          {finding ? <Chip tone="neutral">{finding.category}</Chip> : null}
-                          {finding ? <Chip tone="neutral">{riskLevelLabels[finding.riskLevel]}</Chip> : null}
-                          {assignment.review && canShowScoreTrend ? (
-                            <Chip tone="neutral" className="tabular-nums">
-                              {formatQualityScore(assignment.review.totalScore)}
-                            </Chip>
-                          ) : null}
-                          {assignment.review?.needsReanswer ? <Chip tone="warning">переответ</Chip> : null}
-                          {trainingEffect != null && canShowScoreTrend ? (
-                            <Chip tone={trainingEffect >= 0 ? "success" : "danger"} className="tabular-nums">
-                              {formatQualityScoreDelta(trainingEffect)} после разбора
-                            </Chip>
-                          ) : null}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex flex-wrap items-center justify-end gap-2">
-                          {conversation ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              render={<Link href={`/reviews/${conversation.id}`} />}
-                              nativeButton={false}
-                            >
-                              К замечанию
-                            </Button>
-                          ) : null}
-                          <ToastActionForm action={updateTrainingAssignmentStatusState}>
-                            <input type="hidden" name="id" value={assignment.id} />
-                            <input type="hidden" name="status" value={assignment.status === "done" ? "open" : "done"} />
-                            <Button type="submit" size="sm">
-                              {assignment.status === "done" ? "Вернуть" : "Готово"}
-                            </Button>
-                          </ToastActionForm>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                return (
+                  <CoachingAssignmentItem
+                    key={assignment.id}
+                    title={assignment.title}
+                    description={assignment.description}
+                    assigneeName={assignment.assigneeName}
+                    dueLabel={dueText(assignment.dueAt)}
+                    overdue={overdue}
+                    dueThisWeek={dueThisWeek}
+                    isPriority={isPriority}
+                    status={<Chip tone={trainingStatusTone(assignment.status)}>{trainingStatusLabel(assignment.status)}</Chip>}
+                    context={
+                      <>
+                        {conversation ? (
+                          <Chip tone="neutral">{conversation.externalId}</Chip>
+                        ) : (
+                          <Chip tone="neutral">без проверки</Chip>
+                        )}
+                        {finding ? <Chip tone="neutral">{finding.category}</Chip> : null}
+                        {finding ? <Chip tone="neutral">{riskLevelLabels[finding.riskLevel]}</Chip> : null}
+                        {assignment.review && canShowScoreTrend ? (
+                          <Chip tone="neutral" className="tabular-nums">
+                            {formatQualityScore(assignment.review.totalScore)}
+                          </Chip>
+                        ) : null}
+                        {assignment.review?.needsReanswer ? <Chip tone="warning">переответ</Chip> : null}
+                        {trainingEffect != null && canShowScoreTrend ? (
+                          <Chip tone={trainingEffect >= 0 ? "success" : "danger"} className="tabular-nums">
+                            {formatQualityScoreDelta(trainingEffect)} после разбора
+                          </Chip>
+                        ) : null}
+                      </>
+                    }
+                    actions={
+                      <>
+                        {conversation ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            render={<Link href={`/reviews/${conversation.id}`} />}
+                            nativeButton={false}
+                          >
+                            К замечанию
+                          </Button>
+                        ) : null}
+                        <ToastActionForm action={updateTrainingAssignmentStatusState}>
+                          <input type="hidden" name="id" value={assignment.id} />
+                          <input type="hidden" name="status" value={assignment.status === "done" ? "open" : "done"} />
+                          <Button type="submit" size="sm">
+                            {assignment.status === "done" ? "Вернуть" : "Готово"}
+                          </Button>
+                        </ToastActionForm>
+                      </>
+                    }
+                  />
+                );
+              })}
+            </ItemGroup>
           ) : (
             <EmptyState
               icon={<ClipboardList size={24} aria-hidden="true" />}

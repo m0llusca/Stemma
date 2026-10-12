@@ -129,7 +129,7 @@ function avatarToneClass(participantType: Message["participantType"]) {
 
 function flashClassName(isHighlighted: boolean) {
   return cn(
-    "scroll-mt-20",
+    "scroll-mt-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
     "data-[evidence-flash]:rounded-lg data-[evidence-flash]:bg-primary/10 data-[evidence-flash]:ring-2 data-[evidence-flash]:ring-primary/40",
     "data-[live-evidence]:rounded-lg data-[live-evidence]:bg-primary/5 data-[live-evidence]:ring-1 data-[live-evidence]:ring-primary/20",
     "motion-safe:data-[evidence-flash]:animate-pulse motion-reduce:data-[evidence-flash]:animate-none motion-reduce:data-[evidence-flash]:bg-primary/15",
@@ -318,6 +318,7 @@ export function ConversationTimeline({
                 <article
                   key={message.id}
                   id={`msg-${message.id}`}
+                  tabIndex={-1}
                   data-slot="conversation-message"
                   data-party={message.participantType}
                   data-align="center"
@@ -376,6 +377,7 @@ export function ConversationTimeline({
                 <article
                   key={message.id}
                   id={`msg-${message.id}`}
+                  tabIndex={-1}
                   data-slot="conversation-message"
                   data-party={message.participantType}
                   data-align="center"
@@ -424,6 +426,7 @@ export function ConversationTimeline({
               <ChatMessage
                 key={message.id}
                 id={`msg-${message.id}`}
+                tabIndex={-1}
                 data-slot="conversation-message"
                 data-party={message.participantType}
                 data-lane={isAgent ? "agent" : "customer"}

@@ -1,3 +1,4 @@
+import { PageBreadcrumbs } from "@/components/ui/page-breadcrumbs";
 import { ArrowLeft, Ban, Braces, ListChecks, Play } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -147,6 +148,7 @@ async function JobDetailsPageContent({ params, searchParams }: JobDetailsPagePro
 
   return (
     <PageShell
+      breadcrumb={<PageBreadcrumbs items={[{ label: "Система", href: "/admin/system" }, { label: backendJobTypeLabel(job.type) }]} />}
       eyebrow={adminEyebrow}
       title={backendJobTypeLabel(job.type)}
       description={`Создано ${formatDate(job.createdAt)}.`}

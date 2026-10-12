@@ -36,7 +36,7 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
     <PageShell
       title="Аналитика качества"
       description={`${model.activeView.description}. ${model.period.label}: ${formatPeriod(model.period)}.`}
-      actions={<ReportExportMenu period={model.period} filters={exportFilters} />}
+      actions={<ReportExportMenu period={model.period} filters={exportFilters} currentHref={model.currentReportHref} catalog={model.filterCatalog} />}
       tabs={model.shellTabs}
       className="[&_[id]]:scroll-mt-[calc(var(--app-topbar-height)+4rem)]"
     >

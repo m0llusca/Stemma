@@ -1,7 +1,7 @@
 "use client";
 
 import { ClipboardCheck, MessagesSquare } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 type WorkbenchPane = "dialog" | "score";
@@ -22,6 +22,16 @@ type WorkbenchPane = "dialog" | "score";
  */
 export function WorkbenchPaneToggle({ targetId }: { targetId: string }) {
   const [pane, setPane] = useState<WorkbenchPane>("dialog");
+
+  useEffect(() => {
+    const root = document.getElementById(targetId);
+    if (!root) return;
+    const sync = () => setPane(root.dataset.activePane === "score" ? "score" : "dialog");
+    sync();
+    const observer = new MutationObserver(sync);
+    observer.observe(root, { attributes: true, attributeFilter: ["data-active-pane"] });
+    return () => observer.disconnect();
+  }, [targetId]);
 
   function select(next: WorkbenchPane) {
     setPane(next);

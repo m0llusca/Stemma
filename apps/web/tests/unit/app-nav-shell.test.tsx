@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppNavPulseChrome } from "@/components/app-nav-pulse-chrome";
 import { AppNavShell } from "@/components/app-nav-shell";
@@ -235,14 +235,17 @@ describe("app nav shell", () => {
     const dialog = screen.getByRole("dialog", { name: "Поиск и команды" });
     expect(dialog).not.toBeNull();
 
-    fireEvent.change(await screen.findByPlaceholderText(/Найти раздел/), { target: { value: "калибров" } });
+    // This first opening imports cmdk through React.lazy; cold transforms can
+    // outlast the default 1s query timeout while the browser suite also runs.
+    const input = await screen.findByPlaceholderText(/Найти раздел/, {}, { timeout: 4000 });
+    fireEvent.change(input, { target: { value: "калибров" } });
     const results = within(dialog).getAllByRole("option");
     expect(results.length).toBeGreaterThan(0);
     expect(results.every((item) => /калибров/i.test(item.textContent ?? ""))).toBe(true);
 
     // Base UI Dialog handles Escape on the popup (not only on window).
     fireEvent.keyDown(dialog, { key: "Escape" });
-    expect(screen.queryByRole("dialog", { name: "Поиск и команды" })).toBeNull();
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Поиск и команды" })).toBeNull());
   });
 
   it("exposes the command trigger as a dialog-opening button via aria attributes", async () => {
@@ -256,7 +259,7 @@ describe("app nav shell", () => {
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
   });
 
-  function expectTakeNextFormData(queueHref: string | null) {
+  async function expectTakeNextFormData(queueHref: string | null) {
     expect(mocks.takeNextReview).toHaveBeenCalledTimes(1);
     const formData = mocks.takeNextReview.mock.calls[0]?.[0] as FormData;
     expect(formData.get("queueHref")).toBe(queueHref);
@@ -265,7 +268,7 @@ describe("app nav shell", () => {
     expect(
       screen.queryByRole("link", { name: "Взять следующий" })
     ).toBeNull();
-    expect(screen.queryByRole("dialog", { name: "Поиск и команды" })).toBeNull();
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Поиск и команды" })).toBeNull());
   }
 
   async function runCommandTakeNext() {
@@ -293,7 +296,7 @@ describe("app nav shell", () => {
 
       await run();
 
-      expectTakeNextFormData("/reviews?due=overdue&process=ai_exception");
+      await expectTakeNextFormData("/reviews?due=overdue&process=ai_exception");
     }
   );
 
@@ -316,7 +319,7 @@ describe("app nav shell", () => {
 
     await runCommandTakeNext();
 
-    expectTakeNextFormData(null);
+    await expectTakeNextFormData(null);
   });
 
   it("hides every take-next surface when the reviewer cannot write reviews", async () => {
@@ -372,10 +375,10 @@ describe("app nav shell", () => {
 
     fireEvent.keyDown(input, { key: "Enter" });
     expect(mocks.routerPush).toHaveBeenCalledWith("/calibration");
-    expect(screen.queryByRole("dialog", { name: "Поиск и команды" })).toBeNull();
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Поиск и команды" })).toBeNull());
   });
 
-  it("closes the palette when the backdrop is clicked", () => {
+  it("closes the palette when the backdrop is clicked", async () => {
     render(<AppNavShell {...baseProps} />);
 
     fireEvent.keyDown(window, { key: "k", metaKey: true });
@@ -385,7 +388,7 @@ describe("app nav shell", () => {
     expect(overlay).not.toBeNull();
     fireEvent.pointerDown(overlay!);
     fireEvent.click(overlay!);
-    expect(screen.queryByRole("dialog", { name: "Поиск и команды" })).toBeNull();
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Поиск и команды" })).toBeNull());
   });
 
   it("keeps work-pulse links meaningfully named when responsive labels are hidden", () => {
@@ -550,7 +553,7 @@ describe("app nav shell", () => {
     expect(screen.queryByRole("navigation", { name: "Основные разделы" })).toBeNull();
   });
 
-  it("opens and closes the mobile area menu and exposes the areas as menu links", () => {
+  it("opens and closes the mobile area menu and exposes the areas as menu links", async () => {
     mocks.pathname = "/reviews/abc";
     render(<AppNavShell {...baseProps} />);
 
@@ -576,11 +579,11 @@ describe("app nav shell", () => {
 
     // Escape closes the menu and returns aria-expanded to false.
     fireEvent.keyDown(menu, { key: "Escape" });
-    expect(queryAreaMenu()).toBeNull();
+    await waitFor(() => expect(queryAreaMenu()).toBeNull());
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
   });
 
-  it("closes the mobile area menu when one of its links is chosen", () => {
+  it("closes the mobile area menu when one of its links is chosen", async () => {
     render(<AppNavShell {...baseProps} />);
 
     const trigger = screen.getByRole("button", { name: "Разделы" });
@@ -590,7 +593,7 @@ describe("app nav shell", () => {
     const analyticsLink = within(menu).getByRole("menuitem", { name: /Аналитика/ });
     analyticsLink.addEventListener("click", (event) => event.preventDefault());
     fireEvent.click(analyticsLink);
-    expect(queryAreaMenu()).toBeNull();
+    await waitFor(() => expect(queryAreaMenu()).toBeNull());
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
   });
 

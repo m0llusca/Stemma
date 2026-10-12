@@ -115,7 +115,7 @@ for (const scenario of detailCases) {
           externalId: "conv-1001"
         }
       },
-      select: { conversationId: true }
+      select: { conversationId: true, id: true }
     });
     await signInE2EUser(context, admin, "reviews-layout");
     await page.goto(`/reviews/${seededMessage.conversationId}`);
@@ -126,8 +126,8 @@ for (const scenario of detailCases) {
     const detail = masterDetail.locator('[data-slot="master-detail-detail"]');
     const dialogPane = list.locator('[data-slot="review-dialog-pane"]');
     const scorePane = detail.locator('[data-slot="review-score-pane"]');
-    const timeline = dialogPane.locator('[data-slot="card"]').filter({
-      has: dialogPane.getByRole("heading", { name: "Таймлайн диалога" })
+    const timeline = dialogPane.locator('[data-slot="conversation-chat-card"]').filter({
+      has: page.getByRole("heading", { name: "Таймлайн диалога" })
     });
     const toggle = page.getByRole("group", { name: "Переключение панели" });
     const dialogButton = toggle.getByRole("button", { name: "Диалог" });
@@ -139,9 +139,12 @@ for (const scenario of detailCases) {
     await expect(detail).toHaveCount(1);
     await expect(dialogPane).toHaveCount(1);
     await expect(scorePane).toHaveCount(1);
+    await expect(timeline).toHaveCount(1);
 
     if (scenario.narrow) {
       await expect(toggle).toBeVisible();
+      await expect(masterDetail.locator('[data-slot="resizable-handle"]')).toBeHidden();
+      expect(await list.locator('[data-slot="scroll-area-viewport"]').evaluate((node) => getComputedStyle(node).overflowY)).toBe("visible");
       await expect(workspace).toHaveAttribute("data-active-pane", "dialog");
       await expect(list).toBeVisible();
       await expect(detail).toBeHidden();
@@ -161,36 +164,52 @@ for (const scenario of detailCases) {
       await expect(scorePane).toBeVisible();
       await expect(masterDetail.locator('[data-slot="master-detail-list"]')).toHaveCount(1);
       await expect(masterDetail.locator('[data-slot="master-detail-detail"]')).toHaveCount(1);
+      const criterion = scorePane.locator("details[data-criterion-card]").first();
+      const criterionTrigger = criterion.locator(":scope > summary");
+      if ((await criterionTrigger.getAttribute("aria-expanded")) !== "true") {
+        await criterionTrigger.click();
+      }
+      await criterion.locator('select[name$=".evidenceMessageId"]').selectOption(seededMessage.id);
+      const evidenceLink = criterion.getByRole("link", { name: /Перейти к сообщению-доказательству/ });
+      await evidenceLink.focus();
+      await page.keyboard.press("Enter");
+      await expect(workspace).toHaveAttribute("data-active-pane", "dialog");
+      await expect(dialogPane).toBeVisible();
+      await expect(scorePane).toBeHidden();
+      await expect(dialogButton).toHaveAttribute("aria-pressed", "true");
+      await expect(dialogPane.locator(`[id="msg-${seededMessage.id}"]`)).toBeFocused();
     } else {
       await expect(toggle).toBeHidden();
       await expect(list).toBeVisible();
       await expect(detail).toBeVisible();
+      const separator = workspace.getByRole("separator", { name: "Ширина диалога и оценки" });
+      await separator.focus();
+      await expect(separator).toBeFocused();
+      const beforeResize = (await rect(list)).width;
+      await page.keyboard.press("ArrowRight");
+      await expect.poll(async () => (await rect(list)).width).toBeGreaterThan(beforeResize);
+      const resizedWidth = (await rect(list)).width;
+      await page.reload();
+      await expect(separator).toBeVisible();
+      await expect.poll(async () => Math.abs((await rect(list)).width - resizedWidth)).toBeLessThan(2);
 
-      await workspace.evaluate((node) => {
-        const top = node.getBoundingClientRect().top + window.scrollY;
-        window.scrollTo({ top: top + 200 });
-      });
+      await masterDetail.evaluate((node) => node.scrollIntoView({ block: "start" }));
 
       await expect.poll(async () => (await rect(list)).y).toBeGreaterThanOrEqual(70);
-      const [listBox, detailBox, stickyStyle, timelineOverflow] = await Promise.all([
+      const [listBox, detailBox, timelineOverflow] = await Promise.all([
         rect(list),
         rect(detail),
-        list.evaluate((node) => {
-          const style = getComputedStyle(node);
-          return {
-            position: style.position,
-            overflowY: style.overflowY,
-            maxHeight: Number.parseFloat(style.maxHeight)
-          };
-        }),
         timeline.evaluate((node) => node.scrollWidth - node.clientWidth)
       ]);
 
       expect(detailBox.x).toBeGreaterThan(listBox.x + listBox.width - 1);
-      expect(Math.abs(listBox.y - detailBox.y)).toBeGreaterThan(8);
-      expect(stickyStyle.position).toBe("sticky");
-      expect(stickyStyle.overflowY).toBe("auto");
-      expect(stickyStyle.maxHeight).toBeLessThanOrEqual(797);
+      expect(Math.abs(listBox.y - detailBox.y)).toBeLessThan(2);
+      const scrollViewport = list.locator('[data-slot="scroll-area-viewport"]');
+      await expect(scrollViewport).toBeVisible();
+      expect(await scrollViewport.evaluate((node) => getComputedStyle(node).overflowY)).toMatch(/^(auto|scroll)$/);
+      expect(listBox.width).toBeGreaterThanOrEqual(320);
+      expect(detailBox.width).toBeGreaterThanOrEqual(380);
+      expect(listBox.height).toBeLessThanOrEqual(797);
       expect(listBox.y + listBox.height).toBeLessThanOrEqual(869);
       expect(timelineOverflow).toBeLessThanOrEqual(2);
     }
@@ -257,7 +276,7 @@ test("conversation timeline keeps avatar and long content in separate columns", 
     `[data-slot="conversation-message"][id="msg-${seededMessage.id}"]`
   );
   const avatar = message.locator('[data-slot="conversation-message-avatar"]');
-  const content = message.locator('[data-slot="conversation-message-content"]');
+  const content = message.locator('[data-slot="conversation-message-surface"]');
   await expect(message).toContainText(seededLongMessageBody);
   await expect(message).toHaveAttribute("data-align", "end");
   expect(seededMessage.participantType).toBe("HUMAN_AGENT");

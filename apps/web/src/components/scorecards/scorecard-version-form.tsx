@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -94,16 +95,6 @@ export function ScorecardVersionForm({
   }
 
   function removeCriterion(index: number) {
-    const criterion = criteria[index];
-    const title = criterion?.label.trim() || `Критерий ${index + 1}`;
-    const confirmed = window.confirm(
-      `Удалить критерий «${title}»? Он исчезнет из этой версии формы, а веса остальных критериев придется пересмотреть до суммы 100%.`
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
     setCriteria((current) => current.filter((_, currentIndex) => currentIndex !== index));
   }
 
@@ -221,16 +212,17 @@ export function ScorecardVersionForm({
                   >
                     <ArrowDown size={15} aria-hidden="true" />
                   </Button>
-                  <Button
+                  <ConfirmSubmitButton
                     type="button"
                     variant="ghost"
                     size="icon-sm"
                     title="Удалить"
+                    confirmMessage={`Удалить критерий «${criterion.label.trim() || `Критерий ${index + 1}`}»? Он исчезнет из этой версии формы, а веса остальных критериев придется пересмотреть до суммы 100%.`}
                     className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                     onClick={() => removeCriterion(index)}
                   >
                     <Trash2 size={15} aria-hidden="true" />
-                  </Button>
+                  </ConfirmSubmitButton>
                 </span>
                 <CollapsibleTrigger
                   className="flex size-8 shrink-0 items-center justify-center text-muted-foreground outline-none"

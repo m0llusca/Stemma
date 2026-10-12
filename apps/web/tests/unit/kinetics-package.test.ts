@@ -5,8 +5,6 @@ import { resolve } from "node:path";
 import {
   KINETICS_ORIGIN,
   KINETICS_PACKAGE,
-  kineticsDurationMs,
-  kineticsDurations,
   kineticsEasings,
   kineticsMorphSpring,
   kineticsStyle,
@@ -14,6 +12,9 @@ import {
   kineticsTransition,
   prefersReducedMotion
 } from "@stemma/kinetics";
+
+import { kineticsDurationMs, kineticsDurations } from "@stemma/kinetics/durations";
+import * as kinetics from "@stemma/kinetics";
 
 const appRoot = process.cwd();
 const requireFromApp = createRequire(resolve(appRoot, "package.json"));
@@ -60,6 +61,23 @@ describe("@stemma/kinetics", () => {
     expect(tokensCss).toContain("--motion-ease-spring-overshoot:");
     expect(tokensCss).toContain("--motion-ease-spring-gentle:");
     expect(tokensCss).toContain("--motion-scale-hover-lift:");
+  });
+
+  it("exposes durations through their dedicated entry and keeps every CSS mirror synchronized", () => {
+    expect(requireFromApp.resolve("@stemma/kinetics/durations")).toMatch(/packages[/\\]kinetics[/\\]src[/\\]durations\.ts$/);
+    for (const obsoleteExport of ["kineticsDurations", "kineticsDurationMs", "durations", "durationMs"]) {
+      expect(kinetics).not.toHaveProperty(obsoleteExport);
+    }
+    const tokensCss = readFileSync(requireFromApp.resolve("@stemma/kinetics/tokens.css"), "utf8");
+    const cssTokens = {
+      spring: "spring", springEnter: "spring-enter", springPanel: "spring-panel",
+      springGlide: "spring-glide", morph: "morph", shimmer: "shimmer"
+    } as const;
+    for (const key of Object.keys(cssTokens) as Array<keyof typeof cssTokens>) {
+      expect(tokensCss).toContain(`--motion-duration-${cssTokens[key]}: ${kineticsDurations[key]};`);
+      const milliseconds = parseFloat(kineticsDurations[key]) * (kineticsDurations[key].endsWith("ms") ? 1 : 1000);
+      expect(kineticsDurationMs[key]).toBe(milliseconds);
+    }
   });
 
   it("reads prefers-reduced-motion synchronously for event handlers", () => {

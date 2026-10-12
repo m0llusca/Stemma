@@ -15,6 +15,7 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
 import { statusSurfaceClass } from "@/lib/ui/status-tone";
 
 type Option = { value: string; label: string };
@@ -66,7 +67,7 @@ export function SamplingRuleForm({ action, channelOptions, csatOptions, ruleType
   const [csatBucket, setCsatBucket] = useState(rule?.csatBucket ?? "");
   const [supportLine, setSupportLine] = useState(rule?.supportLine ?? "");
   const [tag, setTag] = useState(rule?.tag ?? "");
-  const [targetPercent, setTargetPercent] = useState(rule?.targetPercent ?? 10);
+  const [targetPercent, setTargetPercent] = useState(String(rule?.targetPercent ?? 10));
   const [priority, setPriority] = useState(rule?.priority ?? 100);
   const [isActive, setIsActive] = useState(rule?.isActive ?? true);
 
@@ -80,7 +81,8 @@ export function SamplingRuleForm({ action, channelOptions, csatOptions, ruleType
   }, [channel, channelOptions, csatBucket, csatOptions, supportLine, tag]);
 
   const typeLabel = ruleTypeOptions.find((option) => option.value === type)?.label ?? type;
-  const clampedPercent = Math.min(100, Math.max(0, Number.isFinite(targetPercent) ? targetPercent : 0));
+  const numericPercent = Number(targetPercent);
+  const clampedPercent = Math.min(100, Math.max(0, Number.isFinite(numericPercent) ? numericPercent : 0));
   const perHundred = Math.round((clampedPercent / 100) * 100);
 
   return (
@@ -189,16 +191,25 @@ export function SamplingRuleForm({ action, channelOptions, csatOptions, ruleType
           <FieldLegend variant="label">Доля</FieldLegend>
           <FieldGroup className="gap-3 sm:grid sm:grid-cols-2">
             <Field>
-              <FieldLabel htmlFor="sampling-rule-percent">Доля, %</FieldLabel>
+              <FieldLabel id="sampling-rule-percent-label" htmlFor="sampling-rule-percent">Доля, %</FieldLabel>
               <Input
                 id="sampling-rule-percent"
                 name="targetPercent"
                 type="number"
                 min={1}
                 max={100}
+                step={1}
                 value={targetPercent}
-                onChange={(event) => setTargetPercent(Number(event.target.value))}
+                onChange={(event) => setTargetPercent(event.target.value)}
                 className="tabular-nums"
+              />
+              <Slider
+                min={1}
+                max={100}
+                step={1}
+                value={[Math.max(1, clampedPercent)]}
+                onValueChange={(value) => setTargetPercent(String(Array.isArray(value) ? value[0] : value))}
+                aria-labelledby="sampling-rule-percent-label"
               />
             </Field>
             <Field>

@@ -116,6 +116,9 @@ describe("ConversationTimeline", () => {
       '[data-slot="conversation-message"]'
     );
     expect(messageArticles).toHaveLength(4);
+    for (const article of messageArticles) {
+      expect(article).toHaveAttribute("tabindex", "-1");
+    }
 
     const customer = container.querySelector<HTMLElement>('[data-party="CUSTOMER"]');
     const human = container.querySelector<HTMLElement>('[data-party="HUMAN_AGENT"]');
@@ -303,6 +306,7 @@ describe("ConversationTimeline", () => {
       block: "center"
     });
     expect(target).toHaveAttribute("data-evidence-flash");
+    expect(document.activeElement).toBe(target);
     expect(target).toHaveClass(
       "data-[evidence-flash]:bg-primary/10",
       "data-[evidence-flash]:ring-2",

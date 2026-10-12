@@ -6,7 +6,7 @@ import { SlidersHorizontal, XIcon } from "lucide-react";
 import { ReportSavedViews } from "@/components/reports/report-saved-views";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { ReportDateRange } from "@/components/reports/report-date-range";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import {
   Popover,
@@ -108,12 +108,14 @@ function ReportFilterFields({
   state,
   catalog,
   idPrefix,
-  onFieldChange
+  onFieldChange,
+  onRangeApply
 }: {
   state: ReportAnalysisState;
   catalog: ReportFilterCatalog;
   idPrefix: string;
   onFieldChange: (name: string, value: string) => void;
+  onRangeApply: (start: string, end: string) => void;
 }) {
   return (
     <FieldGroup>
@@ -182,28 +184,13 @@ function ReportFilterFields({
         </NativeSelect>
       </Field>
       {state.period === "custom" ? (
-        <>
-          <Field>
-            <FieldLabel htmlFor={`${idPrefix}-start`}>С даты</FieldLabel>
-            <Input
-              id={`${idPrefix}-start`}
-              name="start"
-              type="date"
-              value={state.start ?? ""}
-              onChange={(event) => onFieldChange("start", event.currentTarget.value)}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor={`${idPrefix}-end`}>По дату</FieldLabel>
-            <Input
-              id={`${idPrefix}-end`}
-              name="end"
-              type="date"
-              value={state.end ?? ""}
-              onChange={(event) => onFieldChange("end", event.currentTarget.value)}
-            />
-          </Field>
-        </>
+        <ReportDateRange
+          key={`${state.start}:${state.end}`}
+          start={state.start ?? ""}
+          end={state.end ?? ""}
+          idPrefix={idPrefix}
+          onApply={onRangeApply}
+        />
       ) : null}
     </FieldGroup>
   );
@@ -318,6 +305,7 @@ export function ReportParameterLens({
       catalog={catalog}
       idPrefix={mobile ? "mobile-report-filter" : "desktop-report-filter"}
       onFieldChange={handleFieldChange}
+      onRangeApply={(start, end) => navigate({ period: "custom", start, end })}
     />
   );
 
@@ -426,7 +414,7 @@ export function ReportParameterLens({
                   Ограничьте выборку по команде, источнику, риску и блоку.
                 </SheetDescription>
               </SheetHeader>
-              <div className="px-4">{filterFields}</div>
+              <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">{filterFields}</div>
             </SheetContent>
           </Sheet>
         ) : (
@@ -435,7 +423,7 @@ export function ReportParameterLens({
               <SlidersHorizontal data-icon="inline-start" aria-hidden="true" />
               Фильтры ({chips.length})
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-80">
+            <PopoverContent align="end" className="w-80 max-h-(--available-height) overflow-y-auto">
               <PopoverHeader>
                 <PopoverTitle>Фильтры отчёта</PopoverTitle>
                 <PopoverDescription>

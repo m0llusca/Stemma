@@ -17,6 +17,7 @@ import { LiveEvidenceTotal } from "@/components/review/evidence-live-count";
 import { ReviewPanel } from "@/components/review/review-panel";
 import { ReviewSavedToast } from "@/components/review/review-saved-toast";
 import { WorkbenchPaneToggle } from "@/components/review/workbench-pane-toggle";
+import { WorkbenchLayout } from "@/components/review/workbench-layout";
 import { WorkflowManagementPanel } from "@/components/review/workflow-management-panel";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -26,7 +27,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { MasterDetail } from "@/components/ui/master-detail";
+import { PageBreadcrumbs } from "@/components/ui/page-breadcrumbs";
 import { PageShell } from "@/components/ui/page-shell";
 import { Separator } from "@/components/ui/separator";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
@@ -90,6 +91,7 @@ import { formatQualityScore } from "@/lib/score-display";
 import { toneForScore, type StatusTone } from "@/lib/ui/status-tone";
 import { cn } from "@/lib/utils";
 import { requirePagePermission } from "@/lib/page-permission";
+import { sanitizeReturnTo } from "@/lib/auth/role-home";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -240,6 +242,7 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
     : null;
   if (reviewSource === "CALIBRATION" && !calibrationSession) redirect("/calibration");
   const returnTo = singleParam(rawSearchParams.returnTo);
+  const safeReturnTo = sanitizeReturnTo(returnTo);
   const savedMarker = singleParam(rawSearchParams.saved);
   const supportAgentScope = user.role === "SUPPORT_AGENT" ? { assigneeId: user.id } : undefined;
   const canSaveHumanReviewDraft = canSaveReviewDraft(user.role);
@@ -1250,17 +1253,27 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
         id="review-workspace"
         className={cn(
           "flex min-w-0 flex-col gap-3",
-          "max-lg:[&[data-active-pane=dialog]_.master-detail>div:has(>[data-slot=review-score-pane])]:hidden",
-          "max-lg:[&[data-active-pane=score]_.master-detail>div:has(>[data-slot=review-dialog-pane])]:hidden"
+          "max-lg:[&[data-active-pane=dialog]_[data-slot=master-detail-detail]]:!hidden",
+          "max-lg:[&[data-active-pane=score]_[data-slot=master-detail-list]]:!hidden"
         )}
         data-active-pane="dialog"
       >
         <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+          <PageBreadcrumbs
+            items={[
+              {
+                label: agentView ? "Мои обращения" : "Проверки",
+                href: safeReturnTo === "/reviews" || safeReturnTo.startsWith("/reviews?")
+                  ? safeReturnTo
+                  : agentView ? "/self-review" : "/reviews"
+              },
+              { label: conversation.subject }
+            ]}
+          />
           <WorkbenchPaneToggle targetId="review-workspace" />
         </div>
-        <MasterDetail
-          listWidth="minmax(0, 1fr)"
-          list={
+        <WorkbenchLayout
+          dialog={
             <div data-slot="review-dialog-pane" className="min-w-0">
               <ConversationTimeline
                 messages={conversation.messages}
@@ -1274,7 +1287,7 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
               />
             </div>
           }
-          detail={
+          score={
             <div data-slot="review-score-pane" className="min-w-0">
               {canShowReviewPanel && scorecard ? (
                 <div>

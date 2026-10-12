@@ -1,0 +1,1567 @@
+{
+  "sourceRef": "a11a43a + UI14 working tree",
+  "method": "TypeScript AST runtime imports, re-exports and literal dynamic imports. Reachability starts at Next app entry files. Not a browser bundle measurement.",
+  "counts": {
+    "componentFiles": 197,
+    "uiFiles": 75,
+    "domainFiles": 122,
+    "reachableUIFiles": 74
+  },
+  "ui": [
+    {
+      "file": "src/components/ui/accordion.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/self-review/page.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/alert-dialog.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/ui/confirm-submit-button.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/alert.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/admin/access/page.tsx",
+        "src/app/admin/channels/page.tsx",
+        "src/app/admin/integrations/[integrationId]/page.tsx",
+        "src/app/admin/system/jobs/[jobId]/page.tsx",
+        "src/app/admin/system/page.tsx",
+        "src/app/auth/login/page.tsx",
+        "src/app/error.tsx",
+        "src/app/reviews/[conversationId]/page.tsx",
+        "src/components/admin/api-token-create-form.tsx",
+        "src/components/admin/scim-token-manager.tsx",
+        "src/components/auth/forbidden-screen.tsx",
+        "src/components/auth/unauthorized-screen.tsx",
+        "src/components/charts/chart-frame.tsx",
+        "src/components/charts/deferred-chart-visual.client.tsx",
+        "src/components/dashboard/exec-risk-chart-island.client.tsx",
+        "src/components/guidance/coach-callout.tsx",
+        "src/components/guidance/queue-day1-tour.tsx",
+        "src/components/guidance/welcome-back-banner.tsx",
+        "src/components/integrations/connect-source-form.tsx",
+        "src/components/integrations/integration-import-queue-form.tsx",
+        "src/components/integrations/integration-queue-run-form.tsx",
+        "src/components/integrations/integration-settings-form.tsx",
+        "src/components/integrations/native-helpdesk-import-tester.tsx",
+        "src/components/integrations/otrs-connection-form.tsx",
+        "src/components/integrations/otrs-diagnostics-panel.tsx",
+        "src/components/integrations/otrs-import-tester.tsx",
+        "src/components/integrations/otrs-preview-panel.tsx",
+        "src/components/integrations/otrs-run-history.tsx",
+        "src/components/operations/operational-brief.tsx",
+        "src/components/reports/report-panels.tsx",
+        "src/components/review/ai-draft-decision-controls.tsx",
+        "src/components/review/queue-empty-banner.tsx",
+        "src/components/review/review-form-shell.tsx",
+        "src/components/ui/triage-strip.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/aspect-ratio.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/admin/appearance-settings-form.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/auto-submit-filter-form.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/admin/audit/page.tsx",
+        "src/app/coaching/page.tsx",
+        "src/components/review/queue-filters.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/avatar.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/ui/user-avatar.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/badge.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/admin/access/page.tsx",
+        "src/app/admin/ai-scoring/page.tsx",
+        "src/app/admin/audit/page.tsx",
+        "src/app/admin/integrations/[integrationId]/page.tsx",
+        "src/app/admin/integrations/page.tsx",
+        "src/app/admin/localization/page.tsx",
+        "src/app/admin/page.tsx",
+        "src/app/admin/report-schedules/page.tsx",
+        "src/app/admin/sampling/page.tsx",
+        "src/app/admin/scorecards/page.tsx",
+        "src/app/admin/users/page.tsx",
+        "src/app/calibration/page.tsx",
+        "src/components/admin/admin-section-tabs.tsx",
+        "src/components/admin/ai-scoring-engine-panel.tsx",
+        "src/components/admin/appearance-settings-form.tsx",
+        "src/components/admin/sampling-rule-form.tsx",
+        "src/components/app-command-list.tsx",
+        "src/components/app-nav-pulse-chrome.tsx",
+        "src/components/app-nav-shell.tsx",
+        "src/components/i18n/localization-editor.tsx",
+        "src/components/integrations/connect-source-form.tsx",
+        "src/components/integrations/otrs-connection-form.tsx",
+        "src/components/integrations/otrs-preview-panel.tsx",
+        "src/components/integrations/otrs-run-history.tsx",
+        "src/components/integrations/otrs-webservice-checklist.tsx",
+        "src/components/operations/operation-kpi-card.tsx",
+        "src/components/operations/operational-brief.tsx",
+        "src/components/reports/criterion-matrix.tsx",
+        "src/components/reports/insight-correlation-panels.tsx",
+        "src/components/reports/report-kpi-row.tsx",
+        "src/components/review/conversation-timeline.tsx",
+        "src/components/review/review-panel.tsx",
+        "src/components/scorecards/scorecard-version-form.tsx",
+        "src/components/ui/chip.tsx",
+        "src/components/ui/page-shell.tsx",
+        "src/components/ui/stat-kpi.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/breadcrumb.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/ui/page-breadcrumbs.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/bubble.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/review/conversation-timeline.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/button.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/admin/access/page.tsx",
+        "src/app/admin/audit/page.tsx",
+        "src/app/admin/channels/page.tsx",
+        "src/app/admin/integrations/[integrationId]/page.tsx",
+        "src/app/admin/integrations/new/page.tsx",
+        "src/app/admin/integrations/page.tsx",
+        "src/app/admin/page.tsx",
+        "src/app/admin/report-schedules/page.tsx",
+        "src/app/admin/sampling/page.tsx",
+        "src/app/admin/scorecards/page.tsx",
+        "src/app/admin/system/jobs/[jobId]/page.tsx",
+        "src/app/admin/system/page.tsx",
+        "src/app/admin/tokens/page.tsx",
+        "src/app/admin/users/page.tsx",
+        "src/app/auth/login/page.tsx",
+        "src/app/auth/pending-access/page.tsx",
+        "src/app/calibration/page.tsx",
+        "src/app/coaching/coaching-plan-theme-field.tsx",
+        "src/app/coaching/page.tsx",
+        "src/app/dashboard/page.tsx",
+        "src/app/error.tsx",
+        "src/app/reviews/[conversationId]/page.tsx",
+        "src/app/reviews/page.tsx",
+        "src/app/self-review/page.tsx",
+        "src/components/admin/admin-dialog.tsx",
+        "src/components/admin/admin-subnav.tsx",
+        "src/components/admin/ai-provider-key-form.tsx",
+        "src/components/admin/ai-scoring-engine-panel.tsx",
+        "src/components/admin/api-token-create-form.tsx",
+        "src/components/admin/appearance-settings-form.tsx",
+        "src/components/admin/messaging-channel-form.tsx",
+        "src/components/admin/report-schedule-form.tsx",
+        "src/components/admin/sampling-rule-form.tsx",
+        "src/components/admin/scim-token-manager.tsx",
+        "src/components/app-nav-pulse-chrome.tsx",
+        "src/components/app-nav-shell.tsx",
+        "src/components/auth/demo-role-switch.tsx",
+        "src/components/auth/forbidden-screen.tsx",
+        "src/components/auth/not-found-screen.tsx",
+        "src/components/auth/unauthorized-screen.tsx",
+        "src/components/charts/chart-frame.tsx",
+        "src/components/charts/chart-legend-controls.tsx",
+        "src/components/charts/chart-view-links.tsx",
+        "src/components/charts/deferred-chart-visual.client.tsx",
+        "src/components/copy-button.tsx",
+        "src/components/dashboard/exec-risk-chart-island.client.tsx",
+        "src/components/dashboard/exec-risk-empty.tsx",
+        "src/components/dashboard/exec-risk-home.tsx",
+        "src/components/feedback/agent-appeal-form.tsx",
+        "src/components/guidance/coach-callout.tsx",
+        "src/components/guidance/queue-day1-tour.tsx",
+        "src/components/guidance/welcome-back-banner.tsx",
+        "src/components/i18n/localization-editor.tsx",
+        "src/components/integrations/connect-source-form.tsx",
+        "src/components/integrations/integration-import-queue-form.tsx",
+        "src/components/integrations/integration-queue-run-form.tsx",
+        "src/components/integrations/integration-settings-form.tsx",
+        "src/components/integrations/native-helpdesk-import-tester.tsx",
+        "src/components/integrations/otrs-connection-form.tsx",
+        "src/components/integrations/otrs-diagnostics-panel.tsx",
+        "src/components/integrations/otrs-import-tester.tsx",
+        "src/components/integrations/otrs-preview-panel.tsx",
+        "src/components/operations/evidence-drawer.tsx",
+        "src/components/operations/priority-action-panel.tsx",
+        "src/components/reports/analytics-intelligence.tsx",
+        "src/components/reports/criterion-matrix.tsx",
+        "src/components/reports/insight-correlation-panels.tsx",
+        "src/components/reports/report-charts.tsx",
+        "src/components/reports/report-command-bar.tsx",
+        "src/components/reports/report-date-range.tsx",
+        "src/components/reports/report-evidence-sheet.tsx",
+        "src/components/reports/report-page-views.tsx",
+        "src/components/reports/report-panels.tsx",
+        "src/components/reports/report-parameter-lens.tsx",
+        "src/components/reports/report-saved-views.tsx",
+        "src/components/reports/report-tables.tsx",
+        "src/components/review/ai-draft-decision-controls.tsx",
+        "src/components/review/coaching-pin-composer.tsx",
+        "src/components/review/conversation-timeline.tsx",
+        "src/components/review/evidence-message-button.tsx",
+        "src/components/review/queue-advanced-filters.tsx",
+        "src/components/review/queue-empty-banner.tsx",
+        "src/components/review/queue-filters.tsx",
+        "src/components/review/queue-person-filter.tsx",
+        "src/components/review/queue-saved-views.tsx",
+        "src/components/review/queue-table.tsx",
+        "src/components/review/review-form-shell.tsx",
+        "src/components/review/summary-template-picker.tsx",
+        "src/components/review/workflow-management-panel.tsx",
+        "src/components/scorecards/scorecard-version-form.tsx",
+        "src/components/ui/alert-dialog.tsx",
+        "src/components/ui/calendar.tsx",
+        "src/components/ui/combobox.tsx",
+        "src/components/ui/confirm-submit-button.tsx",
+        "src/components/ui/dialog.tsx",
+        "src/components/ui/help-tooltip.tsx",
+        "src/components/ui/input-group.tsx",
+        "src/components/ui/pagination.tsx",
+        "src/components/ui/sheet.tsx",
+        "src/components/ui/validated-submit-button.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/calendar.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/reports/report-range-calendar.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/card.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/admin/access/loading.tsx",
+        "src/app/admin/access/page.tsx",
+        "src/app/admin/ai-scoring/loading.tsx",
+        "src/app/admin/ai-scoring/page.tsx",
+        "src/app/admin/appearance/loading.tsx",
+        "src/app/admin/appearance/page.tsx",
+        "src/app/admin/audit/loading.tsx",
+        "src/app/admin/audit/page.tsx",
+        "src/app/admin/channels/loading.tsx",
+        "src/app/admin/channels/page.tsx",
+        "src/app/admin/integrations/[integrationId]/loading.tsx",
+        "src/app/admin/integrations/[integrationId]/page.tsx",
+        "src/app/admin/integrations/loading.tsx",
+        "src/app/admin/integrations/new/loading.tsx",
+        "src/app/admin/integrations/new/page.tsx",
+        "src/app/admin/integrations/page.tsx",
+        "src/app/admin/loading.tsx",
+        "src/app/admin/localization/loading.tsx",
+        "src/app/admin/localization/page.tsx",
+        "src/app/admin/page.tsx",
+        "src/app/admin/report-schedules/page.tsx",
+        "src/app/admin/sampling/loading.tsx",
+        "src/app/admin/sampling/page.tsx",
+        "src/app/admin/scorecards/loading.tsx",
+        "src/app/admin/scorecards/page.tsx",
+        "src/app/admin/system/jobs/[jobId]/loading.tsx",
+        "src/app/admin/system/jobs/[jobId]/page.tsx",
+        "src/app/admin/system/loading.tsx",
+        "src/app/admin/system/page.tsx",
+        "src/app/admin/tokens/loading.tsx",
+        "src/app/admin/tokens/page.tsx",
+        "src/app/admin/users/loading.tsx",
+        "src/app/admin/users/page.tsx",
+        "src/app/auth/login/page.tsx",
+        "src/app/auth/pending-access/page.tsx",
+        "src/app/calibration/page.tsx",
+        "src/app/coaching/page.tsx",
+        "src/app/dashboard/page.tsx",
+        "src/app/error.tsx",
+        "src/app/reviews/[conversationId]/page.tsx",
+        "src/app/self-review/page.tsx",
+        "src/components/admin/ai-scoring-engine-panel.tsx",
+        "src/components/admin/appearance-settings-form.tsx",
+        "src/components/admin/sampling-rule-form.tsx",
+        "src/components/auth/forbidden-screen.tsx",
+        "src/components/auth/unauthorized-screen.tsx",
+        "src/components/charts/chart-frame.tsx",
+        "src/components/dashboard/exec-risk-home.tsx",
+        "src/components/i18n/localization-editor.tsx",
+        "src/components/integrations/connect-source-form.tsx",
+        "src/components/integrations/integration-ui.tsx",
+        "src/components/integrations/otrs-connection-form.tsx",
+        "src/components/integrations/otrs-diagnostics-panel.tsx",
+        "src/components/integrations/otrs-preview-panel.tsx",
+        "src/components/integrations/otrs-run-history.tsx",
+        "src/components/integrations/otrs-webservice-checklist.tsx",
+        "src/components/loading-states.tsx",
+        "src/components/operations/operation-kpi-card.tsx",
+        "src/components/operations/operational-brief.tsx",
+        "src/components/operations/priority-action-panel.tsx",
+        "src/components/reports/analytics-intelligence.tsx",
+        "src/components/reports/insight-correlation-panels.tsx",
+        "src/components/reports/report-charts.tsx",
+        "src/components/reports/report-kpi-row.tsx",
+        "src/components/reports/report-page-views.tsx",
+        "src/components/reports/report-panels.tsx",
+        "src/components/reports/report-tables.tsx",
+        "src/components/review/conversation-timeline.tsx",
+        "src/components/review/queue-next-case-preview.tsx",
+        "src/components/review/queue-table.tsx",
+        "src/components/review/workflow-management-panel.tsx",
+        "src/components/scorecards/scorecard-version-form.tsx",
+        "src/components/ui/stat-card.tsx",
+        "src/components/ui/stat-kpi.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/chart-container.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/charts/recharts-visuals.client.tsx",
+        "src/components/ui/chart.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/chart.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/charts/static-category-bars.tsx",
+        "src/components/dashboard/quality-week-chart.client.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/checkbox.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/admin/sampling/page.tsx",
+        "src/app/calibration/page.tsx",
+        "src/components/admin/api-token-create-form.tsx",
+        "src/components/integrations/otrs-preview-panel.tsx",
+        "src/components/review/queue-table.tsx",
+        "src/components/review/review-panel.tsx",
+        "src/components/scorecards/scorecard-version-form.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/chip.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/admin/system/jobs/[jobId]/page.tsx",
+        "src/app/admin/tokens/page.tsx",
+        "src/app/coaching/coaching-plan-theme-field.tsx",
+        "src/app/coaching/page.tsx",
+        "src/app/dashboard/page.tsx",
+        "src/app/reviews/[conversationId]/page.tsx",
+        "src/app/reviews/page.tsx",
+        "src/app/self-review/page.tsx",
+        "src/components/coaching/coaching-assignment-item.tsx",
+        "src/components/feedback/agent-criterion-feedback-list.tsx",
+        "src/components/reports/insight-correlation-panels.tsx",
+        "src/components/reports/report-charts.tsx",
+        "src/components/reports/report-tables.tsx",
+        "src/components/review/conversation-timeline.tsx",
+        "src/components/review/evidence-live-count.tsx",
+        "src/components/review/queue-advanced-filters.tsx",
+        "src/components/review/queue-filters.tsx",
+        "src/components/review/queue-saved-views.tsx",
+        "src/components/review/review-panel.tsx",
+        "src/components/review/review-status-chip.tsx",
+        "src/components/ui/metric-value.tsx",
+        "src/components/ui/status-badge.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/collapsible.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/admin/audit/page.tsx",
+        "src/app/admin/integrations/[integrationId]/page.tsx",
+        "src/app/admin/scorecards/page.tsx",
+        "src/app/admin/system/jobs/[jobId]/page.tsx",
+        "src/app/reviews/[conversationId]/page.tsx",
+        "src/components/feedback/agent-appeal-form.tsx",
+        "src/components/feedback/agent-criterion-feedback-list.tsx",
+        "src/components/integrations/connect-source-form.tsx",
+        "src/components/review/ai-draft-decision-controls.tsx",
+        "src/components/review/queue-next-case-preview.tsx",
+        "src/components/review/queue-saved-views.tsx",
+        "src/components/review/queue-table.tsx",
+        "src/components/review/workflow-management-panel.tsx",
+        "src/components/scorecards/scorecard-version-form.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/combobox.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/review/queue-person-filter.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/command-dialog.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/app-nav-shell.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/command.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/app-command-list.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/confirm-submit-button.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/admin/access/page.tsx",
+        "src/app/admin/report-schedules/page.tsx",
+        "src/app/admin/system/jobs/[jobId]/page.tsx",
+        "src/app/admin/tokens/page.tsx",
+        "src/components/admin/ai-provider-key-form.tsx",
+        "src/components/admin/scim-token-manager.tsx",
+        "src/components/i18n/localization-editor.tsx",
+        "src/components/scorecards/scorecard-version-form.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/dialog.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/admin/admin-dialog.tsx",
+        "src/components/reports/report-saved-views.tsx",
+        "src/components/ui/command-dialog.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/disclosure-morph-chevron.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/admin/scorecards/page.tsx",
+        "src/components/app-nav-shell.tsx",
+        "src/components/auth/demo-role-switch.tsx",
+        "src/components/review/review-disclosure.tsx",
+        "src/components/review/review-panel.tsx",
+        "src/components/ui/accordion.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/dropdown-menu.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/app-nav-pulse-chrome.tsx",
+        "src/components/app-nav-shell.tsx",
+        "src/components/reports/report-saved-views.tsx",
+        "src/components/review/queue-saved-views.tsx",
+        "src/components/ui/menubar.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/empty-state.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/admin/access/page.tsx",
+        "src/app/admin/audit/page.tsx",
+        "src/app/admin/channels/page.tsx",
+        "src/app/admin/integrations/[integrationId]/page.tsx",
+        "src/app/admin/integrations/page.tsx",
+        "src/app/admin/report-schedules/page.tsx",
+        "src/app/admin/sampling/page.tsx",
+        "src/app/admin/scorecards/page.tsx",
+        "src/app/admin/system/jobs/[jobId]/page.tsx",
+        "src/app/admin/system/page.tsx",
+        "src/app/admin/tokens/page.tsx",
+        "src/app/admin/users/page.tsx",
+        "src/app/calibration/page.tsx",
+        "src/app/coaching/page.tsx",
+        "src/app/dashboard/page.tsx",
+        "src/app/reviews/[conversationId]/page.tsx",
+        "src/app/self-review/page.tsx",
+        "src/components/charts/chart-frame.tsx",
+        "src/components/dashboard/exec-risk-empty.tsx",
+        "src/components/i18n/localization-editor.tsx",
+        "src/components/reports/analytics-intelligence.tsx",
+        "src/components/reports/criterion-matrix.tsx",
+        "src/components/reports/insight-correlation-panels.tsx",
+        "src/components/reports/report-charts.tsx",
+        "src/components/reports/report-tables.tsx",
+        "src/components/review/queue-table.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/empty.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/auth/not-found-screen.tsx",
+        "src/components/ui/empty-state.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/field.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/admin/access/page.tsx",
+        "src/app/admin/audit/page.tsx",
+        "src/app/admin/users/page.tsx",
+        "src/app/auth/login/page.tsx",
+        "src/app/calibration/page.tsx",
+        "src/app/coaching/coaching-plan-theme-field.tsx",
+        "src/app/coaching/page.tsx",
+        "src/app/reviews/[conversationId]/page.tsx",
+        "src/components/admin/ai-provider-key-form.tsx",
+        "src/components/admin/ai-scoring-engine-panel.tsx",
+        "src/components/admin/api-token-create-form.tsx",
+        "src/components/admin/appearance-settings-form.tsx",
+        "src/components/admin/messaging-channel-form.tsx",
+        "src/components/admin/report-schedule-form.tsx",
+        "src/components/admin/sampling-rule-form.tsx",
+        "src/components/coaching/knowledge-category-fields.tsx",
+        "src/components/i18n/localization-editor.tsx",
+        "src/components/integrations/connect-source-form.tsx",
+        "src/components/integrations/integration-settings-form.tsx",
+        "src/components/integrations/native-helpdesk-import-tester.tsx",
+        "src/components/integrations/otrs-connection-form.tsx",
+        "src/components/integrations/otrs-diagnostics-panel.tsx",
+        "src/components/integrations/otrs-import-tester.tsx",
+        "src/components/integrations/otrs-preview-panel.tsx",
+        "src/components/reports/report-date-range.tsx",
+        "src/components/reports/report-parameter-lens.tsx",
+        "src/components/reports/report-saved-views.tsx",
+        "src/components/review/ai-draft-decision-controls.tsx",
+        "src/components/review/coaching-pin-composer.tsx",
+        "src/components/review/evidence-draft.tsx",
+        "src/components/review/queue-advanced-filters.tsx",
+        "src/components/review/queue-filters.tsx",
+        "src/components/review/queue-saved-views.tsx",
+        "src/components/review/queue-table.tsx",
+        "src/components/review/review-panel.tsx",
+        "src/components/review/summary-template-picker.tsx",
+        "src/components/review/workflow-management-panel.tsx",
+        "src/components/scorecards/scorecard-version-form.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/help-tooltip.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/admin/access/page.tsx",
+        "src/app/admin/integrations/page.tsx",
+        "src/app/admin/scorecards/page.tsx",
+        "src/app/admin/tokens/page.tsx",
+        "src/components/reports/analytics-intelligence.tsx",
+        "src/components/reports/report-score-panel.tsx",
+        "src/components/review/queue-advanced-filters.tsx",
+        "src/components/review/queue-filters.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/hover-card.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/review/criterion-guidance.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/input-group.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/ui/combobox.tsx",
+        "src/components/ui/command.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/input-otp.tsx",
+      "reachable": false,
+      "importers": []
+    },
+    {
+      "file": "src/components/ui/input.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/admin/access/page.tsx",
+        "src/app/admin/audit/page.tsx",
+        "src/app/admin/users/page.tsx",
+        "src/app/auth/login/page.tsx",
+        "src/app/calibration/page.tsx",
+        "src/app/coaching/coaching-plan-theme-field.tsx",
+        "src/app/coaching/page.tsx",
+        "src/app/reviews/[conversationId]/page.tsx",
+        "src/components/admin/ai-provider-key-form.tsx",
+        "src/components/admin/api-token-create-form.tsx",
+        "src/components/admin/appearance-settings-form.tsx",
+        "src/components/admin/messaging-channel-form.tsx",
+        "src/components/admin/report-schedule-form.tsx",
+        "src/components/admin/sampling-rule-form.tsx",
+        "src/components/coaching/knowledge-category-fields.tsx",
+        "src/components/i18n/localization-editor.tsx",
+        "src/components/integrations/connect-source-form.tsx",
+        "src/components/integrations/integration-settings-form.tsx",
+        "src/components/integrations/native-helpdesk-import-tester.tsx",
+        "src/components/integrations/otrs-connection-form.tsx",
+        "src/components/integrations/otrs-diagnostics-panel.tsx",
+        "src/components/integrations/otrs-import-tester.tsx",
+        "src/components/reports/report-date-range.tsx",
+        "src/components/reports/report-saved-views.tsx",
+        "src/components/review/queue-filters.tsx",
+        "src/components/review/queue-saved-views.tsx",
+        "src/components/review/queue-table.tsx",
+        "src/components/review/review-panel.tsx",
+        "src/components/review/workflow-management-panel.tsx",
+        "src/components/scorecards/scorecard-version-form.tsx",
+        "src/components/ui/input-group.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/item.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/coaching/page.tsx",
+        "src/components/coaching/coaching-assignment-item.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/kbd.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/app-nav-shell.tsx",
+        "src/components/review/review-keyboard.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/label.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/feedback/agent-appeal-form.tsx",
+        "src/components/ui/field.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/marker.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/review/conversation-timeline.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/menubar.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/reports/report-command-bar.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/message.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/review/conversation-timeline.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/metric-value.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/ui/stat-card.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/morph-icon.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/app-nav-shell.tsx",
+        "src/components/copy-button.tsx",
+        "src/components/ui/disclosure-morph-chevron.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/native-select.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/admin/access/page.tsx",
+        "src/app/admin/audit/page.tsx",
+        "src/app/admin/system/page.tsx",
+        "src/app/auth/login/page.tsx",
+        "src/app/coaching/page.tsx",
+        "src/components/admin/report-schedule-form.tsx",
+        "src/components/coaching/knowledge-category-fields.tsx",
+        "src/components/integrations/native-helpdesk-import-tester.tsx",
+        "src/components/integrations/otrs-connection-form.tsx",
+        "src/components/integrations/otrs-import-tester.tsx",
+        "src/components/reports/report-parameter-lens.tsx",
+        "src/components/reports/report-saved-views.tsx",
+        "src/components/review/evidence-draft.tsx",
+        "src/components/review/queue-filters.tsx",
+        "src/components/review/queue-person-filter.tsx",
+        "src/components/review/queue-saved-views.tsx",
+        "src/components/review/queue-table.tsx",
+        "src/components/review/review-panel.tsx",
+        "src/components/review/workflow-management-panel.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/navigation-menu.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/admin/admin-subnav.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/page-breadcrumbs.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/admin/integrations/[integrationId]/page.tsx",
+        "src/app/admin/system/jobs/[jobId]/page.tsx",
+        "src/app/calibration/page.tsx",
+        "src/app/reviews/[conversationId]/page.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/page-shell.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/admin/access/page.tsx",
+        "src/app/admin/ai-scoring/page.tsx",
+        "src/app/admin/appearance/page.tsx",
+        "src/app/admin/audit/page.tsx",
+        "src/app/admin/channels/page.tsx",
+        "src/app/admin/integrations/[integrationId]/page.tsx",
+        "src/app/admin/integrations/new/page.tsx",
+        "src/app/admin/integrations/page.tsx",
+        "src/app/admin/localization/page.tsx",
+        "src/app/admin/page.tsx",
+        "src/app/admin/report-schedules/page.tsx",
+        "src/app/admin/sampling/page.tsx",
+        "src/app/admin/scorecards/page.tsx",
+        "src/app/admin/system/jobs/[jobId]/page.tsx",
+        "src/app/admin/system/page.tsx",
+        "src/app/admin/tokens/page.tsx",
+        "src/app/admin/users/page.tsx",
+        "src/app/calibration/page.tsx",
+        "src/app/coaching/page.tsx",
+        "src/app/dashboard/page.tsx",
+        "src/app/reports/page.tsx",
+        "src/app/reviews/[conversationId]/page.tsx",
+        "src/app/self-review/page.tsx",
+        "src/components/dashboard/exec-risk-home.tsx",
+        "src/components/review/queue-workspace.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/pagination.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/coaching/page.tsx",
+        "src/app/reviews/page.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/popover.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/reports/report-parameter-lens.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/progress.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/coaching/coaching-plan-progress.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/radio-group.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/admin/appearance-settings-form.tsx",
+        "src/components/review/review-panel.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/recharts-primitives.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/ui/score-sparkline.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/required-mark.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/admin/users/page.tsx",
+        "src/components/admin/api-token-create-form.tsx",
+        "src/components/admin/report-schedule-form.tsx",
+        "src/components/admin/sampling-rule-form.tsx",
+        "src/components/integrations/integration-settings-form.tsx",
+        "src/components/scorecards/scorecard-version-form.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/resizable.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/review/workbench-layout.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/score-sparkline.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/self-review/page.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/scroll-area.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/review/workbench-layout.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/select.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/admin/users/page.tsx",
+        "src/components/admin/ai-provider-key-form.tsx",
+        "src/components/admin/ai-scoring-engine-panel.tsx",
+        "src/components/admin/sampling-rule-form.tsx",
+        "src/components/i18n/localization-editor.tsx",
+        "src/components/integrations/connect-source-form.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/separator.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/admin/access/page.tsx",
+        "src/app/dashboard/page.tsx",
+        "src/app/reviews/[conversationId]/page.tsx",
+        "src/app/self-review/page.tsx",
+        "src/components/app-nav-shell.tsx",
+        "src/components/operations/operational-page-frame.tsx",
+        "src/components/reports/report-evidence-sheet.tsx",
+        "src/components/reports/report-saved-views.tsx",
+        "src/components/review/queue-filters.tsx",
+        "src/components/review/queue-saved-views.tsx",
+        "src/components/review/queue-table.tsx",
+        "src/components/ui/field.tsx",
+        "src/components/ui/item.tsx",
+        "src/components/ui/page-shell.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/sheet.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/operations/evidence-drawer.tsx",
+        "src/components/reports/report-evidence-sheet.tsx",
+        "src/components/reports/report-parameter-lens.tsx",
+        "src/components/review/queue-advanced-filters.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/skeleton.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/admin/access/loading.tsx",
+        "src/app/admin/ai-scoring/loading.tsx",
+        "src/app/admin/appearance/loading.tsx",
+        "src/app/admin/audit/loading.tsx",
+        "src/app/admin/channels/loading.tsx",
+        "src/app/admin/integrations/[integrationId]/loading.tsx",
+        "src/app/admin/integrations/loading.tsx",
+        "src/app/admin/integrations/new/loading.tsx",
+        "src/app/admin/loading.tsx",
+        "src/app/admin/localization/loading.tsx",
+        "src/app/admin/sampling/loading.tsx",
+        "src/app/admin/scorecards/loading.tsx",
+        "src/app/admin/system/jobs/[jobId]/loading.tsx",
+        "src/app/admin/system/loading.tsx",
+        "src/app/admin/tokens/loading.tsx",
+        "src/app/admin/users/loading.tsx",
+        "src/components/charts/chart-frame.tsx",
+        "src/components/loading-states.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/slider.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/admin/sampling-rule-form.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/sonner.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/ui/toast.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/spinner.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/ui/auto-submit-filter-form.tsx",
+        "src/components/ui/confirm-submit-button.tsx",
+        "src/components/ui/validated-submit-button.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/stat-card.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/reports/analytics-intelligence.tsx",
+        "src/components/reports/report-page-views.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/stat-kpi.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/admin/access/page.tsx",
+        "src/app/admin/system/jobs/[jobId]/page.tsx",
+        "src/app/admin/tokens/page.tsx",
+        "src/app/admin/users/page.tsx",
+        "src/app/calibration/page.tsx",
+        "src/app/coaching/page.tsx",
+        "src/app/reviews/page.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/stat-strip.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/admin/audit/page.tsx",
+        "src/app/admin/channels/page.tsx",
+        "src/app/admin/system/page.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/status-badge.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/admin/channels/page.tsx",
+        "src/app/admin/integrations/[integrationId]/page.tsx",
+        "src/app/admin/system/page.tsx",
+        "src/app/admin/tokens/page.tsx",
+        "src/app/calibration/page.tsx",
+        "src/components/admin/scim-token-manager.tsx",
+        "src/components/integrations/otrs-diagnostics-panel.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/switch.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/admin/access/page.tsx",
+        "src/components/admin/ai-provider-key-form.tsx",
+        "src/components/admin/messaging-channel-form.tsx",
+        "src/components/admin/sampling-rule-form.tsx",
+        "src/components/integrations/otrs-connection-form.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/table.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/admin/access/page.tsx",
+        "src/app/admin/audit/page.tsx",
+        "src/app/admin/channels/page.tsx",
+        "src/app/admin/integrations/page.tsx",
+        "src/app/admin/report-schedules/page.tsx",
+        "src/app/admin/sampling/page.tsx",
+        "src/app/admin/scorecards/page.tsx",
+        "src/app/admin/system/jobs/[jobId]/page.tsx",
+        "src/app/admin/system/page.tsx",
+        "src/app/admin/tokens/page.tsx",
+        "src/app/admin/users/page.tsx",
+        "src/app/calibration/page.tsx",
+        "src/components/charts/chart-data-table.tsx",
+        "src/components/dashboard/exec-risk-chart.client.tsx",
+        "src/components/integrations/integration-ui.tsx",
+        "src/components/integrations/otrs-diagnostics-panel.tsx",
+        "src/components/integrations/otrs-preview-panel.tsx",
+        "src/components/integrations/otrs-run-history.tsx",
+        "src/components/integrations/otrs-webservice-checklist.tsx",
+        "src/components/reports/criterion-matrix.tsx",
+        "src/components/reports/insight-correlation-panels.tsx",
+        "src/components/reports/report-tables.tsx",
+        "src/components/review/queue-table.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/tabs.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/admin/access/page.tsx",
+        "src/app/calibration/page.tsx",
+        "src/components/admin/admin-section-tabs.tsx",
+        "src/components/admin/appearance-settings-form.tsx",
+        "src/components/integrations/otrs-connection-form.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/textarea.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/admin/access/page.tsx",
+        "src/app/calibration/page.tsx",
+        "src/app/coaching/page.tsx",
+        "src/components/admin/report-schedule-form.tsx",
+        "src/components/feedback/agent-appeal-form.tsx",
+        "src/components/i18n/localization-editor.tsx",
+        "src/components/integrations/native-helpdesk-import-tester.tsx",
+        "src/components/integrations/otrs-connection-form.tsx",
+        "src/components/integrations/otrs-import-tester.tsx",
+        "src/components/integrations/otrs-preview-panel.tsx",
+        "src/components/review/ai-draft-decision-controls.tsx",
+        "src/components/review/coaching-pin-composer.tsx",
+        "src/components/review/queue-table.tsx",
+        "src/components/review/review-panel.tsx",
+        "src/components/review/summary-template-picker.tsx",
+        "src/components/review/workflow-management-panel.tsx",
+        "src/components/ui/input-group.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/toast.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/coaching/toast-action-form.tsx",
+        "src/app/layout.tsx",
+        "src/components/review/ai-draft-decision-controls.tsx",
+        "src/components/review/evidence-message-button.tsx",
+        "src/components/review/review-form-shell.tsx",
+        "src/components/review/review-saved-toast.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/toggle-group.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/review/workbench-pane-toggle.tsx",
+        "src/components/scorecards/scorecard-version-form.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/toggle.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/ui/toggle-group.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/tooltip.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/layout.tsx",
+        "src/components/ui/help-tooltip.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/triage-strip.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/admin/page.tsx",
+        "src/app/admin/system/page.tsx",
+        "src/app/calibration/page.tsx",
+        "src/app/coaching/page.tsx",
+        "src/app/dashboard/page.tsx",
+        "src/app/self-review/page.tsx",
+        "src/components/dashboard/exec-risk-home.tsx",
+        "src/components/reports/report-page-views.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/user-avatar.tsx",
+      "reachable": true,
+      "importers": [
+        "src/components/app-nav-shell.tsx",
+        "src/components/coaching/coaching-assignment-item.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ui/validated-submit-button.tsx",
+      "reachable": true,
+      "importers": [
+        "src/app/admin/access/page.tsx",
+        "src/app/calibration/page.tsx",
+        "src/app/coaching/page.tsx",
+        "src/app/reviews/[conversationId]/page.tsx",
+        "src/components/reports/report-saved-views.tsx",
+        "src/components/review/queue-saved-views.tsx",
+        "src/components/review/queue-table.tsx",
+        "src/components/review/review-form-shell.tsx"
+      ]
+    }
+  ],
+  "packages": {
+    "@base-ui/react": {
+      "version": "1.9.0",
+      "consumers": [
+        "src/components/ui/accordion.tsx",
+        "src/components/ui/alert-dialog.tsx",
+        "src/components/ui/avatar.tsx",
+        "src/components/ui/badge.tsx",
+        "src/components/ui/breadcrumb.tsx",
+        "src/components/ui/bubble.tsx",
+        "src/components/ui/button.tsx",
+        "src/components/ui/checkbox.tsx",
+        "src/components/ui/collapsible.tsx",
+        "src/components/ui/combobox.tsx",
+        "src/components/ui/dialog.tsx",
+        "src/components/ui/dropdown-menu.tsx",
+        "src/components/ui/hover-card.tsx",
+        "src/components/ui/item.tsx",
+        "src/components/ui/marker.tsx",
+        "src/components/ui/menubar.tsx",
+        "src/components/ui/navigation-menu.tsx",
+        "src/components/ui/popover.tsx",
+        "src/components/ui/progress.tsx",
+        "src/components/ui/radio-group.tsx",
+        "src/components/ui/scroll-area.tsx",
+        "src/components/ui/select.tsx",
+        "src/components/ui/separator.tsx",
+        "src/components/ui/sheet.tsx",
+        "src/components/ui/slider.tsx",
+        "src/components/ui/switch.tsx",
+        "src/components/ui/tabs.tsx",
+        "src/components/ui/toggle-group.tsx",
+        "src/components/ui/toggle.tsx",
+        "src/components/ui/tooltip.tsx"
+      ]
+    },
+    "@stemma/kinetics": {
+      "version": "0.1.0",
+      "consumers": [
+        "src/components/reports/analytics-intelligence.tsx",
+        "src/components/reports/criterion-matrix.tsx",
+        "src/components/reports/insight-correlation-panels.tsx",
+        "src/components/reports/report-charts.tsx",
+        "src/components/review/evidence-jump-link.tsx",
+        "src/components/review/review-panel.tsx",
+        "src/components/ui/morph-icon.tsx"
+      ]
+    },
+    "class-variance-authority": {
+      "version": "0.7.1",
+      "consumers": [
+        "src/components/ui/alert.tsx",
+        "src/components/ui/badge.tsx",
+        "src/components/ui/bubble.tsx",
+        "src/components/ui/button.tsx",
+        "src/components/ui/empty.tsx",
+        "src/components/ui/field.tsx",
+        "src/components/ui/input-group.tsx",
+        "src/components/ui/item.tsx",
+        "src/components/ui/marker.tsx",
+        "src/components/ui/navigation-menu.tsx",
+        "src/components/ui/tabs.tsx",
+        "src/components/ui/toggle.tsx"
+      ]
+    },
+    "cmdk": {
+      "version": "1.1.1",
+      "consumers": [
+        "src/components/ui/command.tsx"
+      ]
+    },
+    "lucide": {
+      "version": "0.468.0",
+      "consumers": [
+        "src/lib/ui/lucide-morph.ts"
+      ]
+    },
+    "lucide-react": {
+      "version": "0.468.0",
+      "consumers": [
+        "src/app/admin/access/page.tsx",
+        "src/app/admin/audit/page.tsx",
+        "src/app/admin/channels/page.tsx",
+        "src/app/admin/integrations/[integrationId]/page.tsx",
+        "src/app/admin/integrations/new/page.tsx",
+        "src/app/admin/integrations/page.tsx",
+        "src/app/admin/localization/page.tsx",
+        "src/app/admin/page.tsx",
+        "src/app/admin/report-schedules/page.tsx",
+        "src/app/admin/sampling/page.tsx",
+        "src/app/admin/scorecards/page.tsx",
+        "src/app/admin/system/jobs/[jobId]/page.tsx",
+        "src/app/admin/system/page.tsx",
+        "src/app/admin/tokens/page.tsx",
+        "src/app/admin/users/page.tsx",
+        "src/app/auth/login/page.tsx",
+        "src/app/auth/pending-access/page.tsx",
+        "src/app/calibration/page.tsx",
+        "src/app/coaching/page.tsx",
+        "src/app/dashboard/page.tsx",
+        "src/app/error.tsx",
+        "src/app/reviews/[conversationId]/page.tsx",
+        "src/app/reviews/page.tsx",
+        "src/app/self-review/page.tsx",
+        "src/components/admin/admin-dialog.tsx",
+        "src/components/admin/admin-subnav.tsx",
+        "src/components/admin/appearance-settings-form.tsx",
+        "src/components/admin/scim-token-manager.tsx",
+        "src/components/app-nav-pulse-chrome.tsx",
+        "src/components/app-nav-shell.tsx",
+        "src/components/auth/demo-login-disclosure.tsx",
+        "src/components/auth/unauthorized-screen.tsx",
+        "src/components/copy-button.tsx",
+        "src/components/dashboard/exec-risk-empty.tsx",
+        "src/components/dashboard/exec-risk-home.tsx",
+        "src/components/guidance/coach-callout.tsx",
+        "src/components/guidance/queue-day1-tour.tsx",
+        "src/components/guidance/welcome-back-banner.tsx",
+        "src/components/i18n/localization-editor.tsx",
+        "src/components/integrations/connect-source-form.tsx",
+        "src/components/integrations/integration-queue-run-form.tsx",
+        "src/components/integrations/native-helpdesk-import-tester.tsx",
+        "src/components/integrations/otrs-connection-form.tsx",
+        "src/components/integrations/otrs-diagnostics-panel.tsx",
+        "src/components/integrations/otrs-import-tester.tsx",
+        "src/components/integrations/otrs-preview-panel.tsx",
+        "src/components/operations/evidence-drawer.tsx",
+        "src/components/operations/priority-action-panel.tsx",
+        "src/components/reports/analytics-intelligence.tsx",
+        "src/components/reports/criterion-matrix.tsx",
+        "src/components/reports/insight-correlation-panels.tsx",
+        "src/components/reports/report-charts.tsx",
+        "src/components/reports/report-command-bar.tsx",
+        "src/components/reports/report-evidence-sheet.tsx",
+        "src/components/reports/report-page-views.tsx",
+        "src/components/reports/report-panels.tsx",
+        "src/components/reports/report-parameter-lens.tsx",
+        "src/components/reports/report-saved-views.tsx",
+        "src/components/reports/report-tables.tsx",
+        "src/components/review/conversation-timeline.tsx",
+        "src/components/review/criterion-guidance.tsx",
+        "src/components/review/queue-advanced-filters.tsx",
+        "src/components/review/queue-empty-banner.tsx",
+        "src/components/review/queue-next-case-preview.tsx",
+        "src/components/review/queue-saved-views.tsx",
+        "src/components/review/queue-table.tsx",
+        "src/components/review/workbench-pane-toggle.tsx",
+        "src/components/review/workflow-management-panel.tsx",
+        "src/components/scorecards/scorecard-version-form.tsx",
+        "src/components/ui/breadcrumb.tsx",
+        "src/components/ui/calendar.tsx",
+        "src/components/ui/checkbox.tsx",
+        "src/components/ui/combobox.tsx",
+        "src/components/ui/command.tsx",
+        "src/components/ui/dialog.tsx",
+        "src/components/ui/disclosure-morph-chevron.tsx",
+        "src/components/ui/dropdown-menu.tsx",
+        "src/components/ui/help-tooltip.tsx",
+        "src/components/ui/menubar.tsx",
+        "src/components/ui/native-select.tsx",
+        "src/components/ui/navigation-menu.tsx",
+        "src/components/ui/pagination.tsx",
+        "src/components/ui/select.tsx",
+        "src/components/ui/sheet.tsx",
+        "src/components/ui/sonner.tsx",
+        "src/components/ui/spinner.tsx"
+      ]
+    },
+    "morphicons": {
+      "version": "1.7.1",
+      "consumers": [
+        "src/components/ui/morph-icon.tsx"
+      ]
+    },
+    "next": {
+      "version": "16.3.8",
+      "consumers": [
+        "src/app/admin/access/page.tsx",
+        "src/app/admin/audit/page.tsx",
+        "src/app/admin/channels/page.tsx",
+        "src/app/admin/integrations/[integrationId]/page.tsx",
+        "src/app/admin/integrations/new/page.tsx",
+        "src/app/admin/integrations/page.tsx",
+        "src/app/admin/page.tsx",
+        "src/app/admin/report-schedules/page.tsx",
+        "src/app/admin/sampling/page.tsx",
+        "src/app/admin/scorecards/page.tsx",
+        "src/app/admin/system/jobs/[jobId]/page.tsx",
+        "src/app/admin/system/page.tsx",
+        "src/app/admin/tokens/page.tsx",
+        "src/app/admin/users/page.tsx",
+        "src/app/auth/login/page.tsx",
+        "src/app/auth/pending-access/page.tsx",
+        "src/app/calibration/[sessionId]/page.tsx",
+        "src/app/calibration/page.tsx",
+        "src/app/coaching/coaching-plan-theme-field.tsx",
+        "src/app/coaching/coaching-view-nav-link.tsx",
+        "src/app/coaching/page.tsx",
+        "src/app/dashboard/page.tsx",
+        "src/app/layout.tsx",
+        "src/app/page.tsx",
+        "src/app/reviews/[conversationId]/page.tsx",
+        "src/app/reviews/page.tsx",
+        "src/app/self-review/page.tsx",
+        "src/components/admin/admin-section-tabs.tsx",
+        "src/components/admin/admin-subnav.tsx",
+        "src/components/admin/appearance-settings-form.tsx",
+        "src/components/app-command-list.tsx",
+        "src/components/app-nav-fallback.tsx",
+        "src/components/app-nav-pulse-chrome.tsx",
+        "src/components/app-nav-shell.tsx",
+        "src/components/auth/not-found-screen.tsx",
+        "src/components/auth/unauthorized-screen.tsx",
+        "src/components/charts/chart-data-table.tsx",
+        "src/components/charts/chart-frame.tsx",
+        "src/components/charts/chart-legend-controls.tsx",
+        "src/components/charts/chart-view-links.tsx",
+        "src/components/charts/paired-ai-drift-charts.client.tsx",
+        "src/components/charts/quality-trend-chart.client.tsx",
+        "src/components/charts/ranked-breakdown-chart.client.tsx",
+        "src/components/charts/ranked-driver-chart.client.tsx",
+        "src/components/charts/reason-trend-chart.client.tsx",
+        "src/components/charts/score-distribution-chart.client.tsx",
+        "src/components/charts/static-category-bars.tsx",
+        "src/components/dashboard/exec-risk-chart.client.tsx",
+        "src/components/dashboard/exec-risk-empty.tsx",
+        "src/components/dashboard/exec-risk-home.tsx",
+        "src/components/dashboard/quality-week-chart.client.tsx",
+        "src/components/feedback/agent-criterion-feedback-list.tsx",
+        "src/components/guidance/coach-callout.tsx",
+        "src/components/guidance/welcome-back-banner.tsx",
+        "src/components/integrations/otrs-run-history.tsx",
+        "src/components/operations/operation-kpi-card.tsx",
+        "src/components/operations/priority-action-panel.tsx",
+        "src/components/reports/analytics-intelligence.tsx",
+        "src/components/reports/criterion-matrix.tsx",
+        "src/components/reports/insight-correlation-panels.tsx",
+        "src/components/reports/interactive-sparkline-chart.tsx",
+        "src/components/reports/report-charts.tsx",
+        "src/components/reports/report-command-bar.tsx",
+        "src/components/reports/report-evidence-sheet.tsx",
+        "src/components/reports/report-kpi-row.tsx",
+        "src/components/reports/report-page-views.tsx",
+        "src/components/reports/report-panels.tsx",
+        "src/components/reports/report-parameter-lens.tsx",
+        "src/components/reports/report-saved-views.tsx",
+        "src/components/reports/report-score-panel.tsx",
+        "src/components/reports/report-tables.tsx",
+        "src/components/review/queue-empty-banner.tsx",
+        "src/components/review/queue-filters.tsx",
+        "src/components/review/queue-saved-views.tsx",
+        "src/components/review/queue-table.tsx",
+        "src/components/ui/auto-submit-filter-form.tsx",
+        "src/components/ui/page-breadcrumbs.tsx",
+        "src/components/ui/page-shell.tsx"
+      ]
+    },
+    "react": {
+      "version": "19.2.5",
+      "consumers": [
+        "src/app/admin/access/page.tsx",
+        "src/app/admin/ai-scoring/page.tsx",
+        "src/app/admin/appearance/page.tsx",
+        "src/app/admin/audit/page.tsx",
+        "src/app/admin/channels/page.tsx",
+        "src/app/admin/integrations/[integrationId]/page.tsx",
+        "src/app/admin/integrations/new/page.tsx",
+        "src/app/admin/integrations/page.tsx",
+        "src/app/admin/localization/page.tsx",
+        "src/app/admin/page.tsx",
+        "src/app/admin/report-schedules/page.tsx",
+        "src/app/admin/sampling/page.tsx",
+        "src/app/admin/scorecards/page.tsx",
+        "src/app/admin/system/jobs/[jobId]/page.tsx",
+        "src/app/admin/system/page.tsx",
+        "src/app/admin/tokens/page.tsx",
+        "src/app/admin/users/page.tsx",
+        "src/app/calibration/page.tsx",
+        "src/app/coaching/coaching-plan-theme-field.tsx",
+        "src/app/coaching/page.tsx",
+        "src/app/coaching/toast-action-form.tsx",
+        "src/app/dashboard/page.tsx",
+        "src/app/reports/page.tsx",
+        "src/app/reviews/[conversationId]/page.tsx",
+        "src/app/reviews/page.tsx",
+        "src/app/self-review/page.tsx",
+        "src/components/action-flow-guard.tsx",
+        "src/components/admin/admin-dialog.tsx",
+        "src/components/admin/admin-subnav.tsx",
+        "src/components/admin/ai-provider-key-form.tsx",
+        "src/components/admin/ai-scoring-engine-panel.tsx",
+        "src/components/admin/api-token-create-form.tsx",
+        "src/components/admin/appearance-settings-form.tsx",
+        "src/components/admin/messaging-channel-form.tsx",
+        "src/components/admin/report-schedule-form.tsx",
+        "src/components/admin/sampling-rule-form.tsx",
+        "src/components/admin/scim-token-manager.tsx",
+        "src/components/app-command-list.tsx",
+        "src/components/app-nav-shell.tsx",
+        "src/components/app-nav.tsx",
+        "src/components/auth/demo-login-disclosure.tsx",
+        "src/components/auth/demo-role-switch.tsx",
+        "src/components/charts/deferred-chart-visual.client.tsx",
+        "src/components/charts/paired-ai-drift-charts.client.tsx",
+        "src/components/charts/quality-trend-chart.client.tsx",
+        "src/components/charts/ranked-breakdown-chart.client.tsx",
+        "src/components/charts/ranked-driver-chart.client.tsx",
+        "src/components/charts/reason-trend-chart.client.tsx",
+        "src/components/charts/recharts-visuals.client.tsx",
+        "src/components/charts/score-distribution-chart.client.tsx",
+        "src/components/coaching/knowledge-category-fields.tsx",
+        "src/components/copy-button.tsx",
+        "src/components/dashboard/exec-risk-chart-island.client.tsx",
+        "src/components/guidance/coach-callout.tsx",
+        "src/components/guidance/queue-day1-tour.tsx",
+        "src/components/guidance/welcome-back-banner.tsx",
+        "src/components/i18n/localization-editor.tsx",
+        "src/components/integrations/connect-source-form.tsx",
+        "src/components/integrations/integration-import-queue-form.tsx",
+        "src/components/integrations/integration-queue-run-form.tsx",
+        "src/components/integrations/integration-settings-form.tsx",
+        "src/components/integrations/native-helpdesk-import-tester.tsx",
+        "src/components/integrations/otrs-connection-form.tsx",
+        "src/components/integrations/otrs-diagnostics-panel.tsx",
+        "src/components/integrations/otrs-import-tester.tsx",
+        "src/components/integrations/otrs-preview-panel.tsx",
+        "src/components/reports/criterion-matrix.tsx",
+        "src/components/reports/interactive-sparkline-chart.tsx",
+        "src/components/reports/report-command-bar.tsx",
+        "src/components/reports/report-date-range.tsx",
+        "src/components/reports/report-evidence-sheet.tsx",
+        "src/components/reports/report-parameter-lens.tsx",
+        "src/components/reports/report-saved-views.tsx",
+        "src/components/review/ai-draft-decision-controls.tsx",
+        "src/components/review/coaching-pin-composer.tsx",
+        "src/components/review/evidence-draft.tsx",
+        "src/components/review/evidence-jump-link.tsx",
+        "src/components/review/evidence-live-count.tsx",
+        "src/components/review/evidence-message-button.tsx",
+        "src/components/review/evidence-picker-listener.tsx",
+        "src/components/review/queue-advanced-filters.tsx",
+        "src/components/review/queue-command-bar-state.tsx",
+        "src/components/review/queue-empty-banner.tsx",
+        "src/components/review/queue-person-filter.tsx",
+        "src/components/review/review-disclosure.tsx",
+        "src/components/review/review-form-shell.tsx",
+        "src/components/review/review-keyboard.tsx",
+        "src/components/review/review-saved-toast.tsx",
+        "src/components/review/summary-template-picker.tsx",
+        "src/components/review/workbench-layout.tsx",
+        "src/components/review/workbench-pane-toggle.tsx",
+        "src/components/scorecards/scorecard-version-form.tsx",
+        "src/components/ui/alert-dialog.tsx",
+        "src/components/ui/alert.tsx",
+        "src/components/ui/auto-submit-filter-form.tsx",
+        "src/components/ui/avatar.tsx",
+        "src/components/ui/breadcrumb.tsx",
+        "src/components/ui/bubble.tsx",
+        "src/components/ui/calendar.tsx",
+        "src/components/ui/card.tsx",
+        "src/components/ui/chart-container.tsx",
+        "src/components/ui/chart.tsx",
+        "src/components/ui/combobox.tsx",
+        "src/components/ui/command-dialog.tsx",
+        "src/components/ui/command.tsx",
+        "src/components/ui/confirm-submit-button.tsx",
+        "src/components/ui/dialog.tsx",
+        "src/components/ui/disclosure-morph-chevron.tsx",
+        "src/components/ui/dropdown-menu.tsx",
+        "src/components/ui/field.tsx",
+        "src/components/ui/help-tooltip.tsx",
+        "src/components/ui/input-group.tsx",
+        "src/components/ui/item.tsx",
+        "src/components/ui/label.tsx",
+        "src/components/ui/marker.tsx",
+        "src/components/ui/menubar.tsx",
+        "src/components/ui/message.tsx",
+        "src/components/ui/native-select.tsx",
+        "src/components/ui/page-breadcrumbs.tsx",
+        "src/components/ui/pagination.tsx",
+        "src/components/ui/popover.tsx",
+        "src/components/ui/scroll-area.tsx",
+        "src/components/ui/select.tsx",
+        "src/components/ui/sheet.tsx",
+        "src/components/ui/table.tsx",
+        "src/components/ui/textarea.tsx",
+        "src/components/ui/toast.tsx",
+        "src/components/ui/toggle-group.tsx",
+        "src/components/ui/validated-submit-button.tsx"
+      ]
+    },
+    "react-day-picker": {
+      "version": "10.0.1",
+      "consumers": [
+        "src/components/reports/report-range-calendar.tsx",
+        "src/components/ui/calendar.tsx"
+      ]
+    },
+    "react-dom": {
+      "version": "19.2.5",
+      "consumers": [
+        "src/components/admin/ai-provider-key-form.tsx",
+        "src/components/admin/ai-scoring-engine-panel.tsx",
+        "src/components/admin/api-token-create-form.tsx",
+        "src/components/admin/messaging-channel-form.tsx",
+        "src/components/admin/report-schedule-form.tsx",
+        "src/components/integrations/connect-source-form.tsx",
+        "src/components/integrations/integration-import-queue-form.tsx",
+        "src/components/integrations/integration-queue-run-form.tsx",
+        "src/components/integrations/integration-settings-form.tsx",
+        "src/components/integrations/otrs-connection-form.tsx",
+        "src/components/integrations/otrs-diagnostics-panel.tsx",
+        "src/components/integrations/otrs-preview-panel.tsx",
+        "src/components/review/ai-draft-decision-controls.tsx",
+        "src/components/review/coaching-pin-composer.tsx",
+        "src/components/review/review-form-shell.tsx",
+        "src/components/ui/confirm-submit-button.tsx",
+        "src/components/ui/menubar.tsx",
+        "src/components/ui/validated-submit-button.tsx"
+      ]
+    },
+    "react-resizable-panels": {
+      "version": "4.12.2",
+      "consumers": [
+        "src/components/review/workbench-layout.tsx",
+        "src/components/ui/resizable.tsx"
+      ]
+    },
+    "recharts": {
+      "version": "3.8.0",
+      "consumers": [
+        "src/components/charts/animated-rectangle.tsx",
+        "src/components/charts/recharts-visuals.client.tsx",
+        "src/components/charts/static-category-bars.tsx",
+        "src/components/dashboard/quality-week-chart.client.tsx",
+        "src/components/reports/interactive-sparkline-chart.tsx",
+        "src/components/ui/chart.tsx",
+        "src/components/ui/recharts-primitives.tsx"
+      ]
+    },
+    "sonner": {
+      "version": "2.0.7",
+      "consumers": [
+        "src/components/review/review-saved-toast.tsx",
+        "src/components/ui/sonner.tsx",
+        "src/components/ui/toast.tsx"
+      ]
+    }
+  }
+}

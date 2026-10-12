@@ -41,6 +41,7 @@ import { cn } from "@/lib/utils";
 import { AccountMenuDisclosure } from "@/components/auth/demo-role-switch";
 import { DisclosureMorphChevron } from "@/components/ui/disclosure-morph-chevron";
 import { MorphIcon } from "@/components/ui/morph-icon";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { CommandDialog } from "@/components/ui/command-dialog";
@@ -404,6 +405,7 @@ function AppNavShellChrome({
             </>
           }
         >
+          <UserAvatar name={user.name} className="hidden sm:flex" />
           <span className="flex min-w-0 max-w-[12.5rem] flex-col items-start gap-0.5 text-left sm:max-w-[15rem]">
             <span
               className="text-pretty text-sm font-medium leading-tight"

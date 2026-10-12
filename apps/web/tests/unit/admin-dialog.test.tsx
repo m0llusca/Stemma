@@ -1,6 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { renderToString } from "react-dom/server";
 import { AdminDialog } from "@/components/admin/admin-dialog";
 
 vi.mock("next/navigation", () => ({
@@ -9,6 +10,10 @@ vi.mock("next/navigation", () => ({
 
 describe("AdminDialog", () => {
   it("does not SSR dialog content or portal attributes before the client mount", () => {
+    const markup = renderToString(<AdminDialog triggerLabel="Новый ключ" title="Новый ключ"><p>Форма</p></AdminDialog>);
+    expect(markup).toContain('disabled=""');
+    expect(markup).toContain('aria-busy="true"');
+    expect(markup).not.toContain('data-slot="dialog-trigger"');
     render(
       <AdminDialog triggerLabel="Новый ключ" title="Новый ключ">
         <p>Форма</p>
@@ -17,6 +22,7 @@ describe("AdminDialog", () => {
 
     expect(document.querySelector("[data-slot='dialog-content']")).toBeNull();
     expect(document.querySelector("[data-slot='dialog-trigger']")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Новый ключ" })).toBeEnabled();
   });
 
   it("stays closed until the trigger is pressed and opens as a shadcn dialog", async () => {

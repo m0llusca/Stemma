@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentType } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import {
   Activity,
   CalendarClock,
@@ -19,7 +19,8 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { RoleName } from "@prisma/client";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { NavigationMenu, NavigationMenuItem, NavigationMenuLink, NavigationMenuList } from "@/components/ui/navigation-menu";
 import { canAccessAdminHub } from "@/lib/admin-access";
 import { adminSectionTitles } from "@/lib/admin-sections";
 import { hasPermission, type Permission } from "@/lib/auth/permissions";
@@ -31,7 +32,7 @@ import { cn } from "@/lib/utils";
  * A quiet, left-rail list of the admin sections, grouped and labeled, with the
  * active item resolved from the current path. Lives ONLY inside the admin area
  * (rendered by AdminFrame next to the page content) — it is not global chrome.
- * Built from shadcn Button + Link; holds across every theme including Night Ops.
+ * Built from shadcn NavigationMenu + Link; holds across every theme including Night Ops.
  */
 export type AdminSubnavItem = {
   href: string;
@@ -138,6 +139,15 @@ export function AdminSubnav({
    */
   role: RoleName;
 }) {
+  const [orientation, setOrientation] = useState<"horizontal" | "vertical">("vertical");
+  useEffect(() => {
+    if (!window.matchMedia) return;
+    const media = window.matchMedia("(max-width: 1023px)");
+    const sync = () => setOrientation(media.matches ? "horizontal" : "vertical");
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
   const pathname = usePathname() ?? "/admin";
   const groups = filterAdminSubnavGroups(adminSubnavGroups, role);
   const showOverview = canAccessAdminHub(role);
@@ -159,47 +169,47 @@ export function AdminSubnav({
             "h-auto w-full justify-start px-2.5 py-1.5 text-left font-medium",
             overviewActive ? "text-foreground" : "text-muted-foreground"
           )}
-          render={<Link href="/admin" aria-current={overviewActive ? "page" : undefined} />}
+          render={<Link href="/admin" prefetch={false} aria-current={overviewActive ? "page" : undefined} />}
           nativeButton={false}
         >
           Обзор настроек
         </Button>
       ) : null}
       {groups.map((group) => (
-        <div key={group.id} className="flex min-w-0 flex-col gap-1">
+        <NavigationMenu key={group.id} render={<div />} orientation={orientation} className="w-full max-w-none min-w-0 flex-col items-stretch justify-start gap-1">
           <p className="px-2.5 text-[10.5px] font-semibold tracking-[0.07em] text-muted-foreground uppercase">
             {group.label}
           </p>
-          <ul className="flex min-w-0 flex-col gap-px max-lg:flex-row max-lg:overflow-x-auto max-lg:pb-0.5">
+          <NavigationMenuList className="w-full min-w-0 flex-col items-stretch justify-start gap-px max-lg:flex-row max-lg:overflow-x-auto max-lg:pb-0.5">
             {group.items.map((item) => {
               const Icon = item.icon;
               const active = isActive(pathname, item);
 
               return (
-                <li key={item.href} className="min-w-0 max-lg:shrink-0">
-                  <Button
-                    variant={active ? "secondary" : "ghost"}
-                    size="sm"
+                <NavigationMenuItem key={item.href} className="min-w-0 max-lg:shrink-0">
+                  <NavigationMenuLink
+                    active={active}
                     className={cn(
+                      buttonVariants({ variant: active ? "secondary" : "ghost", size: "sm" }),
                       "h-auto w-full justify-start gap-2.5 px-2.5 py-1.5 text-left font-normal",
                       active ? "font-medium text-foreground" : "text-muted-foreground"
                     )}
                     render={
                       <Link
                         href={item.href}
+                        prefetch={false}
                         aria-current={active ? "page" : undefined}
                       />
                     }
-                    nativeButton={false}
                   >
                     <Icon className="size-3.5 shrink-0 max-lg:hidden" aria-hidden />
                     <span className="min-w-0 truncate">{item.label}</span>
-                  </Button>
-                </li>
+                  </NavigationMenuLink>
+                </NavigationMenuItem>
               );
             })}
-          </ul>
-        </div>
+          </NavigationMenuList>
+        </NavigationMenu>
       ))}
     </nav>
   );

@@ -4,3 +4,10 @@ const browserWindow = (globalThis as unknown as { jsdom: { window: Window } }).j
 for (const key of ["localStorage", "sessionStorage"] as const) {
   Object.defineProperty(globalThis, key, { configurable: true, value: browserWindow[key] });
 }
+
+// jsdom has no Web Animations API or rendered animations. Base UI inspects
+// this standard API when sizing scroll areas; the empty list is the real
+// animation state of this non-rendering test environment.
+if (!Element.prototype.getAnimations) {
+  Object.defineProperty(Element.prototype, "getAnimations", { configurable: true, value: () => [] });
+}

@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ScorecardVersionForm } from "@/components/scorecards/scorecard-version-form";
 
@@ -46,33 +46,38 @@ afterEach(() => {
 
 describe("scorecard version form destructive actions", () => {
   it("keeps the criterion when the deletion confirm is dismissed", async () => {
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
     renderForm();
 
     await clickDeleteFirst();
 
-    expect(confirmSpy).toHaveBeenCalledTimes(1);
-    expect(confirmSpy.mock.calls[0][0]).toContain("Удалить критерий «Приветствие»?");
+    const dialog = await screen.findByRole("alertdialog");
+    expect(within(dialog).getByText(/Удалить критерий «Приветствие»\?/)).toBeDefined();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Отмена" }));
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
     expect(screen.getByText("Приветствие")).toBeDefined();
     expect(screen.getAllByTitle("Удалить")).toHaveLength(2);
   });
 
   it("removes the criterion after the deletion is confirmed", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     renderForm();
 
     await clickDeleteFirst();
+    const dialog = await screen.findByRole("alertdialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Подтвердить" }));
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
 
     expect(screen.queryByText("Приветствие")).toBeNull();
     expect(screen.getAllByTitle("Удалить")).toHaveLength(1);
   });
 
   it("keeps the submit button always enabled and blocks submit inline when weights are off", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     renderForm();
 
     // Delete one criterion: total weight becomes 50 — the button must stay enabled.
     await clickDeleteFirst();
+    const dialog = await screen.findByRole("alertdialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Подтвердить" }));
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
 
     const submit = screen.getByRole("button", { name: "Создать новую версию" }) as HTMLButtonElement;
     expect(submit.disabled).toBe(false);

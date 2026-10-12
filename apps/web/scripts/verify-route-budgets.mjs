@@ -176,70 +176,60 @@ function quotedJavaScriptPaths(value) {
   return paths;
 }
 
-function indexIsWithinSpans(index, spans) {
-  return spans.some(({ start, end }) => index >= start && index < end);
-}
-
-function parseChunkDependencies(source) {
+function parseChunkDependencies(source, ast, factories) {
   const staticDependencies = new Set();
   const lazyDependencies = new Set();
-  const recognizedLoaderSpans = [];
+  const unresolvedLoaderCalls = [];
   const otherChunksPattern = /otherChunks\s*:\s*\[([\s\S]*?)\]/g;
   let match;
 
   while ((match = otherChunksPattern.exec(source))) {
-    for (const dependency of quotedJavaScriptPaths(match[1])) {
-      staticDependencies.add(dependency);
+    for (const dependency of quotedJavaScriptPaths(match[1])) staticDependencies.add(dependency);
+  }
+
+  function chunkPath(node) {
+    return node && ts.isStringLiteralLike(node) && /^(?:\/?_next\/)?static\/chunks\/[^"'?#]+\.js$/.test(node.text)
+      ? normalizeChunkPath(node.text)
+      : null;
+  }
+
+  function recordLoader(call) {
+    const target = call.arguments[0];
+    const directPath = chunkPath(target);
+    if (directPath) {
+      lazyDependencies.add(directPath);
+      return;
     }
-  }
 
-  const directLazyPattern =
-    /(?:\.\s*l\s*\(|import\s*\()\s*["']((?:\/?_next\/)?static\/chunks\/[^"'?#]+\.js)["']/g;
-  while ((match = directLazyPattern.exec(source))) {
-    lazyDependencies.add(normalizeChunkPath(match[1]));
-    recognizedLoaderSpans.push({
-      start: match.index,
-      end: directLazyPattern.lastIndex
-    });
-  }
-
-  const lazyTablePattern =
-    /\[((?:\s*["'](?:\/?_next\/)?static\/chunks\/[^"'?#]+\.js["']\s*,?)+)\]\s*\.map\s*\([^)]*?\.\s*l\s*\(/g;
-  while ((match = lazyTablePattern.exec(source))) {
-    for (const dependency of quotedJavaScriptPaths(match[1])) {
-      lazyDependencies.add(dependency);
+    // Turbopack can load a literal chunk table via .map(path => runtime.l(path)).
+    let callback = call.parent;
+    while (callback && !ts.isArrowFunction(callback) && !ts.isFunctionExpression(callback)) callback = callback.parent;
+    const tableCall = callback?.parent;
+    if (target && ts.isIdentifier(target) && callback?.parameters[0]?.name.getText(ast) === target.text &&
+        tableCall && ts.isCallExpression(tableCall) && ts.isPropertyAccessExpression(tableCall.expression) &&
+        tableCall.expression.name.text === "map" && ts.isArrayLiteralExpression(tableCall.expression.expression)) {
+      const paths = tableCall.expression.expression.elements.map(chunkPath);
+      if (paths.length > 0 && paths.every(Boolean)) {
+        for (const path of paths) lazyDependencies.add(path);
+        return;
+      }
     }
-    recognizedLoaderSpans.push({
-      start: match.index,
-      end: lazyTablePattern.lastIndex
-    });
+
+    unresolvedLoaderCalls.push(call.getText(ast).slice(0, 120).replace(/\s+/g, " "));
   }
 
-  for (const dependency of staticDependencies) {
-    lazyDependencies.delete(dependency);
+  for (const factory of factories) for (const call of factory.loaderCalls) recordLoader(call);
+  function visit(node) {
+    if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) recordLoader(node);
+    ts.forEachChild(node, visit);
   }
+  visit(ast);
 
-  const unresolvedLoaderCalls = [];
-  const loaderCallPattern = /(?:\.\s*l\s*\(|\bimport\s*\()/g;
-  while ((match = loaderCallPattern.exec(source))) {
-    if (!indexIsWithinSpans(match.index, recognizedLoaderSpans)) {
-      unresolvedLoaderCalls.push(
-        source
-          .slice(match.index, Math.min(source.length, match.index + 120))
-          .replace(/\s+/g, " ")
-      );
-    }
-  }
-
-  return {
-    staticDependencies,
-    lazyDependencies,
-    unresolvedLoaderCalls
-  };
+  for (const dependency of staticDependencies) lazyDependencies.delete(dependency);
+  return { staticDependencies, lazyDependencies, unresolvedLoaderCalls };
 }
 
-function parseModuleFactories(path, source) {
-  const ast = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+function parseModuleFactories(path, ast) {
   const factories = [];
   function scan(node) {
     if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) &&
@@ -250,7 +240,7 @@ function parseModuleFactories(path, source) {
         if (ts.isNumericLiteral(element)) { ids.push(element.text); continue; }
         if (ts.isArrowFunction(element) || ts.isFunctionExpression(element)) {
           const context = element.parameters[0]?.name.getText(ast);
-          const factory = { path, ids: new Set(ids), imports: new Set(), exports: new Set(), unresolvedImports: [] };
+          const factory = { path, ids: new Set(ids), imports: new Set(), exports: new Set(), unresolvedImports: [], loaderCalls: [] };
           function visit(child) {
             // A nested function's parameter can shadow the module context.
             if ((ts.isArrowFunction(child) || ts.isFunctionExpression(child) || ts.isFunctionDeclaration(child)) &&
@@ -258,6 +248,7 @@ function parseModuleFactories(path, source) {
             if (ts.isCallExpression(child) && ts.isPropertyAccessExpression(child.expression) &&
                 ts.isIdentifier(child.expression.expression) && child.expression.expression.text === context) {
               const method = child.expression.name.text;
+              if (method === "l") factory.loaderCalls.push(child);
               if (["i", "r", "A"].includes(method)) {
                 if (child.arguments[0] && ts.isNumericLiteral(child.arguments[0])) factory.imports.add(child.arguments[0].text);
                 else factory.unresolvedImports.push(child.getText(ast));
@@ -327,17 +318,19 @@ function buildChunkGraph(nextDir) {
     );
     const bytes = readFileSync(absolutePath);
     const source = bytes.toString("utf8");
+    const ast = ts.createSourceFile(relativePath, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+    const factories = parseModuleFactories(relativePath, ast);
     chunks.set(relativePath, {
       path: relativePath,
       bytes,
       source,
-      ...parseChunkDependencies(source)
+      factories,
+      ...parseChunkDependencies(source, ast, factories)
     });
   }
 
   const modules = new Map();
   for (const chunk of chunks.values()) {
-    chunk.factories = parseModuleFactories(chunk.path, chunk.source);
     for (const factory of chunk.factories) {
       for (const id of factory.ids) {
         const definitions = modules.get(id) ?? new Set();

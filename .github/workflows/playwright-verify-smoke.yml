@@ -48,7 +48,7 @@ jobs:
       - run: npm run build
       - run: npm run test:budgets
       - run: npx playwright install --with-deps chromium
-      - run: npx playwright test --project=chromium tests/e2e/demo-data-current.spec.ts tests/e2e/reports-chart-loading.spec.ts tests/e2e/report-reduced-motion.spec.ts tests/e2e/app-command-palette.spec.ts
+      - run: npx playwright test --project=chromium tests/e2e/demo-data-current.spec.ts tests/e2e/reports-chart-loading.spec.ts tests/e2e/report-reduced-motion.spec.ts tests/e2e/app-command-palette.spec.ts tests/e2e/ui-components.spec.ts tests/e2e/reviews-layout.spec.ts tests/e2e/app-shell-routes.spec.ts tests/e2e/report-cross-browser-smoke.spec.ts tests/e2e/confirmation-submit.spec.ts
       - uses: actions/upload-artifact@v4
         if: always()
         with:

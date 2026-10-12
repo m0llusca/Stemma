@@ -562,13 +562,40 @@ describe("verify-route-budgets", () => {
     );
   });
 
+  it("distinguishes library .l methods and spread calls from the factory runtime loader", () => {
+    const build = syntheticBuild();
+    writeChunk(build.nextDir, build.chunks.shared,
+      'globalThis.TURBOPACK.push([null,909,runtime=>{const library=runtime.i(10);library.l(B.floating);const l=x=>x;const style={...l(B.floating)>=1.5&&{willChange:"transform"}};const shadow=runtime=>runtime.l(unknown);library.l("static/chunks/not-a-dependency.js")}]);');
+    expect(capture(build).sharedGzipBytes).toBeGreaterThan(0);
+  });
+
+  it("follows literal runtime and native import targets, including chunk tables", () => {
+    const build = syntheticBuild();
+    const targets = ["static/chunks/direct.js", "static/chunks/native.js", "static/chunks/table-a.js", "static/chunks/table-b.js"];
+    for (const target of targets) writeChunk(build.nextDir, target, "export const loaded = true;");
+    writeChunk(build.nextDir, "static/chunks/rich-renderer.js", Buffer.concat([
+      richExportSource(RICH_EXPORTS),
+      Buffer.from(`globalThis.TURBOPACK.push([null,909,runtime=>{runtime.l(${JSON.stringify(targets[0])});import(${JSON.stringify(targets[1])});${JSON.stringify(targets.slice(2))}.map(path=>runtime.l(path))}]);`)
+    ]));
+    const measurement = capture(build) as { richChartReachableChunks: Array<{ path: string }> };
+    expect(measurement.richChartReachableChunks.map(chunk => chunk.path).sort()).toEqual(["static/chunks/rich-renderer.js", ...targets].sort());
+  });
+
+  it("fails closed for native import with an unresolved target", () => {
+    const build = syntheticBuild();
+    writeChunk(build.nextDir, build.chunks.shared, "import(resolveAtRuntime());");
+    const result = spawnSync(process.execPath, [SCRIPT, "--next-dir", build.nextDir, "--capture-baseline", join(build.root, "baseline.json")], { encoding: "utf8" });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("unrecognized emitted loader");
+  });
+
   it("fails closed on a nonliteral emitted dynamic loader target", () => {
     const build = syntheticBuild();
     const baselinePath = join(build.root, "baseline.json");
     writeRichImportMetadata(
       build.nextDir,
       "static/chunks/rich-renderer.js",
-      "e.v(t=>e.l(resolveChunkAtRuntime()).then(()=>t(101)))"
+      "globalThis.TURBOPACK.push([null,909,e=>{e.v(t=>e.l(resolveChunkAtRuntime()).then(()=>t(101)))}]);"
     );
 
     const result = spawnSync(
@@ -589,7 +616,7 @@ describe("verify-route-budgets", () => {
       "static/chunks/rich-renderer.js",
       Buffer.concat([
         richExportSource(RICH_EXPORTS),
-        Buffer.from("\ne.l(resolveTransitiveChunk());")
+        Buffer.from("\nglobalThis.TURBOPACK.push([null,909,e=>{e.l(resolveTransitiveChunk())}]);")
       ])
     );
 

@@ -26,10 +26,10 @@ It does **not** vendor Colorion React demos (magnetic cursor, liquid glass, trai
 import {
   kineticsTransition,
   kineticsStyle,
-  kineticsDurationMs,
   prefersReducedMotion,
   kineticsSurfaces
 } from "@stemma/kinetics";
+import { kineticsDurationMs } from "@stemma/kinetics/durations";
 import { usePrefersReducedMotion } from "@stemma/kinetics/react";
 ```
 

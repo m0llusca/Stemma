@@ -232,16 +232,14 @@ test("keyboard evidence flow opens the sheet and returns focus to the plot", asy
   });
   await tabUntilFocused(page, plot, 120);
 
-  // Выбор точки стрелкой: появляется активная точка, маркер и tooltip-статус.
+  // Выбор даты стрелкой: tooltip появляется и для дня без данных.
   await page.keyboard.press("ArrowRight");
   await expect(plot).toHaveAttribute("data-active-point-id", /.+/);
-  await expect(
-    page.locator('[data-slot="quality-selected-marker"]')
-  ).toBeVisible();
   await expect(plot.getByText("Средний балл", { exact: true })).toBeVisible();
 
   // Gap days carry no evidence href by design (Enter is inert on them):
   // rove to the first data-bearing point before pressing Enter.
+  let sampleCount = 0;
   for (let step = 0; step < 40; step += 1) {
     const sample = await plot.locator('[role="tooltip"]').evaluate((node) => {
       for (const row of node.querySelectorAll("dl > div")) {
@@ -251,11 +249,17 @@ test("keyboard evidence flow opens the sheet and returns focus to the plot", asy
       }
       return null;
     });
-    if (sample && sample !== "Нет данных" && !sample.startsWith("0 ")) {
+    sampleCount = Number.parseInt(sample ?? "", 10);
+    if (sampleCount > 0) {
       break;
     }
     await page.keyboard.press("ArrowRight");
   }
+  expect(sampleCount, "выбрана точка с реальной выборкой для evidence").toBeGreaterThan(0);
+  await expect(plot.locator('[role="tooltip"]')).toBeVisible();
+  await expect(
+    page.locator('[data-slot="quality-selected-marker"]')
+  ).toBeVisible();
 
   // Enter открывает Evidence Sheet через URL-авторитет.
   await page.keyboard.press("Enter");

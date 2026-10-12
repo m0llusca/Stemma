@@ -150,17 +150,36 @@ test("coaching shows open, in-progress, and done work around the anchor", async 
 
   const workspace = page.getByLabel("Рабочая область обучения");
   await expect(workspace).toBeVisible();
-  await expect(workspace.getByRole("cell", { name: "Новая", exact: true }).first()).toBeVisible();
-  await expect(workspace.getByRole("cell", { name: "В работе", exact: true }).first()).toBeVisible();
-  for (const dueDate of expectedDates.coachingDueDates) {
-    await expect(workspace.getByText(`до ${dueDate}`, { exact: true })).toBeVisible();
+  const assignments = workspace.getByRole("list", { name: "Учебные задачи", exact: true });
+  const openAssignment = assignments.getByRole("listitem").filter({
+    has: page.locator('[data-slot="item-title"]').filter({ hasText: "Разбор критической маршрутизации" })
+  });
+  await expect(openAssignment).toHaveCount(1);
+  await expect(openAssignment.locator('[data-slot="badge"]').filter({ hasText: /^Новая$/ })).toBeVisible();
+
+  const inProgressCases = [
+    { title: "Переответ после неверной маршрутизации", dueDate: expectedDates.coachingDueDates[0] },
+    { title: "Персонализация шаблонов", dueDate: expectedDates.coachingDueDates[1] }
+  ];
+  for (const assignment of inProgressCases) {
+    const row = assignments.getByRole("listitem").filter({
+      has: page.locator('[data-slot="item-title"]').filter({ hasText: assignment.title })
+    });
+    await expect(row).toHaveCount(1);
+    await expect(row.locator('[data-slot="badge"]').filter({ hasText: /^В работе$/ })).toBeVisible();
+    await expect(row.getByText(`до ${assignment.dueDate}`, { exact: true })).toBeVisible();
   }
 
   const viewNav = workspace.getByRole("navigation", { name: "Виды разборов" });
   await viewNav.getByRole("link", { name: /^Закрытые \d+$/ }).click();
   await expect(page).toHaveURL(/\/coaching\?view=done/);
   await expect(viewNav.getByRole("link", { name: /^Закрытые \d+$/ })).toHaveAttribute("aria-current", "page");
-  await expect(workspace.getByRole("cell", { name: "Готово", exact: true }).first()).toBeVisible();
+  const doneAssignment = assignments.getByRole("listitem").filter({
+    has: page.locator('[data-slot="item-title"]').filter({ hasText: "Формулировка при задержке ответа" })
+  });
+  await expect(doneAssignment).toHaveCount(1);
+  await expect(doneAssignment.locator('[data-slot="badge"]').filter({ hasText: /^Готово$/ })).toBeVisible();
+  await expect(doneAssignment.getByRole("button", { name: "Вернуть", exact: true })).toBeVisible();
 });
 
 async function coachingViewNavGeometry(page: Page) {

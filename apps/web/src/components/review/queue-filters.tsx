@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { QUEUE_GLOSSARY } from "@/components/guidance/queue-glossary";
+import { QueuePersonFilter } from "@/components/review/queue-person-filter";
 import { QueueAdvancedFilters } from "@/components/review/queue-advanced-filters";
 import { AutoSubmitFilterForm } from "@/components/ui/auto-submit-filter-form";
 import { Button } from "@/components/ui/button";
@@ -318,38 +319,28 @@ export function QueueFilters({
 
           <Field className="min-w-0">
             <FieldLabel htmlFor="queue-filter-assignee">Оператор</FieldLabel>
-            <NativeSelect
+            <QueuePersonFilter
+              key={filters.assignee ?? ""}
               id="queue-filter-assignee"
               name="assignee"
-              form={queueFiltersFormId}
-              defaultValue={filters.assignee ?? ""}
-              className="w-full"
-            >
-              <NativeSelectOption value="">Все</NativeSelectOption>
-              {assignees.map((assignee) => (
-                <NativeSelectOption key={assignee} value={assignee}>
-                  {assignee}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
+              label="Оператор"
+              formId={queueFiltersFormId}
+              value={filters.assignee ?? ""}
+              options={assignees.map((value) => ({ value, label: value }))}
+            />
           </Field>
 
           <Field className="min-w-0">
             <FieldLabel htmlFor="queue-filter-qaAssignee">Проверяющий</FieldLabel>
-            <NativeSelect
+            <QueuePersonFilter
+              key={filters.qaAssignee ?? ""}
               id="queue-filter-qaAssignee"
               name="qaAssignee"
-              form={queueFiltersFormId}
-              defaultValue={filters.qaAssignee ?? ""}
-              className="w-full"
-            >
-              <NativeSelectOption value="">Все</NativeSelectOption>
-              {qaAssignees.map((qaAssignee) => (
-                <NativeSelectOption key={qaAssignee} value={qaAssignee}>
-                  {qaAssignee}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
+              label="Проверяющий"
+              formId={queueFiltersFormId}
+              value={filters.qaAssignee ?? ""}
+              options={qaAssignees.map((value) => ({ value, label: value }))}
+            />
           </Field>
 
           <Field className="min-w-0">

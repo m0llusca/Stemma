@@ -16,6 +16,7 @@ import {
   X
 } from "lucide-react";
 import { CoachCallout } from "@/components/guidance/coach-callout";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -846,9 +847,9 @@ export function AppearanceSettingsForm({ initialAppearance, workspaceName }: App
                   style={themePreviewStyle(theme)}
                 >
                   <RadioGroupItem value={theme.id} className="sr-only" />
-                  <span
-                    className="grid h-20 overflow-hidden rounded-lg ring-1 ring-foreground/10"
-                    style={{ gridTemplateColumns: "0.32fr 1fr" }}
+                  <AspectRatio
+                    ratio={3}
+                    className="grid w-full grid-cols-[0.32fr_1fr] overflow-hidden rounded-lg ring-1 ring-foreground/10"
                     aria-hidden="true"
                   >
                     <span style={{ background: "var(--theme-sidebar)" }} />
@@ -860,7 +861,7 @@ export function AppearanceSettingsForm({ initialAppearance, workspaceName }: App
                         style={{ background: "var(--theme-primary)" }}
                       />
                     </span>
-                  </span>
+                  </AspectRatio>
                   <span className="flex flex-col gap-1">
                     <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
                       <Palette className="size-4 text-muted-foreground" aria-hidden="true" />

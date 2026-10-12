@@ -58,7 +58,7 @@ export function AdminDialog({
 
   if (!mounted) {
     return (
-      <Button type="button" className={cn(triggerClassName)}>
+      <Button type="button" disabled aria-busy="true" className={cn(triggerClassName)}>
         {triggerLabel}
       </Button>
     );
