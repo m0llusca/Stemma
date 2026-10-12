@@ -1,6 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { renderToStaticMarkup } from "react-dom/server";
 import { ReportSavedViews } from "@/components/reports/report-saved-views";
 
 vi.mock("next/link", () => ({
@@ -139,7 +140,8 @@ describe("ReportSavedViews", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Сохранённый вид: HIGH+" })
     );
-    fireEvent.click(await screen.findByRole("menuitem", { name: "Сохранить текущий вид" }));
+    const closingMenu = await screen.findByRole("menu");
+    fireEvent.click(within(closingMenu).getByRole("menuitem", { name: "Сохранить текущий вид" }));
 
     const dialog = await screen.findByRole("dialog", {
       name: "Сохранить текущий вид"
@@ -150,5 +152,30 @@ describe("ReportSavedViews", () => {
     await waitFor(() => {
       expect(within(dialog).getByLabelText("Название")).toHaveFocus();
     });
+    await waitFor(() => expect(closingMenu).not.toBeInTheDocument());
+    const name = within(dialog).getByLabelText("Название");
+    expect(name).toHaveFocus();
+    fireEvent.change(name, { target: { value: "Рабочий вид" } });
+    expect(name).toHaveValue("Рабочий вид");
+    fireEvent.keyDown(name, { key: "Escape" });
+    await waitFor(() => expect(dialog).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Сохранённый вид: HIGH+" })).toHaveFocus());
+  });
+
+  it("returns focus normally when the menu closes without opening a dialog", async () => {
+    render(<ReportSavedViews currentHref={savedViews[0].href} savedViews={savedViews} />);
+    const trigger = screen.getByRole("button", { name: "Сохранённый вид: HIGH+" });
+    fireEvent.click(trigger);
+    const menu = await screen.findByRole("menu");
+    fireEvent.keyDown(within(menu).getByRole("menuitem", { name: "HIGH+" }), { key: "Escape" });
+    await waitFor(() => expect(menu).not.toBeInTheDocument());
+    await waitFor(() => expect(trigger).toHaveFocus());
+  });
+
+  it("renders a disabled busy placeholder before hydration", () => {
+    const html = renderToStaticMarkup(<ReportSavedViews currentHref={savedViews[0].href} savedViews={savedViews} />);
+    expect(html).toContain('aria-busy="true"');
+    expect(html).toContain('disabled=""');
+    expect(html).not.toContain('aria-haspopup');
   });
 });

@@ -66,7 +66,7 @@ export function ReportSavedViews({
   const [saveOpen, setSaveOpen] = React.useState(false);
   const [menuOpen, setMenuOpen] = React.useState(false);
   const pendingSaveRef = React.useRef(false);
-  const pendingDialogTimerRef = React.useRef<number | null>(null);
+  const menuTriggerRef = React.useRef<HTMLButtonElement>(null);
   const nameInputRef = React.useRef<HTMLInputElement>(null);
   const current =
     savedViews.find((view) => view.href === currentHref)?.name ??
@@ -75,11 +75,6 @@ export function ReportSavedViews({
 
   React.useEffect(() => {
     setMounted(true);
-    return () => {
-      if (pendingDialogTimerRef.current !== null) {
-        window.clearTimeout(pendingDialogTimerRef.current);
-      }
-    };
   }, []);
 
   const trigger = (
@@ -96,6 +91,8 @@ export function ReportSavedViews({
         variant="outline"
         size="sm"
         aria-label={`Сохранённый вид: ${current}`}
+        disabled
+        aria-busy="true"
       >
         {trigger}
       </Button>
@@ -107,23 +104,16 @@ export function ReportSavedViews({
       <DropdownMenu
         open={menuOpen}
         onOpenChange={(open) => {
-          if (open && pendingDialogTimerRef.current !== null) {
-            window.clearTimeout(pendingDialogTimerRef.current);
-            pendingDialogTimerRef.current = null;
-          }
+          // Keep the handoff flag through the old menu's entire exit/cleanup.
+          // A new menu opening begins a new focus session.
+          if (open) pendingSaveRef.current = false;
           setMenuOpen(open);
-          if (!open && pendingSaveRef.current) {
-            pendingSaveRef.current = false;
-            pendingDialogTimerRef.current = window.setTimeout(() => {
-              pendingDialogTimerRef.current = null;
-              setSaveOpen(true);
-            }, 0);
-          }
         }}
       >
         <DropdownMenuTrigger
           render={
             <Button
+              ref={menuTriggerRef}
               variant="outline"
               size="sm"
               aria-label={`Сохранённый вид: ${current}`}
@@ -132,7 +122,11 @@ export function ReportSavedViews({
         >
           {trigger}
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-72">
+        <DropdownMenuContent
+          align="end"
+          className="w-72"
+          finalFocus={() => pendingSaveRef.current ? false : true}
+        >
           <DropdownMenuGroup>
             <DropdownMenuLabel>Сохранённые представления</DropdownMenuLabel>
             {savedViews.map((view) => (
@@ -175,7 +169,10 @@ export function ReportSavedViews({
           <DropdownMenuGroup>
             <DropdownMenuItem
               onClick={() => {
+                // Set synchronously before Menu.Item's close effect can run.
+                // The dialog owns focus from this interaction onward.
                 pendingSaveRef.current = true;
+                setSaveOpen(true);
               }}
             >
               Сохранить текущий вид
@@ -185,7 +182,7 @@ export function ReportSavedViews({
       </DropdownMenu>
 
       <Dialog open={saveOpen} onOpenChange={setSaveOpen}>
-        <DialogContent initialFocus={nameInputRef}>
+        <DialogContent initialFocus={nameInputRef} finalFocus={menuTriggerRef}>
           <DialogHeader>
             <DialogTitle>Сохранить текущий вид</DialogTitle>
             <DialogDescription>
@@ -203,7 +200,6 @@ export function ReportSavedViews({
                   ref={nameInputRef}
                   name="name"
                   required
-                  autoFocus
                   placeholder="Например, HIGH+ за квартал"
                 />
               </Field>
