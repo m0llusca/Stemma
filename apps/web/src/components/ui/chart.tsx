@@ -25,13 +25,22 @@ const INITIAL_DIMENSION = { width: 320, height: 200 } as const
 
 function ChartContainer({
   children,
+  className,
   initialDimension = INITIAL_DIMENSION,
   ...props
 }: Omit<React.ComponentProps<typeof StaticChartContainer>, "children"> & {
   children: React.ComponentProps<typeof RechartsResponsiveContainer>["children"]
 }) {
   return (
-    <StaticChartContainer {...props} initialDimension={initialDimension}>
+    <StaticChartContainer
+      {...props}
+      initialDimension={initialDimension}
+      // ResponsiveContainer's zero-size inner div lets ResizeObserver shrink a
+      // chart. Use our actual containing block, not that div, to bound positive
+      // SSR initial dimensions before the observer runs. The SVG scales its
+      // viewBox without clipping axes, labels, or overflowing HTML tooltips.
+      className={cn("@container/chart-size [&_.recharts-wrapper]:max-w-[100cqw] [&_.recharts-surface]:max-w-full", className)}
+    >
       <RechartsResponsiveContainer
         width="100%"
         height="100%"

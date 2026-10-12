@@ -65,9 +65,7 @@ test.beforeEach(async ({ context }) => {
   await signInE2EUser(context, admin, "playwright-app-shell-routes");
 });
 
-test("authenticated app shell routes render stable chrome and content", async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 900 });
-  const unexpectedConsole = collectUnexpectedConsole(page);
+test("authenticated app shell routes render stable chrome and content", async ({ context }) => {
   const topbarChromeByRoute = new Map<
     string,
     {
@@ -109,169 +107,184 @@ test("authenticated app shell routes render stable chrome and content", async ({
     `/admin/system/jobs/${backendJob.id}`
   ];
 
+  // Each route owns its document and console collector. Reusing one Page for
+  // full-document gotos lets WebKit's cancelled prefetch errors from the old
+  // document leak into the next route. Context cookies keep sign-in shared.
   for (const route of routes) {
-    const consoleStart = unexpectedConsole.length;
-    const response = await page.goto(route, { waitUntil: "domcontentloaded" });
+    const page = await context.newPage();
+    const unexpectedConsole = collectUnexpectedConsole(page);
+    try {
+      await page.setViewportSize({ width: 1280, height: 900 });
+      const response = await page.goto(route, { waitUntil: "domcontentloaded" });
 
-    expect.soft(response?.ok(), `${route} should return ok`).toBe(true);
-    const routeTopbar = page.getByRole("banner", { name: "Глобальная навигация" });
-    await expect(routeTopbar, `${route} nav`).toBeVisible();
-
-    if (route === "/dashboard" || route === "/reviews" || route === "/coaching") {
-      topbarChromeByRoute.set(
-        route,
-        await routeTopbar.evaluate((element) => {
-          const styles = getComputedStyle(element);
-          return {
-            backgroundColor: styles.backgroundColor,
-            borderBottomColor: styles.borderBottomColor,
-            borderBottomWidth: styles.borderBottomWidth
-          };
-        })
+      expect.soft(response?.ok(), `${route} should return ok`).toBe(true);
+      // The agent-only page redirects this seeded ADMIN inside Suspense. Its
+      // initial shell can be visible before Next completes the streamed redirect.
+      const expectedPath = route === "/self-review" ? "/dashboard" : route;
+      await expect(page, `${route} final destination`).toHaveURL(
+        (url) => url.pathname === expectedPath
       );
-    }
+      const routeTopbar = page.getByRole("banner", { name: "Глобальная навигация" });
+      await expect(routeTopbar, `${route} nav`).toBeVisible();
 
-    const mainHeight = await page.locator("#main-content").evaluate((element) => element.getBoundingClientRect().height);
-    expect.soft(mainHeight, `${route} main content height`).toBeGreaterThan(200);
-
-    if (route === "/admin/integrations") {
-      const integrationFrame = page.getByRole("region", { name: "Интеграции" });
-      const priorityAction = integrationFrame
-        .getByRole("link", { name: /Открыть журнал|Открыть источники|Новый источник/ })
-        .first();
-      const readiness = integrationFrame
-        .locator('[data-slot="card-title"]')
-        .filter({ hasText: "Путь от доступа до мониторинга" });
-      const evidence = integrationFrame.getByRole("button", {
-        name: /Операционный срез/
-      });
-
-      await expect(integrationFrame, "integrations operational region").toBeVisible();
-      await expect(priorityAction, "integrations priority action").toBeVisible();
-      await expect(readiness, "integrations readiness details").toBeVisible();
-      await expect(evidence, "integrations evidence trigger").toBeVisible();
-
-      const [actionTop, readinessTop, evidenceTop] = await Promise.all([
-        priorityAction.evaluate((element) => element.getBoundingClientRect().top),
-        readiness.evaluate((element) => element.getBoundingClientRect().top),
-        evidence.evaluate((element) => element.getBoundingClientRect().top)
-      ]);
-      expect(actionTop, "integrations action should precede readiness details").toBeLessThan(readinessTop);
-      expect(readinessTop, "integrations details should precede evidence").toBeLessThan(evidenceTop);
-    }
-
-    if (route === "/dashboard") {
-      const topbar = routeTopbar;
-      const brand = topbar.locator('a[href="/dashboard"]').first();
-      const areaNav = topbar.getByRole("navigation", { name: "Основные разделы" });
-      const areaMenuTrigger = topbar.locator('button[aria-label*="Разделы"]');
-      const commandTrigger = topbar.getByRole("button", { name: "Поиск или команда" });
-      // Имя «Рабочий пульс» делят два элемента: мобильная кнопка меню и
-      // десктоп-контейнер ссылок — геометрию и ссылки смотрим в контейнере.
-      const workPulse = topbar.locator('div[aria-label="Рабочий пульс"]');
-      const identityChip = topbar.getByRole("button", { name: /^Профиль:/ });
-
-      await expect(commandTrigger).toBeVisible();
-      await expect(workPulse.getByRole("link").first()).toBeVisible();
-
-      const areaControl = (await areaNav.isVisible()) ? areaNav : areaMenuTrigger;
-      await expect(areaControl).toBeVisible();
-      if (await areaNav.isVisible()) {
-        await expect(areaNav.locator('[aria-current="page"]')).toHaveText(/Сегодня/);
-      } else {
-        await areaMenuTrigger.click();
-        const areaMenu = page.locator(
-          '[data-slot="dropdown-menu-content"][aria-label="Основные разделы"]'
+      if (route === "/dashboard" || route === "/reviews" || route === "/coaching") {
+        topbarChromeByRoute.set(
+          route,
+          await routeTopbar.evaluate((element) => {
+            const styles = getComputedStyle(element);
+            return {
+              backgroundColor: styles.backgroundColor,
+              borderBottomColor: styles.borderBottomColor,
+              borderBottomWidth: styles.borderBottomWidth
+            };
+          })
         );
-        await expect(areaMenu.locator('[aria-current="page"]')).toHaveText(/Сегодня/);
-        await page.keyboard.press("Escape");
       }
 
-      const [topbarBox, brandBox, areaBox, commandBox, pulseBox, identityBox] = await Promise.all([
-        topbar.evaluate((element) => {
-          const rect = element.getBoundingClientRect();
-          return { left: rect.left, right: rect.right };
-        }),
-        brand.evaluate((element) => {
-          const rect = element.getBoundingClientRect();
-          return { left: rect.left, right: rect.right };
-        }),
-        areaControl.evaluate((element) => {
-          const rect = element.getBoundingClientRect();
-          return { left: rect.left, right: rect.right };
-        }),
-        commandTrigger.evaluate((element) => {
-          const rect = element.getBoundingClientRect();
-          return { left: rect.left, right: rect.right };
-        }),
-        workPulse.evaluate((element) => {
-          const rect = element.getBoundingClientRect();
-          return { left: rect.left, right: rect.right };
-        }),
-        identityChip.evaluate((element) => {
-          const rect = element.getBoundingClientRect();
-          return { left: rect.left, right: rect.right };
-        })
-      ]);
-      expect(brandBox.left - topbarBox.left, "brand mark should keep only a small left padding").toBeLessThanOrEqual(28);
-      expect(areaBox.left, "area navigation should sit to the right of the brand mark").toBeGreaterThanOrEqual(brandBox.right);
-      expect(commandBox.left, "command trigger should sit to the right of the area navigation").toBeGreaterThanOrEqual(areaBox.right - 1);
-      expect(pulseBox.left, "work pulse should sit to the right of the command trigger").toBeGreaterThanOrEqual(commandBox.right - 1);
-      expect(topbarBox.right - identityBox.right, "identity menu should keep only a small right padding").toBeLessThanOrEqual(28);
+      const mainHeight = await page.locator("#main-content").evaluate((element) => element.getBoundingClientRect().height);
+      expect.soft(mainHeight, `${route} main content height`).toBeGreaterThan(200);
+
+      if (route === "/admin/integrations") {
+        const integrationFrame = page.getByRole("region", { name: "Интеграции" });
+        const priorityAction = integrationFrame
+          .getByRole("link", { name: /Открыть журнал|Открыть источники|Новый источник/ })
+          .first();
+        const readiness = integrationFrame
+          .locator('[data-slot="card-title"]')
+          .filter({ hasText: "Путь от доступа до мониторинга" });
+        const evidence = integrationFrame.getByRole("button", {
+          name: /Операционный срез/
+        });
+
+        await expect(integrationFrame, "integrations operational region").toBeVisible();
+        await expect(priorityAction, "integrations priority action").toBeVisible();
+        await expect(readiness, "integrations readiness details").toBeVisible();
+        await expect(evidence, "integrations evidence trigger").toBeVisible();
+
+        const [actionTop, readinessTop, evidenceTop] = await Promise.all([
+          priorityAction.evaluate((element) => element.getBoundingClientRect().top),
+          readiness.evaluate((element) => element.getBoundingClientRect().top),
+          evidence.evaluate((element) => element.getBoundingClientRect().top)
+        ]);
+        expect(actionTop, "integrations action should precede readiness details").toBeLessThan(readinessTop);
+        expect(readinessTop, "integrations details should precede evidence").toBeLessThan(evidenceTop);
+      }
+
+      if (route === "/dashboard") {
+        const topbar = routeTopbar;
+        const brand = topbar.locator('a[href="/dashboard"]').first();
+        const areaNav = topbar.getByRole("navigation", { name: "Основные разделы" });
+        const areaMenuTrigger = topbar.locator('button[aria-label*="Разделы"]');
+        const commandTrigger = topbar.getByRole("button", { name: "Поиск или команда" });
+        // Имя «Рабочий пульс» делят два элемента: мобильная кнопка меню и
+        // десктоп-контейнер ссылок — геометрию и ссылки смотрим в контейнере.
+        const workPulse = topbar.locator('div[aria-label="Рабочий пульс"]');
+        const identityChip = topbar.getByRole("button", { name: /^Профиль:/ });
+
+        await expect(commandTrigger).toBeVisible();
+        await expect(workPulse.getByRole("link").first()).toBeVisible();
+
+        const areaControl = (await areaNav.isVisible()) ? areaNav : areaMenuTrigger;
+        await expect(areaControl).toBeVisible();
+        if (await areaNav.isVisible()) {
+          await expect(areaNav.locator('[aria-current="page"]')).toHaveText(/Сегодня/);
+        } else {
+          await areaMenuTrigger.click();
+          const areaMenu = page.locator(
+            '[data-slot="dropdown-menu-content"][aria-label="Основные разделы"]'
+          );
+          await expect(areaMenu.locator('[aria-current="page"]')).toHaveText(/Сегодня/);
+          await page.keyboard.press("Escape");
+        }
+
+        const [topbarBox, brandBox, areaBox, commandBox, pulseBox, identityBox] = await Promise.all([
+          topbar.evaluate((element) => {
+            const rect = element.getBoundingClientRect();
+            return { left: rect.left, right: rect.right };
+          }),
+          brand.evaluate((element) => {
+            const rect = element.getBoundingClientRect();
+            return { left: rect.left, right: rect.right };
+          }),
+          areaControl.evaluate((element) => {
+            const rect = element.getBoundingClientRect();
+            return { left: rect.left, right: rect.right };
+          }),
+          commandTrigger.evaluate((element) => {
+            const rect = element.getBoundingClientRect();
+            return { left: rect.left, right: rect.right };
+          }),
+          workPulse.evaluate((element) => {
+            const rect = element.getBoundingClientRect();
+            return { left: rect.left, right: rect.right };
+          }),
+          identityChip.evaluate((element) => {
+            const rect = element.getBoundingClientRect();
+            return { left: rect.left, right: rect.right };
+          })
+        ]);
+        expect(brandBox.left - topbarBox.left, "brand mark should keep only a small left padding").toBeLessThanOrEqual(28);
+        expect(areaBox.left, "area navigation should sit to the right of the brand mark").toBeGreaterThanOrEqual(brandBox.right);
+        expect(commandBox.left, "command trigger should sit to the right of the area navigation").toBeGreaterThanOrEqual(areaBox.right - 1);
+        expect(pulseBox.left, "work pulse should sit to the right of the command trigger").toBeGreaterThanOrEqual(commandBox.right - 1);
+        expect(topbarBox.right - identityBox.right, "identity menu should keep only a small right padding").toBeLessThanOrEqual(28);
+      }
+
+      if (route === "/dashboard") {
+        // Seeded demo admin is a lead dashboard: ops activity drawer is hidden.
+        await expect(page.getByRole("button", { name: /Последняя активность/ })).toHaveCount(0);
+        await expect(page.getByRole("heading", { name: "Качество команды · 7 дней" })).toBeVisible();
+
+        const kpiRegion = page.getByRole("region", { name: "Риск и нагрузка" });
+        const kpiLinks = kpiRegion.getByRole("link");
+        const firstKpi = kpiRegion.getByRole("link", { name: /Проверок за неделю/ });
+        const kpiValue = firstKpi.locator('[data-slot="card-title"]');
+        const kpiLabel = firstKpi.locator('[data-slot="card-description"]');
+
+        await expect(kpiRegion).toBeVisible();
+        await expect(kpiLinks).toHaveCount(4);
+        await expect(kpiValue).toBeVisible();
+        await kpiValue.evaluate(async (element) => {
+          await Promise.all(element.getAnimations().map((animation) => animation.finished));
+        });
+        const [kpiValueFontSize, kpiLabelFontSize] = await Promise.all([
+          kpiValue.evaluate((element) => parseFloat(getComputedStyle(element).fontSize)),
+          kpiLabel.evaluate((element) => parseFloat(getComputedStyle(element).fontSize))
+        ]);
+        expect(kpiValueFontSize, "dashboard KPI value should keep hero metric typography").toBeGreaterThanOrEqual(24);
+        expect(kpiValueFontSize, "dashboard KPI value should be visibly larger than its label").toBeGreaterThan(
+          kpiLabelFontSize * 1.5
+        );
+
+        const [labelLeft, valueLeft, contentLeft] = await Promise.all([
+          kpiLabel.evaluate((element) => element.getBoundingClientRect().left),
+          kpiValue.evaluate((element) => element.getBoundingClientRect().left),
+          firstKpi
+            .locator('[data-slot="card-content"] > div')
+            .first()
+            .evaluate((element) => element.getBoundingClientRect().left)
+        ]);
+        expect(Math.abs(labelLeft - valueLeft), "dashboard KPI label and value should share one text column").toBeLessThanOrEqual(1);
+        expect(Math.abs(valueLeft - contentLeft), "dashboard KPI value and supporting content should align").toBeLessThanOrEqual(1);
+      }
+
+      if (route === "/reports") {
+        // The movement factors render as one "Факторы изменения" chart (down/up series);
+        // the old separate "Негативные/Позитивные факторы" sections no longer exist.
+        const movementFactors = page.getByRole("group", { name: "Факторы изменения" });
+        await expect(movementFactors).toBeVisible();
+
+        await expect(page.getByRole("button", { name: "Показать данные выбранного среза" })).toBeVisible();
+      }
+
+      await settleBrowserFrame(page);
+      expect.soft(
+        unexpectedConsole,
+        `${route} should not emit browser warnings, errors, or page errors`
+      ).toEqual([]);
+    } finally {
+      await page.close();
     }
-
-    if (route === "/dashboard") {
-      // Seeded demo admin is a lead dashboard: ops activity drawer is hidden.
-      await expect(page.getByRole("button", { name: /Последняя активность/ })).toHaveCount(0);
-      await expect(page.getByRole("heading", { name: "Качество команды · 7 дней" })).toBeVisible();
-
-      const kpiRegion = page.getByRole("region", { name: "Риск и нагрузка" });
-      const kpiLinks = kpiRegion.getByRole("link");
-      const firstKpi = kpiRegion.getByRole("link", { name: /Проверок за неделю/ });
-      const kpiValue = firstKpi.locator('[data-slot="card-title"]');
-      const kpiLabel = firstKpi.locator('[data-slot="card-description"]');
-
-      await expect(kpiRegion).toBeVisible();
-      await expect(kpiLinks).toHaveCount(4);
-      await expect(kpiValue).toBeVisible();
-      await kpiValue.evaluate(async (element) => {
-        await Promise.all(element.getAnimations().map((animation) => animation.finished));
-      });
-      const [kpiValueFontSize, kpiLabelFontSize] = await Promise.all([
-        kpiValue.evaluate((element) => parseFloat(getComputedStyle(element).fontSize)),
-        kpiLabel.evaluate((element) => parseFloat(getComputedStyle(element).fontSize))
-      ]);
-      expect(kpiValueFontSize, "dashboard KPI value should keep hero metric typography").toBeGreaterThanOrEqual(24);
-      expect(kpiValueFontSize, "dashboard KPI value should be visibly larger than its label").toBeGreaterThan(
-        kpiLabelFontSize * 1.5
-      );
-
-      const [labelLeft, valueLeft, contentLeft] = await Promise.all([
-        kpiLabel.evaluate((element) => element.getBoundingClientRect().left),
-        kpiValue.evaluate((element) => element.getBoundingClientRect().left),
-        firstKpi
-          .locator('[data-slot="card-content"] > div')
-          .first()
-          .evaluate((element) => element.getBoundingClientRect().left)
-      ]);
-      expect(Math.abs(labelLeft - valueLeft), "dashboard KPI label and value should share one text column").toBeLessThanOrEqual(1);
-      expect(Math.abs(valueLeft - contentLeft), "dashboard KPI value and supporting content should align").toBeLessThanOrEqual(1);
-    }
-
-    if (route === "/reports") {
-      // The movement factors render as one "Факторы изменения" chart (down/up series);
-      // the old separate "Негативные/Позитивные факторы" sections no longer exist.
-      const movementFactors = page.getByRole("group", { name: "Факторы изменения" });
-      await expect(movementFactors).toBeVisible();
-
-      await expect(page.getByRole("button", { name: "Показать данные выбранного среза" })).toBeVisible();
-    }
-
-    await settleBrowserFrame(page);
-    expect.soft(
-      unexpectedConsole.slice(consoleStart),
-      `${route} should not emit browser warnings, errors, or page errors`
-    ).toEqual([]);
   }
 
   const dashboardTopbarChrome = topbarChromeByRoute.get("/dashboard");
