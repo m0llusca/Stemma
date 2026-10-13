@@ -245,14 +245,14 @@ describe("ConversationTimeline", () => {
     );
     const longMessageBody = screen.getByText(/очень-длинная-ссылка-без-разрывов/);
 
-    expect(customerSurface).toHaveClass("max-w-prose");
-    expect(publicAgentSurface).toHaveClass("max-w-prose");
+    expect(customerSurface).toHaveClass("max-w-full");
+    expect(publicAgentSurface).toHaveClass("max-w-full");
     expect(agentSurface).toBeInTheDocument();
     expect(agentSurface).toHaveAttribute("data-variant", "plain");
     expect(systemSurface).toBeInTheDocument();
     expect(systemSurface).toHaveAttribute("data-variant", "plain");
     expect(systemSurface).not.toHaveAttribute("data-variant", "bubble");
-    expect(longMessageBody).toHaveClass("whitespace-pre-wrap", "break-words");
+    expect(longMessageBody).toHaveClass("whitespace-pre-wrap", "[overflow-wrap:anywhere]");
     expect(longMessageBody).not.toHaveClass("break-all");
     expect(container.querySelector('[data-slot="conversation-chat"]')).toHaveAttribute(
       "aria-label",

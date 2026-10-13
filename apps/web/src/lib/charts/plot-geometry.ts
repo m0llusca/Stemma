@@ -215,12 +215,13 @@ export function rankedBarHeight(rowHeight: number) {
 
 export function rankedPlotHeight(
   rowCount: number,
-  margin: { readonly top: number; readonly bottom: number }
+  margin: { readonly top: number; readonly bottom: number },
+  rowHeight = RANKED_ROW_HEIGHT
 ) {
   const rows = Math.max(1, rowCount);
   return Math.min(
     RANKED_PLOT_MAX_HEIGHT,
-    margin.top + margin.bottom + rows * RANKED_ROW_HEIGHT
+    margin.top + margin.bottom + rows * rowHeight
   );
 }
 
@@ -325,11 +326,18 @@ export function qualityTrendDomainIndexes(
   return indexes;
 }
 
+function responsivePlotWidth(width: number, fallback: number) {
+  return Number.isFinite(width) && width > 0 ? width : fallback;
+}
+
 export function buildQualityTrendGeometry(
   model: ChartModel<QualityTrendSeriesKey>,
-  visibleSeries: readonly QualityTrendSeriesKey[]
+  visibleSeries: readonly QualityTrendSeriesKey[],
+  width: number = QUALITY_TREND_VIEWBOX.width
 ) {
-  const { width, height, margin } = QUALITY_TREND_VIEWBOX;
+  width = responsivePlotWidth(width, QUALITY_TREND_VIEWBOX.width);
+  const { margin } = QUALITY_TREND_VIEWBOX;
+  const height = width < 480 ? 240 : QUALITY_TREND_VIEWBOX.height;
   const plotWidth = width - margin.left - margin.right;
   const plotHeight = height - margin.top - margin.bottom;
   const visible = new Set(visibleSeries);
@@ -491,9 +499,11 @@ export function buildQualityTrendGeometry(
 
 export function buildRankedDriverGeometry(
   model: ChartModel<RankedDriverSeriesKey>,
-  height: number
+  height: number,
+  width: number = RANKED_DRIVER_VIEWBOX.width
 ) {
-  const { width, margin } = RANKED_DRIVER_VIEWBOX;
+  width = responsivePlotWidth(width, RANKED_DRIVER_VIEWBOX.width);
+  const margin = { ...RANKED_DRIVER_VIEWBOX.margin, left: Math.min(RANKED_DRIVER_VIEWBOX.margin.left, Math.max(72, Math.round(width * 0.4))) };
   const plotWidth = width - margin.left - margin.right;
   const plotHeight = height - margin.top - margin.bottom;
   const halfWidth = plotWidth / 2;
@@ -640,9 +650,11 @@ function buildLineSegments<TKey extends string>(
 }
 
 export function buildScoreDistributionGeometry(
-  model: ChartModel<ScoreDistributionSeriesKey>
+  model: ChartModel<ScoreDistributionSeriesKey>,
+  width: number = SCORE_DISTRIBUTION_VIEWBOX.width
 ) {
-  const { width, height, margin } = SCORE_DISTRIBUTION_VIEWBOX;
+  width = responsivePlotWidth(width, SCORE_DISTRIBUTION_VIEWBOX.width);
+  const { height, margin } = SCORE_DISTRIBUTION_VIEWBOX;
   const plotWidth = width - margin.left - margin.right;
   const plotHeight = height - margin.top - margin.bottom;
   const maximum = Math.max(
@@ -650,7 +662,7 @@ export function buildScoreDistributionGeometry(
     ...model.points.map((point) => point.values.count ?? 0)
   );
   const step = plotWidth / Math.max(1, model.points.length);
-  const barWidth = Math.max(16, Math.min(72, step * 0.58));
+  const barWidth = Math.max(1, Math.min(72, step * 0.58));
   const xFor = (index: number) =>
     margin.left + step * (index + 0.5);
   const yFor = (value: number) =>
@@ -735,9 +747,11 @@ export function aiDriftDomainIndexes(
 }
 
 export function buildPairedAiDriftGeometry(
-  model: ChartModel<AiDriftSeriesKey>
+  model: ChartModel<AiDriftSeriesKey>,
+  width: number = PAIRED_AI_DRIFT_VIEWBOX.width
 ) {
-  const { width, height, margin, panelGap } = PAIRED_AI_DRIFT_VIEWBOX;
+  width = responsivePlotWidth(width, PAIRED_AI_DRIFT_VIEWBOX.width);
+  const { height, margin, panelGap } = PAIRED_AI_DRIFT_VIEWBOX;
   const plotWidth = width - margin.left - margin.right;
   const plotHeight = height - margin.top - margin.bottom - panelGap;
   const panelHeight = plotHeight / 2;
@@ -864,9 +878,12 @@ export function buildPairedAiDriftGeometry(
 }
 
 export function buildReasonTrendGeometry(
-  model: ChartModel<ReasonTrendSeriesKey>
+  model: ChartModel<ReasonTrendSeriesKey>,
+  width: number = REASON_TREND_VIEWBOX.width
 ) {
-  const { width, height, margin } = REASON_TREND_VIEWBOX;
+  width = responsivePlotWidth(width, REASON_TREND_VIEWBOX.width);
+  const { margin } = REASON_TREND_VIEWBOX;
+  const height = width < 480 ? 240 : REASON_TREND_VIEWBOX.height;
   const plotWidth = width - margin.left - margin.right;
   const plotHeight = height - margin.top - margin.bottom;
   const maximum = Math.max(
@@ -922,9 +939,11 @@ export function buildReasonTrendGeometry(
 }
 
 export function buildRankedBreakdownGeometry(
-  model: ChartModel<AgreementSeriesKey>
+  model: ChartModel<AgreementSeriesKey>,
+  width: number = RANKED_BREAKDOWN_VIEWBOX.width
 ) {
-  const { width, margin } = RANKED_BREAKDOWN_VIEWBOX;
+  width = responsivePlotWidth(width, RANKED_BREAKDOWN_VIEWBOX.width);
+  const { margin } = RANKED_BREAKDOWN_VIEWBOX;
   const height = rankedPlotHeight(model.points.length, margin);
   const plotWidth = width - margin.left - margin.right;
   const plotHeight = height - margin.top - margin.bottom;

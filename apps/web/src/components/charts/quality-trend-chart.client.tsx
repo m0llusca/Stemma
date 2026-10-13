@@ -9,6 +9,7 @@ import {
   type PointerEvent
 } from "react";
 import { useRouter } from "next/navigation";
+import { useChartPlotWidth } from "@/components/charts/use-chart-plot-width";
 import { ChartLegendControls } from "@/components/charts/chart-legend-controls";
 import { ChartTooltipStatus } from "@/components/charts/chart-tooltip-status";
 import { DeferredChartVisual } from "@/components/charts/deferred-chart-visual.client";
@@ -16,6 +17,7 @@ import { QualityTrendVisual } from "@/components/charts/recharts-visuals.client"
 import type { ChartModel } from "@/lib/charts/contracts";
 import {
   buildQualityTrendGeometry,
+  QUALITY_TREND_VIEWBOX,
   viewBoxPercent
 } from "@/lib/charts/plot-geometry";
 import {
@@ -64,10 +66,11 @@ export function QualityTrendChart({
   const instructionsId = useId();
   const tooltipId = useId();
   const plotRef = useRef<HTMLDivElement>(null);
+  const plotWidth = useChartPlotWidth(plotRef, QUALITY_TREND_VIEWBOX.width);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const geometry = useMemo(
-    () => buildQualityTrendGeometry(model, visibleSeries),
-    [model, visibleSeries]
+    () => buildQualityTrendGeometry(model, visibleSeries, plotWidth),
+    [model, visibleSeries, plotWidth]
   );
   const activePoint =
     activeIndex == null ? undefined : model.points[activeIndex];
@@ -185,7 +188,7 @@ export function QualityTrendChart({
       >
         <DeferredChartVisual
           Visual={QualityTrendVisual}
-          componentProps={{ model, visibleSeries }}
+          componentProps={{ model, visibleSeries, geometry }}
         />
         {/* Per-point hit strips: native `title` works before/without hydration;
             pointer handlers still drive the rich tooltip when the island mounts. */}

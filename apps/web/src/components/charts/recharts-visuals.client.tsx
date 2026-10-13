@@ -154,28 +154,14 @@ function AxisCategoryTick({
 
 export function QualityTrendVisual({
   model,
-  visibleSeries
+  visibleSeries,
+  geometry
 }: {
   model: ChartModel<QualityTrendSeries>;
   visibleSeries: readonly QualityTrendSeries[];
+  geometry: ReturnType<typeof buildQualityTrendGeometry>;
 }) {
   const visible = useMemo(() => new Set(visibleSeries), [visibleSeries]);
-  const chartData = useMemo(
-    () =>
-      model.points.map((point) => ({
-        id: point.id,
-        label: point.label,
-        score: point.values.score,
-        previous: point.values.previous,
-        target: point.values.target,
-        volume: point.values.volume
-      })),
-    [model.points]
-  );
-  const geometry = useMemo(
-    () => buildQualityTrendGeometry(model, visibleSeries),
-    [model, visibleSeries]
-  );
   const {
     width,
     height,
@@ -201,8 +187,9 @@ export function QualityTrendVisual({
     <StaticChartContainer
       id={model.id}
       config={qualityTrendConfig}
-      className="aspect-[720/280] w-full min-w-0"
-      initialDimension={{ width: 720, height: 280 }}
+      className="w-full min-w-0"
+      style={{ height }}
+      initialDimension={{ width, height }}
     >
       {visible.has("target") ? (
         <ChartGoalBadge
@@ -243,7 +230,7 @@ export function QualityTrendVisual({
           );
         })}
         {domainIndexes.map((modelIndex, domainPosition) => {
-          const point = chartData[modelIndex];
+          const point = model.points[modelIndex];
           if (!point || !xTickIndexes.has(domainPosition)) {
             return null;
           }
@@ -266,8 +253,8 @@ export function QualityTrendVisual({
             data-animation-active="true"
           >
             {domainIndexes.map((modelIndex) => {
-              const point = chartData[modelIndex];
-              const volume = point?.volume ?? 0;
+              const point = model.points[modelIndex];
+              const volume = point?.values.volume ?? 0;
               if (!point || volume <= 0) {
                 return null;
               }
@@ -393,16 +380,12 @@ export function QualityTrendVisual({
 
 export function RankedDriverVisual({
   model,
-  height
+  geometry
 }: {
   model: ChartModel<DriverSeries>;
-  height: number;
+  geometry: ReturnType<typeof buildRankedDriverGeometry>;
 }) {
-  const geometry = useMemo(
-    () => buildRankedDriverGeometry(model, height),
-    [height, model]
-  );
-  const { width, margin, zeroX } = geometry;
+  const { width, height, margin, zeroX } = geometry;
 
   return (
     <StaticChartContainer
@@ -490,14 +473,12 @@ export function RankedDriverVisual({
 }
 
 export function ScoreDistributionVisual({
-  model
+  model,
+  geometry
 }: {
   model: ChartModel<"count">;
+  geometry: ReturnType<typeof buildScoreDistributionGeometry>;
 }) {
-  const geometry = useMemo(
-    () => buildScoreDistributionGeometry(model),
-    [model]
-  );
   const { width, height, margin, plotHeight } = geometry;
 
   const yTicks = (() => {
@@ -511,7 +492,8 @@ export function ScoreDistributionVisual({
     <StaticChartContainer
       id={model.id}
       config={distributionConfig}
-      className="aspect-[560/200] w-full min-w-0"
+      className="w-full min-w-0"
+      style={{ height }}
       initialDimension={{ width, height }}
     >
       <svg
@@ -575,7 +557,7 @@ export function ScoreDistributionVisual({
                 x={bar.x + bar.width / 2}
                 y={height - 14}
                 label={model.points[index]?.label ?? ""}
-                maxWidth={Math.max(24, bar.width - 4)}
+                maxWidth={Math.max(24, geometry.plotWidth / Math.max(1, model.points.length) - 6)}
               />
             </g>
           ))}
@@ -586,11 +568,12 @@ export function ScoreDistributionVisual({
 }
 
 export function PairedAiDriftVisual({
-  model
+  model,
+  geometry
 }: {
   model: ChartModel<"confidence" | "reserve">;
+  geometry: ReturnType<typeof buildPairedAiDriftGeometry>;
 }) {
-  const geometry = useMemo(() => buildPairedAiDriftGeometry(model), [model]);
   const {
     width,
     height,
@@ -614,7 +597,8 @@ export function PairedAiDriftVisual({
     <StaticChartContainer
       id={model.id}
       config={driftConfig}
-      className="aspect-[720/380] w-full min-w-0"
+      className="w-full min-w-0"
+      style={{ height }}
       initialDimension={{ width, height }}
     >
       <svg
@@ -648,7 +632,7 @@ export function PairedAiDriftVisual({
                     y={y + 4}
                     textAnchor="end"
                     fill="var(--muted-foreground)"
-                    fontSize={10}
+                    fontSize={11}
                   >
                     {tick}
                   </text>
@@ -733,7 +717,7 @@ export function PairedAiDriftVisual({
               y={height - 12}
               label={point.label}
               maxWidth={plotWidth / Math.max(1, xTickIndexes.size) - 8}
-              fontSize={10}
+              fontSize={11}
             />
           );
         })}
@@ -743,11 +727,12 @@ export function PairedAiDriftVisual({
 }
 
 export function ReasonTrendVisual({
-  model
+  model,
+  geometry
 }: {
   model: ChartModel<"current" | "previous">;
+  geometry: ReturnType<typeof buildReasonTrendGeometry>;
 }) {
-  const geometry = useMemo(() => buildReasonTrendGeometry(model), [model]);
   const { width, height, margin, plotWidth, plotHeight, maximum, xFor, yFor } =
     geometry;
   const xTickIndexes = new Set(
@@ -772,7 +757,8 @@ export function ReasonTrendVisual({
     <StaticChartContainer
       id={model.id}
       config={reasonConfig}
-      className="aspect-[720/280] w-full min-w-0"
+      className="w-full min-w-0"
+      style={{ height }}
       initialDimension={{ width, height }}
     >
       <svg
@@ -802,7 +788,7 @@ export function ReasonTrendVisual({
                 y={y + 4}
                 textAnchor="end"
                 fill="var(--muted-foreground)"
-                fontSize={10}
+                fontSize={11}
               >
                 {Math.round(value)}
               </text>
@@ -877,7 +863,7 @@ export function ReasonTrendVisual({
               y={margin.top + plotHeight + 24}
               label={point.label}
               maxWidth={plotWidth / Math.max(1, xTickIndexes.size) - 8}
-              fontSize={10}
+              fontSize={11}
             />
           ) : null
         )}
@@ -887,14 +873,12 @@ export function ReasonTrendVisual({
 }
 
 export function RankedBreakdownVisual({
-  model
+  model,
+  geometry
 }: {
   model: ChartModel<"agreement" | "reference">;
+  geometry: ReturnType<typeof buildRankedBreakdownGeometry>;
 }) {
-  const geometry = useMemo(
-    () => buildRankedBreakdownGeometry(model),
-    [model]
-  );
   const { width, height, margin, referenceX } = geometry;
 
   return (
@@ -910,7 +894,7 @@ export function RankedBreakdownVisual({
         className="recharts-surface pointer-events-none block h-full w-full"
         tabIndex={-1}
         viewBox={`0 0 ${width} ${height}`}
-        preserveAspectRatio="none"
+        preserveAspectRatio="xMidYMid meet"
         data-animation-active="true"
       >
         <line
@@ -954,7 +938,7 @@ export function RankedBreakdownVisual({
                     ? "var(--primary-foreground)"
                     : "var(--muted-foreground)"
                 }
-                fontSize={10}
+                fontSize={11}
               >
                 {bar.value == null ? "—" : `${Math.round(bar.value)}%`}
               </text>

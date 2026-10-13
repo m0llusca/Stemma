@@ -3,6 +3,7 @@ import { render, screen, within } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { ChartDataTable } from "@/components/charts/chart-data-table";
+import { buildQualityTrendGeometry } from "@/lib/charts/plot-geometry";
 import { QualityTrendVisual } from "@/components/charts/recharts-visuals.client";
 import type { ChartModel } from "@/lib/charts/contracts";
 import { buildQualityTrendModel } from "@/lib/reports/report-chart-models";
@@ -69,7 +70,7 @@ describe("reports page quality-trend model seam", () => {
 
     const { container } = render(
       <>
-        <QualityTrendVisual model={model} visibleSeries={["score"]} />
+        <QualityTrendVisual model={model} visibleSeries={["score"]} geometry={buildQualityTrendGeometry(model, ["score"])} />
         <ChartDataTable model={model} />
       </>
     );

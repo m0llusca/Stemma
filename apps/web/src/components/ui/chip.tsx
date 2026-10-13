@@ -70,7 +70,7 @@ export function Chip({
           "chip",
           legacyTone,
           legacySize,
-          "inline-flex flex-col gap-0.5 rounded-md border border-border bg-muted/40 px-2 py-1",
+          "inline-flex min-w-0 max-w-full flex-col gap-0.5 rounded-md border border-border bg-muted/40 px-2 py-1 [overflow-wrap:anywhere]",
           toneClass[tone],
           className
         )}
@@ -99,20 +99,20 @@ export function Chip({
           "chip",
           legacyTone,
           legacySize,
-          "font-normal",
-          size === "xs" ? "h-5 gap-1 px-1.5 text-[11px]" : "h-6 gap-1.5 px-2 text-xs",
+          "h-auto min-w-0 max-w-full whitespace-normal text-left font-normal [overflow-wrap:anywhere]",
+          size === "xs" ? "min-h-5 gap-1 px-1.5 text-[11px]" : "min-h-6 gap-1.5 px-2 text-xs",
           numeric && "tabular-nums",
           toneClass[tone],
           className
         )}
       >
-        {icon != null ? <span className={`${partPrefix}__icon`}>{icon}</span> : null}
+        {icon != null ? <span className={`${partPrefix}__icon shrink-0`}>{icon}</span> : null}
         {label != null ? (
-          <span className={`${partPrefix}__label text-muted-foreground`}>{label}</span>
+          <span className={`${partPrefix}__label shrink-0 text-muted-foreground`}>{label}</span>
         ) : null}
         {label != null && value != null ? " " : null}
         {value != null ? (
-          <span className={cn(`${partPrefix}__value`, numeric && "tabular-nums")}>{value}</span>
+          <span className={cn(`${partPrefix}__value`, "min-w-0", numeric && "tabular-nums")}>{value}</span>
         ) : (
           children
         )}
@@ -129,8 +129,8 @@ export function Chip({
         "chip",
         legacyTone,
         legacySize,
-        "font-normal",
-        size === "xs" ? "h-5 px-1.5 text-[11px]" : "h-6 px-2 text-xs",
+        "h-auto min-w-0 max-w-full whitespace-normal text-left font-normal [overflow-wrap:anywhere]",
+        size === "xs" ? "min-h-5 px-1.5 text-[11px]" : "min-h-6 px-2 text-xs",
         numeric && "tabular-nums",
         toneClass[tone],
         className

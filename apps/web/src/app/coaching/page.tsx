@@ -856,8 +856,8 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
         <div
           className={
             trendPoints.length >= 2 && topCategories.length > 0
-              ? "grid items-start gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(280px,0.95fr)]"
-              : "grid items-start gap-4"
+              ? "grid min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(280px,0.95fr)]"
+              : "grid min-w-0 grid-cols-1 items-start gap-4"
           }
           aria-label="Динамика качества и зоны роста"
         >
@@ -891,7 +891,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                   {topCategories.map(([categoryName, count], index) => (
                     <li
                       key={categoryName}
-                      className="flex min-w-0 items-center gap-2.5 rounded-lg border border-border bg-card px-2.5 py-2"
+                      className="grid min-w-0 grid-cols-[1.25rem_minmax(0,1fr)_auto] items-start gap-x-2.5 gap-y-2 rounded-lg border border-border bg-card px-2.5 py-2 sm:grid-cols-[1.25rem_minmax(0,1fr)_auto_auto] sm:items-center"
                     >
                       <span
                         className="inline-flex size-5 shrink-0 items-center justify-center rounded-md bg-primary/10 text-xs font-semibold tabular-nums text-primary"
@@ -899,14 +899,14 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                       >
                         {index + 1}
                       </span>
-                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground" title={categoryName}>{categoryName}</span>
+                      <span className="min-w-0 text-sm font-medium text-foreground [overflow-wrap:anywhere]">{categoryName}</span>
                       <Chip tone="neutral" className="tabular-nums">
                         {count}
                       </Chip>
                       <Button
                         variant="link"
                         size="xs"
-                        className="h-auto px-0"
+                        className="col-start-2 h-auto justify-self-start px-0 sm:col-start-auto"
                         render={<Link href={viewHref(view, { q, assigneeId, category: categoryName })} />}
                         nativeButton={false}
                       >
@@ -923,7 +923,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
       ) : null}
 
       <Card aria-label="Планы коучинга" size={operatorHome && coachingPlans.length === 0 ? "sm" : "default"}>
-        <CardHeader className={operatorHome && coachingPlans.length === 0 ? undefined : "border-b"}>
+        <CardHeader className={cn("max-sm:has-data-[slot=card-action]:grid-cols-1", !(operatorHome && coachingPlans.length === 0) && "border-b")}>
           <CardTitle>Планы коучинга</CardTitle>
           <CardDescription>
             {coachingPlans.length > 0
@@ -933,7 +933,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
               : coachingPlansEmptyDescription(user.role)}
           </CardDescription>
           {canManageCoachingOps ? (
-            <CardAction>
+            <CardAction className="max-sm:col-start-1 max-sm:row-span-1 max-sm:row-start-auto max-sm:mt-2 max-sm:justify-self-start">
               <Button
                 variant={createPlanOpen ? "outline" : "default"}
                 size="sm"
@@ -1286,14 +1286,14 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
       ) : null}
 
       <Card aria-label="Правила для разбора">
-        <CardHeader className="border-b">
+        <CardHeader className="border-b max-sm:has-data-[slot=card-action]:grid-cols-1">
           <CardTitle>Правила для разбора</CardTitle>
           <CardDescription>
             {ruleFocusCategory
               ? `Показываем правила для категории «${ruleFocusCategory}».`
               : "Показываем критичные правила, которые стоит держать перед глазами."}
           </CardDescription>
-          <CardAction>
+          <CardAction className="max-sm:col-start-1 max-sm:row-span-1 max-sm:row-start-auto max-sm:mt-2 max-sm:justify-self-start">
             {canManageCoachingOps ? (
               <Button variant="outline" size="sm" render={<Link href={createRuleHref} />} nativeButton={false}>
                 <BookOpenCheck data-icon="inline-start" aria-hidden="true" />
@@ -1312,7 +1312,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                 return (
                   <Card key={entry.id} size="sm">
                     <CardHeader>
-                      <CardDescription className="truncate" title={entry.category}>{entry.category}</CardDescription>
+                      <CardDescription className="[overflow-wrap:anywhere]">{entry.category}</CardDescription>
                       <CardAction>
                         <Chip tone={riskTone}>{riskLevelLabels[entry.riskLevel]}</Chip>
                       </CardAction>

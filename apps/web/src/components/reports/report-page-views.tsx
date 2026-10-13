@@ -315,7 +315,7 @@ export function ReportPageViews(props: ReportPageModel) {
 
     {reportView === "performance" ? (
       <Card className="overflow-hidden" aria-labelledby="criterion-matrix-title">
-        <CardHeader className="border-b">
+        <CardHeader className="border-b has-data-[slot=card-action]:grid-cols-1 sm:has-data-[slot=card-action]:grid-cols-[minmax(0,1fr)_auto]">
           <div className="min-w-0 flex flex-col gap-1">
             <CardDescription>Матрица</CardDescription>
             <CardTitle id="criterion-matrix-title">Операторы × критерии</CardTitle>
@@ -323,7 +323,7 @@ export function ReportPageViews(props: ReportPageModel) {
               Pass-rate по блокам критериев для каждого оператора. Закрепленная строка — среднее по команде; слабые операторы и блоки подняты выше.
             </p>
           </div>
-          <CardAction>
+          <CardAction className="col-start-1 row-span-1 row-start-2 justify-self-start sm:col-start-2 sm:row-span-2 sm:row-start-1 sm:justify-self-end">
             <Link
               href={reportHref(period, { view: "details" })}
               className={cn(buttonVariants({ variant: "outline", size: "sm" }))}

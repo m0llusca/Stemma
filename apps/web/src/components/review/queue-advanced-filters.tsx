@@ -97,13 +97,13 @@ export function QueueAdvancedFilters({
                     <Button
                       type="button"
                       variant="outline"
-                      className="w-full justify-start whitespace-nowrap"
+                      className="h-auto min-h-9 w-full flex-wrap justify-start py-2"
                     />
                   }
                 >
                   <SlidersHorizontal size={16} aria-hidden="true" data-icon="inline-start" />
                   <span>Точные фильтры</span>
-                  <Chip tone="neutral" className="ml-1 shrink-0">
+                  <Chip tone="neutral" className="shrink-0">
                     {counterLabel}
                   </Chip>
                 </SheetTrigger>

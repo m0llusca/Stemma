@@ -72,7 +72,15 @@ function ModelField({ field, provider }: { field: AiProviderModelField; provider
     <FieldGroup className="gap-2">
       <Field>
         <FieldLabel htmlFor={modelSelectId}>Модель</FieldLabel>
-        <Select value={choice} onValueChange={(value) => setChoice(value ?? DEFAULT_MODEL)}>
+        <Select
+          items={[
+            { value: DEFAULT_MODEL, label: "По умолчанию (провайдера)" },
+            ...field.options.map((model) => ({ value: model, label: model })),
+            { value: CUSTOM_MODEL, label: "Другая модель…" }
+          ]}
+          value={choice}
+          onValueChange={(value) => setChoice(value ?? DEFAULT_MODEL)}
+        >
           <SelectTrigger id={modelSelectId} className="w-full">
             <SelectValue />
           </SelectTrigger>

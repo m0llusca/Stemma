@@ -9,12 +9,14 @@ import {
   type PointerEvent
 } from "react";
 import { useRouter } from "next/navigation";
+import { useChartPlotWidth } from "@/components/charts/use-chart-plot-width";
 import { ChartTooltipStatus } from "@/components/charts/chart-tooltip-status";
 import { DeferredChartVisual } from "@/components/charts/deferred-chart-visual.client";
 import { ReasonTrendVisual } from "@/components/charts/recharts-visuals.client";
 import type { ChartModel } from "@/lib/charts/contracts";
 import {
   buildReasonTrendGeometry,
+  REASON_TREND_VIEWBOX,
   viewBoxPercent
 } from "@/lib/charts/plot-geometry";
 import { openReportChartPointHref } from "@/lib/reports/report-evidence-links";
@@ -33,8 +35,9 @@ export function ReasonTrendChart({
   const instructionsId = useId();
   const tooltipId = useId();
   const plotRef = useRef<HTMLDivElement>(null);
+  const plotWidth = useChartPlotWidth(plotRef, REASON_TREND_VIEWBOX.width);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const geometry = useMemo(() => buildReasonTrendGeometry(model), [model]);
+  const geometry = useMemo(() => buildReasonTrendGeometry(model, plotWidth), [model, plotWidth]);
   const activePoint =
     activeIndex == null ? undefined : model.points[activeIndex];
   const activeMark =
@@ -159,7 +162,7 @@ export function ReasonTrendChart({
         ) : null}
         <DeferredChartVisual
           Visual={ReasonTrendVisual}
-          componentProps={{ model }}
+          componentProps={{ model, geometry }}
         />
 
         {activePoint ? (

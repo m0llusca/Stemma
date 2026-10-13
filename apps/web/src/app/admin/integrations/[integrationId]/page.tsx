@@ -1048,7 +1048,7 @@ function OtrsDetailCockpit({
         credentials={credentialSummaries}
       />
 
-      <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+      <div className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
         {canRunDiagnostics ? (
           <OtrsDiagnosticsPanel integrationId={integration.id} latestDiagnostic={toDiagnosticRun(integration.diagnosticRuns[0])} />
         ) : (

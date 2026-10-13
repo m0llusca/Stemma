@@ -9,12 +9,14 @@ import {
   type PointerEvent
 } from "react";
 import { useRouter } from "next/navigation";
+import { useChartPlotWidth } from "@/components/charts/use-chart-plot-width";
 import { ChartTooltipStatus } from "@/components/charts/chart-tooltip-status";
 import { DeferredChartVisual } from "@/components/charts/deferred-chart-visual.client";
 import { RankedBreakdownVisual } from "@/components/charts/recharts-visuals.client";
 import type { ChartModel } from "@/lib/charts/contracts";
 import {
   buildRankedBreakdownGeometry,
+  RANKED_BREAKDOWN_VIEWBOX,
   viewBoxPercent
 } from "@/lib/charts/plot-geometry";
 import { openReportChartPointHref } from "@/lib/reports/report-evidence-links";
@@ -33,10 +35,11 @@ export function RankedBreakdownChart({
   const instructionsId = useId();
   const tooltipId = useId();
   const plotRef = useRef<HTMLDivElement>(null);
+  const plotWidth = useChartPlotWidth(plotRef, RANKED_BREAKDOWN_VIEWBOX.width);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const geometry = useMemo(
-    () => buildRankedBreakdownGeometry(model),
-    [model]
+    () => buildRankedBreakdownGeometry(model, plotWidth),
+    [model, plotWidth]
   );
   const activePoint =
     activeIndex == null ? undefined : model.points[activeIndex];
@@ -111,7 +114,7 @@ export function RankedBreakdownChart({
       </p>
       <div
         data-slot="ranked-breakdown-plot"
-        className="grid grid-cols-[minmax(7rem,11rem)_minmax(0,1fr)] items-stretch gap-x-2"
+        className="grid grid-cols-[minmax(6rem,40%)_minmax(0,1fr)] items-stretch gap-x-2 sm:grid-cols-[minmax(7rem,11rem)_minmax(0,1fr)]"
       >
         <ul className="flex min-w-0 flex-col" aria-hidden="true">
           {model.points.map((point) => (
@@ -180,7 +183,7 @@ export function RankedBreakdownChart({
         ) : null}
         <DeferredChartVisual
           Visual={RankedBreakdownVisual}
-          componentProps={{ model }}
+          componentProps={{ model, geometry }}
         />
 
         {activePoint ? (

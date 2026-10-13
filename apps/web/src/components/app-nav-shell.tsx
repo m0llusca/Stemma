@@ -233,7 +233,7 @@ function AppNavShellChrome({
       aria-label="Глобальная навигация"
       data-slot="app-nav"
     >
-      <div className="flex min-h-14 w-full min-w-0 items-center gap-3 px-(--app-topbar-inline)">
+      <div className="flex min-h-14 w-full min-w-0 items-center gap-2 px-(--app-topbar-inline) sm:gap-3">
         <Link
           href={homeHref}
           prefetch={false}
@@ -259,7 +259,7 @@ function AppNavShellChrome({
           </span>
         </Link>
 
-        <div className="@container/nav min-w-0 flex-1">
+        <div className="@container/nav min-w-11 flex-1">
           {areas.length > 0 ? (
             <>
               <DropdownMenu open={areaMenuOpen} onOpenChange={setAreaMenuOpen}>
@@ -348,7 +348,7 @@ function AppNavShellChrome({
           type="button"
           variant="outline"
           size="sm"
-          className="min-w-0 gap-2 text-muted-foreground md:w-9 md:flex-none md:px-0 xl:w-56 xl:px-3 xl:justify-start"
+          className="size-11 shrink-0 gap-2 px-0 text-muted-foreground md:size-9 md:flex-none xl:h-9 xl:w-56 xl:px-3 xl:justify-start"
           aria-label="Поиск или команда"
           aria-haspopup="dialog"
           aria-expanded={commandOpen}
@@ -405,8 +405,8 @@ function AppNavShellChrome({
             </>
           }
         >
-          <UserAvatar name={user.name} className="hidden sm:flex" />
-          <span className="flex min-w-0 max-w-[12.5rem] flex-col items-start gap-0.5 text-left sm:max-w-[15rem]">
+          <UserAvatar name={user.name} className="size-7 sm:size-8" />
+          <span className="hidden min-w-0 max-w-[15rem] flex-col items-start gap-0.5 text-left lg:flex">
             <span
               className="text-pretty text-sm font-medium leading-tight"
               title={roleLabel ?? user.name}

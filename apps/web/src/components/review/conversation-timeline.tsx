@@ -492,7 +492,7 @@ export function ConversationTimeline({
                       <BubbleContent
                         data-slot="conversation-message-surface"
                         data-variant="bubble"
-                        className="max-w-prose space-y-2 shadow-xs"
+                        className="max-w-full space-y-2 shadow-xs"
                       >
                         {isAiAuthored ? (
                           <p className="flex min-w-0 flex-wrap items-baseline gap-1.5 break-words text-xs text-muted-foreground">
@@ -500,7 +500,7 @@ export function ConversationTimeline({
                             Ответ подготовлен с подсказкой ИИ — проверьте формулировку перед зачётом.
                           </p>
                         ) : null}
-                        <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+                        <p className="whitespace-pre-wrap text-sm leading-relaxed [overflow-wrap:anywhere]">
                           {message.body}
                         </p>
                       </BubbleContent>

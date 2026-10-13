@@ -9,6 +9,7 @@ import {
   type PointerEvent
 } from "react";
 import { useRouter } from "next/navigation";
+import { useChartPlotWidth } from "@/components/charts/use-chart-plot-width";
 import { DeferredChartVisual } from "@/components/charts/deferred-chart-visual.client";
 import { RankedDriverVisual } from "@/components/charts/recharts-visuals.client";
 import { ChartTooltipStatus } from "@/components/charts/chart-tooltip-status";
@@ -64,6 +65,7 @@ export function RankedDriverChart({
   const instructionsId = useId();
   const tooltipId = useId();
   const plotRef = useRef<HTMLDivElement>(null);
+  const plotWidth = useChartPlotWidth(plotRef, RANKED_DRIVER_VIEWBOX.width);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const activePoint =
     activeIndex == null ? undefined : model.points[activeIndex];
@@ -72,11 +74,12 @@ export function RankedDriverChart({
     : `${descriptionId} ${instructionsId}`;
   const height = rankedPlotHeight(
     model.points.length,
-    RANKED_DRIVER_VIEWBOX.margin
+    RANKED_DRIVER_VIEWBOX.margin,
+    plotWidth < 480 ? 32 : 22
   );
   const geometry = useMemo(
-    () => buildRankedDriverGeometry(model, height),
-    [height, model]
+    () => buildRankedDriverGeometry(model, height, plotWidth),
+    [height, model, plotWidth]
   );
   const activeMark =
     activeIndex == null ? null : geometry.selectedMark(activeIndex);
@@ -208,7 +211,7 @@ export function RankedDriverChart({
         ) : null}
         <DeferredChartVisual
           Visual={RankedDriverVisual}
-          componentProps={{ model, height }}
+          componentProps={{ model, geometry }}
         />
 
         {activePoint ? (

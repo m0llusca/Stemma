@@ -24,17 +24,17 @@ export function CoachingAssignmentItem({
     <Item
       role="listitem"
       variant="outline"
-      className={cn("items-start", overdue && "bg-destructive/5", isPriority && !overdue && "bg-primary/5")}
+      className={cn("min-w-0 flex-col items-start sm:flex-row", overdue && "bg-destructive/5", isPriority && !overdue && "bg-primary/5")}
       data-state={isPriority ? "selected" : undefined}
     >
-      <ItemContent className="min-w-0">
-        <ItemTitle className="flex-wrap">
+      <ItemContent className="w-full min-w-0 sm:w-auto">
+        <ItemTitle className="max-w-full flex-wrap [overflow-wrap:anywhere]">
           {title}
           {isPriority ? <Chip tone="accent">Следующий</Chip> : null}
         </ItemTitle>
         <ItemDescription>{description}</ItemDescription>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
-          <span className="inline-flex items-center gap-1.5">
+          <span className="inline-flex min-w-0 items-center gap-1.5 [overflow-wrap:anywhere]">
             <UserAvatar name={assigneeName} className="size-6" />
             {assigneeName}
           </span>
@@ -45,7 +45,7 @@ export function CoachingAssignmentItem({
         </div>
         <div className="flex flex-wrap gap-1.5">{context}</div>
       </ItemContent>
-      <ItemActions className="flex-wrap">{actions}</ItemActions>
+      <ItemActions className="max-w-full flex-wrap">{actions}</ItemActions>
     </Item>
   );
 }

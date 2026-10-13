@@ -592,10 +592,10 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
           className="group min-w-0 overflow-clip rounded-xl border border-(--ai-border) bg-(--ai-soft) data-open:md:col-span-2"
         >
           <CollapsibleTrigger
-            className="flex w-full min-w-0 cursor-pointer items-start justify-between gap-3 px-5 py-4 text-left"
+            className="flex w-full min-w-0 cursor-pointer flex-wrap items-start justify-between gap-3 px-5 py-4 text-left"
             aria-label="ИИ-подсказки проверки"
           >
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1 basis-64">
               <p className="text-xs font-medium uppercase tracking-wide text-(--ai-ink)">ИИ-контроль</p>
               <h2 className="mt-1 text-base font-semibold text-foreground">ИИ-предложения</h2>
               <p className="mt-1 text-sm text-muted-foreground">

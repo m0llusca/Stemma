@@ -72,7 +72,7 @@ function SubmitButton() {
   const { pending } = useFormStatus();
 
   return (
-    <Button type="submit" disabled={pending}>
+    <Button type="submit" disabled={pending} className="h-auto min-h-8 max-w-full py-2 whitespace-normal">
       <Play data-icon="inline-start" aria-hidden="true" />
       {pending ? "Запускаем" : "Запустить диагностику"}
     </Button>
@@ -113,8 +113,8 @@ export function OtrsDiagnosticsPanel({ integrationId, latestDiagnostic }: OtrsDi
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="grid gap-4">
-        <form action={formAction} className="grid gap-3 rounded-lg border p-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+      <CardContent className="grid min-w-0 grid-cols-1 gap-4">
+        <form action={formAction} className="grid min-w-0 grid-cols-1 gap-3 rounded-lg border p-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
           <ActionFlowGuard
             onResult={(value) => {
               const result = value as OtrsDiagnosticsActionState;

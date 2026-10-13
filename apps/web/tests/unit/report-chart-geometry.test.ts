@@ -518,3 +518,30 @@ describe("x-axis tick thinning", () => {
     }
   });
 });
+
+
+describe("responsive geometry widths", () => {
+  it.each([144, 264, 334, 712, 1224])("keeps marks inside the actual %ipx plot width", (width) => {
+    const charts = [
+      geometry.buildScoreDistributionGeometry(distributionModel, width),
+      geometry.buildPairedAiDriftGeometry(driftModel, width),
+      geometry.buildReasonTrendGeometry(reasonModel, width),
+      geometry.buildRankedBreakdownGeometry(agreementModel, width)
+    ] as const;
+    for (const chart of charts) {
+      expect(chart.width).toBe(width);
+      expect(chart.plotWidth).toBeGreaterThan(0);
+      expect(chart.margin.left + chart.plotWidth).toBeLessThanOrEqual(width);
+    }
+    for (const bar of charts[0].bars) {
+      expect(bar.x).toBeGreaterThanOrEqual(0);
+      expect(bar.x + bar.width).toBeLessThanOrEqual(width);
+    }
+  });
+  it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY])("retains positive SSR geometry when width is %s", (width) => {
+    expect(geometry.buildScoreDistributionGeometry(distributionModel, width).width).toBe(560);
+    expect(geometry.buildPairedAiDriftGeometry(driftModel, width).width).toBe(720);
+    expect(geometry.buildReasonTrendGeometry(reasonModel, width).width).toBe(720);
+    expect(geometry.buildRankedBreakdownGeometry(agreementModel, width).width).toBe(560);
+  });
+});

@@ -777,10 +777,10 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
                 <Separator />
 
                 <Tabs defaultValue="endpoints">
-                  <TabsList variant="line" className="w-full justify-start">
-                    <TabsTrigger value="endpoints">Адреса OIDC/SAML</TabsTrigger>
-                    <TabsTrigger value="directory">Каталог / LDAPS</TabsTrigger>
-                    <TabsTrigger value="advanced">JSON и сертификаты</TabsTrigger>
+                  <TabsList variant="line" className="h-auto w-full flex-wrap justify-start">
+                    <TabsTrigger className="h-8" value="endpoints">Адреса OIDC/SAML</TabsTrigger>
+                    <TabsTrigger className="h-8" value="directory">Каталог / LDAPS</TabsTrigger>
+                    <TabsTrigger className="h-8" value="advanced">JSON и сертификаты</TabsTrigger>
                   </TabsList>
 
                   {/* keepMounted: hidden tab panels must stay in the form DOM so save still posts all fields */}
@@ -860,7 +860,7 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
                 {entraMetadata ? (
                   <Alert>
                     <AlertTitle>Метаданные Entra/OIDC</AlertTitle>
-                    <AlertDescription className="flex flex-col gap-1">
+                    <AlertDescription className="flex min-w-0 flex-col gap-1 [overflow-wrap:anywhere]">
                       <span className="font-mono text-xs">Авторизация: {entraMetadata.authorizationUrl}</span>
                       <span className="font-mono text-xs">Токен: {entraMetadata.tokenUrl}</span>
                       <span>Сценарий: {entraMetadata.recommendedFlow}</span>
@@ -875,7 +875,7 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
                 {samlMetadata ? (
                   <Alert>
                     <AlertTitle>Метаданные SAML SP</AlertTitle>
-                    <AlertDescription className="flex flex-col gap-1">
+                    <AlertDescription className="flex min-w-0 flex-col gap-1 [overflow-wrap:anywhere]">
                       <span className="font-mono text-xs">Entity ID: {samlMetadata.entityId}</span>
                       <span className="font-mono text-xs">ACS: {samlMetadata.acsUrl}</span>
                       <span className="font-mono text-xs">Metadata: {samlMetadata.metadataUrl}</span>
@@ -890,7 +890,7 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
                 {selectedProvider?.type === "ACTIVE_DIRECTORY_LDAPS" ? (
                   <Alert>
                     <AlertTitle>Active Directory LDAPS</AlertTitle>
-                    <AlertDescription className="flex flex-col gap-1">
+                    <AlertDescription className="flex min-w-0 flex-col gap-1 [overflow-wrap:anywhere]">
                       <span>LDAPS здесь используется только для синхронизации пользователей и групп. Вход по паролю LDAP не включается.</span>
                       <span className="text-xs">
                         TLS обязателен: используйте ldaps:// на 636/3269; bind secret и CA сейчас исполняются только через env:-ссылки.

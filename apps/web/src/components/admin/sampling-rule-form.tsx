@@ -113,7 +113,7 @@ export function SamplingRuleForm({ action, channelOptions, csatOptions, ruleType
             </Field>
             <Field>
               <FieldLabel htmlFor="sampling-rule-type">Тип</FieldLabel>
-              <Select value={type} onValueChange={(value) => setType(value ?? ruleTypeOptions[0]?.value ?? "random")}>
+              <Select items={ruleTypeOptions} value={type} onValueChange={(value) => setType(value ?? ruleTypeOptions[0]?.value ?? "random")}>
                 <SelectTrigger id="sampling-rule-type" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
@@ -134,7 +134,7 @@ export function SamplingRuleForm({ action, channelOptions, csatOptions, ruleType
           <FieldGroup className="gap-3 sm:grid sm:grid-cols-2">
             <Field>
               <FieldLabel htmlFor="sampling-rule-channel">Канал</FieldLabel>
-              <Select value={toSelectValue(channel)} onValueChange={(value) => setChannel(fromSelectValue(value))}>
+              <Select items={[{ value: ANY_VALUE, label: "Любой" }, ...channelOptions]} value={toSelectValue(channel)} onValueChange={(value) => setChannel(fromSelectValue(value))}>
                 <SelectTrigger id="sampling-rule-channel" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
@@ -150,7 +150,7 @@ export function SamplingRuleForm({ action, channelOptions, csatOptions, ruleType
             </Field>
             <Field>
               <FieldLabel htmlFor="sampling-rule-csat">CSAT</FieldLabel>
-              <Select value={toSelectValue(csatBucket)} onValueChange={(value) => setCsatBucket(fromSelectValue(value))}>
+              <Select items={[{ value: ANY_VALUE, label: "Любой" }, ...csatOptions]} value={toSelectValue(csatBucket)} onValueChange={(value) => setCsatBucket(fromSelectValue(value))}>
                 <SelectTrigger id="sampling-rule-csat" className="w-full">
                   <SelectValue />
                 </SelectTrigger>

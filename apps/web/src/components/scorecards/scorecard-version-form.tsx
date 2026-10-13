@@ -173,16 +173,16 @@ export function ScorecardVersionForm({
               defaultOpen={criterion.clientId.startsWith("new-")}
               className="group rounded-xl ring-1 ring-foreground/10 data-open:bg-muted/15"
             >
-              <div className="flex items-center gap-2 p-3">
-                <CollapsibleTrigger className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left outline-none">
+              <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 p-3 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
+                <CollapsibleTrigger className="col-span-2 flex min-w-0 cursor-pointer items-center gap-2 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring sm:col-span-1">
                   <span className="text-muted-foreground" aria-hidden="true">
                     <GripVertical size={16} />
                   </span>
                   <span className="min-w-0 flex-1 flex flex-col gap-0.5">
-                    <span className="truncate font-medium text-foreground">
+                    <span className="font-medium text-foreground [overflow-wrap:anywhere]">
                       {criterion.label || `Критерий ${index + 1}`}
                     </span>
-                    <span className="text-sm text-muted-foreground tabular-nums">
+                    <span className="text-sm text-muted-foreground tabular-nums [overflow-wrap:anywhere]">
                       {criterion.block} ·{" "}
                       {kindOptions.find((option) => option.value === criterion.kind)?.label}
                     </span>
@@ -191,7 +191,7 @@ export function ScorecardVersionForm({
                     Вес {criterion.weight}%
                   </Badge>
                 </CollapsibleTrigger>
-                <span className="flex items-center gap-1">
+                <span className="flex items-center justify-self-end gap-1">
                   <Button
                     type="button"
                     variant="ghost"
@@ -225,7 +225,7 @@ export function ScorecardVersionForm({
                   </ConfirmSubmitButton>
                 </span>
                 <CollapsibleTrigger
-                  className="flex size-8 shrink-0 items-center justify-center text-muted-foreground outline-none"
+                  className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   aria-label={criterion.label || `Критерий ${index + 1}`}
                 >
                   <ChevronDown

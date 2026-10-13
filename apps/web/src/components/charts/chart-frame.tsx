@@ -88,11 +88,11 @@ export function ChartFrame({
   // empty white space below the plot when the sibling column is taller.
   // Height follows content; equal-height pairing is opt-in at the call site.
   return (
-    <Card aria-labelledby={headingId} size="sm" className="h-fit gap-0 py-0">
-      <CardHeader className="border-b py-3">
+    <Card aria-labelledby={headingId} size="sm" className="@container/chart-frame h-fit gap-0 py-0">
+      <CardHeader className="border-b py-3 has-data-[slot=card-action]:grid-cols-1 @sm/chart-frame:has-data-[slot=card-action]:grid-cols-[minmax(0,1fr)_auto]">
         <CardTitle id={headingId}>{model.title}</CardTitle>
         {model.description ? <CardDescription>{model.description}</CardDescription> : null}
-        <CardAction>
+        <CardAction className="col-start-1 row-span-1 row-start-auto justify-self-start @sm/chart-frame:col-start-2 @sm/chart-frame:row-span-2 @sm/chart-frame:row-start-1 @sm/chart-frame:justify-self-end">
           <ChartViewLinks currentHref={currentHref} view={view} labelledBy={headingId} />
         </CardAction>
         <div className="col-span-full mt-1 flex flex-wrap gap-x-3 gap-y-1 border-t border-border/70 pt-2 text-xs text-muted-foreground">

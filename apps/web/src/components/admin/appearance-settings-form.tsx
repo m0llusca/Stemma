@@ -594,7 +594,7 @@ export function AppearanceSettingsForm({ initialAppearance, workspaceName }: App
                   <Button
                     type="button"
                     size="sm"
-                    className="w-fit border-0 text-white hover:opacity-90"
+                    className="h-auto min-h-8 w-fit max-w-full border-0 py-2 text-white whitespace-normal hover:opacity-90"
                     style={{ background: "var(--preview-button)" }}
                   >
                     Основное действие

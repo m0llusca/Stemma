@@ -149,7 +149,7 @@ export function InteractiveSparklineChart({
   return (
     <ChartEnter
       data-slot="interactive-sparkline-chart"
-      className="grid gap-3"
+      className="grid min-w-0 grid-cols-1 gap-3"
     >
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
@@ -169,14 +169,14 @@ export function InteractiveSparklineChart({
       </div>
 
       <div
-        className="relative overflow-visible rounded-lg border border-border bg-card px-2.5 pb-2 pt-3"
+        className="relative min-w-0 overflow-visible rounded-lg border border-border bg-card px-2.5 pb-2 pt-3"
         ref={plotRef}
       >
         <svg
           viewBox={`0 0 ${chart.width} ${chart.height}`}
           width={plotWidth ?? "100%"}
           height={chart.height}
-          className="pointer-events-none block overflow-visible"
+          className="pointer-events-none block max-w-full overflow-visible"
           preserveAspectRatio="xMidYMid meet"
           role="img"
           aria-label="Тренд средней оценки"

@@ -31,7 +31,8 @@ describe("reports density P0 (#172)", () => {
     expect(geometry).not.toContain("Math.max(220, model.points.length * 36)");
 
     const visual = src("components/charts/recharts-visuals.client.tsx");
-    expect(visual).toContain('preserveAspectRatio="none"');
+    // Measured geometry preserves row height without stretching the viewBox.
+    // Effective text size is covered by rich-chart-responsive.spec.ts.
     expect(visual).not.toContain("aspectRatio: `${width} / ${height}`");
 
     const agreement = src("components/reports/analytics-intelligence.tsx");

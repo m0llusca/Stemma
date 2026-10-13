@@ -70,7 +70,7 @@ export function AiScoringEnginePanel({
       <div className="flex flex-wrap items-end gap-3">
         <Field className="min-w-[14rem]">
           <FieldLabel htmlFor="ai-scoring-engine">Движок оценки</FieldLabel>
-          <Select value={selected} onValueChange={(value) => setSelected(value ?? "auto")}>
+          <Select items={ENGINE_OPTIONS} value={selected} onValueChange={(value) => setSelected(value ?? "auto")}>
             <SelectTrigger id="ai-scoring-engine" className="w-full min-w-[14rem]">
               <SelectValue />
             </SelectTrigger>

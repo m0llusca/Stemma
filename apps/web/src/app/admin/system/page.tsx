@@ -750,7 +750,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
                     >
                       <div className="flex min-w-0 flex-col gap-1">
                         <span className="text-sm font-medium text-foreground">{check.key}</span>
-                        <p className="text-xs text-muted-foreground">{check.message}</p>
+                        <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">{check.message}</p>
                       </div>
                       <StatusBadge tone={badgeTone(runtimeTone(check.status))} size="sm">
                         {runtimeStatusLabel(check.status)}

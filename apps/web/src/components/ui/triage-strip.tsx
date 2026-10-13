@@ -34,7 +34,7 @@ export function TriageStrip({
     <Alert
       data-slot="triage-strip"
       className={cn(
-        "flex flex-col items-stretch gap-3 min-[390px]:flex-row min-[390px]:items-center [&>svg]:static",
+        "flex flex-col items-stretch gap-3 sm:flex-row sm:items-center [&>svg]:static",
         toneClass[tone],
         className
       )}
@@ -47,7 +47,7 @@ export function TriageStrip({
       {action != null ? (
         <div
           data-slot="triage-strip-action"
-          className="w-full min-[390px]:w-auto min-[390px]:shrink-0 [&_[data-slot=button]]:w-full min-[390px]:[&_[data-slot=button]]:w-auto"
+          className="w-full sm:w-auto sm:shrink-0 [&_[data-slot=button]]:w-full sm:[&_[data-slot=button]]:w-auto"
         >
           {action}
         </div>

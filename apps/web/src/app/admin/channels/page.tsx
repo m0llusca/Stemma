@@ -213,7 +213,7 @@ async function AdminChannelsPageContent() {
       description={channelsPageDescription}
     >
       <AdminFrame>
-        <div className="grid gap-6">
+        <div className="grid min-w-0 grid-cols-1 gap-6">
           <Card>
             <CardHeader className="border-b">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -286,7 +286,7 @@ async function AdminChannelsPageContent() {
                 </CardAction>
               </div>
             </CardHeader>
-            <CardContent className="grid gap-4">
+            <CardContent className="grid min-w-0 grid-cols-1 gap-4">
               <StatStrip
                 items={[
                   {

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card";
 import {
   Field,
+  FieldContent,
   FieldDescription,
   FieldGroup,
   FieldLabel,
@@ -182,12 +183,12 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="grid gap-5">
-        <form action={detectAction} className="grid gap-2 border-b pb-4">
+      <CardContent className="grid min-w-0 grid-cols-1 gap-5">
+        <form action={detectAction} className="grid min-w-0 grid-cols-1 gap-2 border-b pb-4">
           <input type="hidden" name="baseUrl" value={integration.baseUrl ?? ""} />
           <input type="hidden" name="webServiceName" value={webServiceName} />
           <div className="flex flex-wrap items-center gap-3">
-            <Button type="submit" variant="outline" disabled={detecting}>
+            <Button type="submit" variant="outline" disabled={detecting} className="h-auto min-h-8 max-w-full py-2 whitespace-normal">
               {detecting ? "Определяем..." : "Определить маршруты автоматически"}
             </Button>
             <span className="text-xs text-muted-foreground">
@@ -208,7 +209,7 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
           ) : null}
         </form>
 
-        <form action={formAction} className="grid gap-5">
+        <form action={formAction} className="grid min-w-0 grid-cols-1 gap-5">
           <ActionFlowGuard
             onResult={(value) => {
               const result = value as IntegrationActionState;
@@ -219,14 +220,14 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
           <input type="hidden" name="configJson" value={routeConfigJson(config, routes, routeOverridesEnabled, auth, timeZone)} />
 
           <Tabs defaultValue="connection" className="gap-4">
-            <TabsList variant="line" className="w-full justify-start">
-              <TabsTrigger value="connection">Подключение</TabsTrigger>
-              <TabsTrigger value="auth">Авторизация</TabsTrigger>
-              <TabsTrigger value="limits">Лимиты</TabsTrigger>
-              <TabsTrigger value="advanced">Дополнительно</TabsTrigger>
+            <TabsList variant="line" className="h-auto w-full flex-wrap justify-start">
+              <TabsTrigger value="connection" className="h-8">Подключение</TabsTrigger>
+              <TabsTrigger value="auth" className="h-8">Авторизация</TabsTrigger>
+              <TabsTrigger value="limits" className="h-8">Лимиты</TabsTrigger>
+              <TabsTrigger value="advanced" className="h-8">Дополнительно</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="connection" keepMounted className="grid gap-4">
+            <TabsContent value="connection" keepMounted className="grid min-w-0 grid-cols-1 gap-4">
               <FieldGroup className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 <Field>
                   <FieldLabel htmlFor="otrs-displayName">Название</FieldLabel>
@@ -279,7 +280,7 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
               </FieldGroup>
             </TabsContent>
 
-            <TabsContent value="auth" keepMounted className="grid gap-4">
+            <TabsContent value="auth" keepMounted className="grid min-w-0 grid-cols-1 gap-4">
               <FieldGroup className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 <Field>
                   <FieldLabel htmlFor="otrs-userLogin">UserLogin</FieldLabel>
@@ -363,7 +364,7 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
               </div>
             </TabsContent>
 
-            <TabsContent value="limits" keepMounted className="grid gap-4">
+            <TabsContent value="limits" keepMounted className="grid min-w-0 grid-cols-1 gap-4">
               <FieldGroup className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 <Field>
                   <FieldLabel htmlFor="otrs-searchLimit">Лимит поиска</FieldLabel>
@@ -428,25 +429,25 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
               </FieldGroup>
             </TabsContent>
 
-            <TabsContent value="advanced" keepMounted className="grid gap-4">
+            <TabsContent value="advanced" keepMounted className="grid min-w-0 grid-cols-1 gap-4">
               <Field orientation="horizontal" className="items-start rounded-lg border p-3">
                 <Switch
                   id="otrs-routeOverrides"
                   checked={routeOverridesEnabled}
                   onCheckedChange={setRouteOverridesEnabled}
                 />
-                <FieldLabel htmlFor="otrs-routeOverrides" className="font-normal">
-                  <span className="font-medium">Включить переопределения маршрутов</span>
+                <FieldContent className="min-w-0">
+                  <FieldLabel htmlFor="otrs-routeOverrides">Включить переопределения маршрутов</FieldLabel>
                   <FieldDescription>
                     Используйте только если GenericInterface WebService создан с нестандартными маршрутами.
                   </FieldDescription>
-                </FieldLabel>
+                </FieldContent>
               </Field>
 
-              <div className="grid gap-3 xl:grid-cols-2">
-                <FieldSet className="gap-3 rounded-lg border p-3">
+              <div className="grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-2">
+                <FieldSet className="min-w-0 gap-3 rounded-lg border p-3">
                   <FieldLegend variant="label">Маршрут TicketSearch</FieldLegend>
-                  <div className="grid gap-3 sm:grid-cols-[120px_minmax(0,1fr)]">
+                  <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-[120px_minmax(0,1fr)]">
                     <Field>
                       <FieldLabel htmlFor="otrs-ticketSearchMethod">Метод</FieldLabel>
                       <NativeSelect
@@ -473,9 +474,9 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
                     </Field>
                   </div>
                 </FieldSet>
-                <FieldSet className="gap-3 rounded-lg border p-3">
+                <FieldSet className="min-w-0 gap-3 rounded-lg border p-3">
                   <FieldLegend variant="label">Маршрут TicketGet</FieldLegend>
-                  <div className="grid gap-3 sm:grid-cols-[120px_minmax(0,1fr)]">
+                  <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-[120px_minmax(0,1fr)]">
                     <Field>
                       <FieldLabel htmlFor="otrs-ticketGetMethod">Метод</FieldLabel>
                       <NativeSelect

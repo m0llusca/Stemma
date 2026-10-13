@@ -225,7 +225,7 @@ async function AdminScorecardsPageContent({ searchParams }: AdminScorecardsPageP
 
           {activeSection === "overview" ? (
             <Card aria-labelledby="scorecard-overview-title">
-              <CardHeader className="border-b">
+              <CardHeader className="border-b max-sm:flex max-sm:flex-col max-sm:items-start">
                 <div className="flex min-w-0 flex-col gap-1">
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     Активная форма
@@ -241,7 +241,7 @@ async function AdminScorecardsPageContent({ searchParams }: AdminScorecardsPageP
                   <CardDescription>По этой версии создаются новые проверки.</CardDescription>
                 </div>
                 {activeScorecard ? (
-                  <CardAction>
+                  <CardAction className="max-sm:self-start">
                     <Button
                       variant={isEditingActiveScorecard ? "outline" : "default"}
                       render={<Link href={activeScorecardEditHref(isEditingActiveScorecard)} />}

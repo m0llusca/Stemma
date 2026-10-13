@@ -3,12 +3,19 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import {
-  QualityTrendVisual,
-  RankedDriverVisual
-} from "@/components/charts/recharts-visuals.client";
 import * as richVisuals from "@/components/charts/recharts-visuals.client";
 import type { ChartModel } from "@/lib/charts/contracts";
+import {
+  buildQualityTrendGeometry, buildRankedDriverGeometry, buildScoreDistributionGeometry,
+  buildPairedAiDriftGeometry, buildReasonTrendGeometry, buildRankedBreakdownGeometry
+} from "@/lib/charts/plot-geometry";
+
+function QualityTrendVisual(props: Omit<React.ComponentProps<typeof richVisuals.QualityTrendVisual>, "geometry">) {
+  return <richVisuals.QualityTrendVisual {...props} geometry={buildQualityTrendGeometry(props.model, props.visibleSeries)} />;
+}
+function RankedDriverVisual(props: Omit<React.ComponentProps<typeof richVisuals.RankedDriverVisual>, "geometry"> & { height: number }) {
+  return <richVisuals.RankedDriverVisual model={props.model} geometry={buildRankedDriverGeometry(props.model, props.height)} />;
+}
 
 const qualityModel: ChartModel<"score" | "previous" | "target" | "volume"> = {
   id: "quality-visual",
@@ -83,7 +90,12 @@ type Task6Visuals = {
   }>;
 };
 
-const task6Visuals = richVisuals as unknown as Task6Visuals;
+const task6Visuals: Task6Visuals = {
+  ScoreDistributionVisual: (props) => <richVisuals.ScoreDistributionVisual {...props} geometry={buildScoreDistributionGeometry(props.model)} />,
+  PairedAiDriftVisual: (props) => <richVisuals.PairedAiDriftVisual {...props} geometry={buildPairedAiDriftGeometry(props.model)} />,
+  ReasonTrendVisual: (props) => <richVisuals.ReasonTrendVisual {...props} geometry={buildReasonTrendGeometry(props.model)} />,
+  RankedBreakdownVisual: (props) => <richVisuals.RankedBreakdownVisual {...props} geometry={buildRankedBreakdownGeometry(props.model)} />
+};
 
 const distributionModel: ChartModel<"count"> = {
   id: "distribution-visual",
@@ -228,26 +240,25 @@ describe("lean Recharts visuals", () => {
             visibleSeries={["score", "previous", "target", "volume"]}
           />
         ),
-        classes: ["aspect-[720/280]", "w-full"]
+        height: 280
       },
       {
         component: (
           <task6Visuals.ScoreDistributionVisual model={distributionModel} />
         ),
-        classes: ["aspect-[560/200]", "w-full"]
+        height: 200
       },
       {
         component: <task6Visuals.ReasonTrendVisual model={reasonModel} />,
-        classes: ["aspect-[720/280]", "w-full"]
+        height: 280
       }
     ] as const;
 
-    for (const { component, classes } of cases) {
+    for (const { component, height } of cases) {
       const { container, unmount } = render(component);
 
-      expect(container.querySelector('[data-slot="chart"]')).toHaveClass(
-        ...classes
-      );
+      expect(container.querySelector('[data-slot="chart"]')).toHaveClass("w-full");
+      expect(container.querySelector('[data-slot="chart"]')).toHaveStyle({ height: `${height}px` });
       unmount();
     }
   });
@@ -263,7 +274,7 @@ describe("lean Recharts visuals", () => {
       '[data-slot="chart"]'
     );
 
-    expect(charts[0]).toHaveClass("aspect-[720/380]", "w-full");
+    expect(charts[0]).toHaveStyle({ height: "380px" });
     expect(charts[1]).toHaveStyle({ height: "56px" });
   });
 
@@ -769,5 +780,18 @@ describe("lean Recharts visuals", () => {
     expect(container.querySelector("style")?.textContent).toContain(
       "--color-volume: var(--chart-volume, var(--muted-foreground))"
     );
+  });
+});
+
+
+describe("measured rich-chart geometry", () => {
+  it.each([264, 334, 712, 1224])("uses the consumer's %ipx geometry without scaling axis fonts", (width) => {
+    const geometry = buildQualityTrendGeometry(qualityModel, ["score", "previous"], width);
+    const { container } = render(<richVisuals.QualityTrendVisual model={qualityModel} visibleSeries={["score", "previous"]} geometry={geometry} />);
+    expect(container.querySelector("svg")).toHaveAttribute("viewBox", `0 0 ${width} ${geometry.height}`);
+    expect(container.querySelector('[data-slot="chart"]')).toHaveStyle({ height: `${geometry.height}px` });
+    for (const text of container.querySelectorAll("text")) expect(Number(text.getAttribute("font-size"))).toBeGreaterThanOrEqual(11);
+    const circle = container.querySelector('[data-series="score"] circle');
+    expect(Number(circle?.getAttribute("cx"))).toBeCloseTo(geometry.selectedMark(0)!.x);
   });
 });

@@ -106,7 +106,7 @@ export function WorkflowManagementPanel({
 
             <form
               action={updateConversationWorkflow}
-              className="grid gap-3 md:grid-cols-[minmax(170px,200px)_minmax(180px,1fr)_minmax(150px,180px)_auto] md:items-end"
+              className="grid gap-3 md:grid-cols-2 md:items-end lg:grid-cols-[minmax(170px,200px)_minmax(180px,1fr)_minmax(150px,180px)_auto]"
             >
               {/* Forces a full-document commit of the action's redirect when
                   the client router drops it (Next 16.2.x). */}
@@ -164,12 +164,12 @@ export function WorkflowManagementPanel({
               </Field>
 
               <div className="flex items-end">
-                <Button type="submit" className="w-full md:w-auto">
+                <Button type="submit" className="w-full lg:w-auto">
                   {isFinalized && !pendingReopen ? "Запросить / обновить" : "Обновить"}
                 </Button>
               </div>
 
-              <Field className="md:col-span-4">
+              <Field className="md:col-span-2 lg:col-span-4">
                 <FieldLabel htmlFor="workflow-reopen-reason">Причина переоткрытия</FieldLabel>
                 <Textarea
                   id="workflow-reopen-reason"

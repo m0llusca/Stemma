@@ -9,12 +9,14 @@ import {
   type PointerEvent
 } from "react";
 import { useRouter } from "next/navigation";
+import { useChartPlotWidth } from "@/components/charts/use-chart-plot-width";
 import { ChartTooltipStatus } from "@/components/charts/chart-tooltip-status";
 import { DeferredChartVisual } from "@/components/charts/deferred-chart-visual.client";
 import { ScoreDistributionVisual } from "@/components/charts/recharts-visuals.client";
 import type { ChartModel } from "@/lib/charts/contracts";
 import {
   buildScoreDistributionGeometry,
+  SCORE_DISTRIBUTION_VIEWBOX,
   viewBoxPercent
 } from "@/lib/charts/plot-geometry";
 import { openReportChartPointHref } from "@/lib/reports/report-evidence-links";
@@ -29,10 +31,11 @@ export function ScoreDistributionChart({
   const instructionsId = useId();
   const tooltipId = useId();
   const plotRef = useRef<HTMLDivElement>(null);
+  const plotWidth = useChartPlotWidth(plotRef, SCORE_DISTRIBUTION_VIEWBOX.width);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const geometry = useMemo(
-    () => buildScoreDistributionGeometry(model),
-    [model]
+    () => buildScoreDistributionGeometry(model, plotWidth),
+    [model, plotWidth]
   );
   const activePoint =
     activeIndex == null ? undefined : model.points[activeIndex];
@@ -145,7 +148,7 @@ export function ScoreDistributionChart({
         ) : null}
         <DeferredChartVisual
           Visual={ScoreDistributionVisual}
-          componentProps={{ model }}
+          componentProps={{ model, geometry }}
         />
 
         {activePoint ? (

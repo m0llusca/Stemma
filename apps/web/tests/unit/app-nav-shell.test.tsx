@@ -397,8 +397,8 @@ describe("app nav shell", () => {
     const queueLink = screen.getByRole("link", { name: "Очередь: 4" });
     expect(queueLink.getAttribute("href")).toBe("/reviews?qaStatus=QUEUED");
     expect(queueLink).toHaveAttribute("data-slot", "button");
-    expect(queueLink.className).toContain("hidden");
-    expect(queueLink.className).toContain("sm:inline-flex");
+    expect(queueLink.closest('[aria-label="Рабочий пульс"]')).not.toBeNull();
+    expect(queueLink).toHaveTextContent("Очередь");
     expect(screen.getByRole("link", { name: "Риск 30д: 1" })).not.toBeNull();
     expect(screen.getByRole("link", { name: "Обучение: 0" })).not.toBeNull();
   });
@@ -408,7 +408,7 @@ describe("app nav shell", () => {
 
     const trigger = screen.getByRole("button", { name: "Рабочий пульс" });
     expect(trigger).toHaveAttribute("data-slot", "dropdown-menu-trigger");
-    expect(trigger).toHaveClass("size-11", "sm:hidden");
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
 
     fireEvent.click(trigger);
     const menu = screen.getByRole("menu", { name: "Рабочий пульс" });

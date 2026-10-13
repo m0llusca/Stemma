@@ -95,7 +95,7 @@ async function ReportSchedulesPageContent({ searchParams }: ReportSchedulesPageP
     >
       <AdminFrame>
         <Card aria-labelledby="report-schedules-title">
-          <CardHeader className="border-b">
+          <CardHeader className="border-b max-sm:flex max-sm:flex-col max-sm:items-start">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Расписания</p>
             <CardTitle id="report-schedules-title">
               Регулярные выгрузки
@@ -103,7 +103,7 @@ async function ReportSchedulesPageContent({ searchParams }: ReportSchedulesPageP
             <CardDescription className="tabular-nums">
               Активно: {activeCount} · всего: {schedules.length}
             </CardDescription>
-            <CardAction>
+            <CardAction className="max-sm:self-start">
               <div className="flex flex-wrap items-center gap-2">
                 <AdminDialog
                   triggerLabel={

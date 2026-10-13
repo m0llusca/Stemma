@@ -250,7 +250,7 @@ export function RankedList({
   }
 
   return (
-    <div className="grid gap-0">
+    <div className="@container/ranked-list grid gap-0">
       {rows.map((row, index) => (
         <article
           key={`${row.label}:${index}`}
@@ -260,10 +260,10 @@ export function RankedList({
             {index + 1}
           </div>
           <div className="grid min-w-0 gap-1">
-            <div className="flex min-w-0 items-baseline justify-between gap-3">
-              <h3 className="truncate text-sm font-semibold text-foreground" title={row.label}>{row.label}</h3>
-              <div className="inline-flex shrink-0 items-center gap-1.5">
-                <strong className="text-sm font-semibold tabular-nums text-foreground">
+            <div className="flex min-w-0 flex-col gap-1 @md/ranked-list:flex-row @md/ranked-list:items-baseline @md/ranked-list:justify-between @md/ranked-list:gap-3">
+              <h3 className="text-sm font-semibold text-foreground [overflow-wrap:anywhere] @md/ranked-list:truncate" title={row.label}>{row.label}</h3>
+              <div className="inline-flex max-w-full flex-wrap items-center gap-1.5 @md/ranked-list:shrink-0">
+                <strong className="text-sm font-semibold whitespace-nowrap tabular-nums text-foreground">
                   {valueFormatter ? valueFormatter(row.value) : row.value}
                 </strong>
                 {row.delta != null ? (

@@ -120,16 +120,16 @@ describe("shadcn UI composition primitives", () => {
     expect(alert).toHaveClass(
       "flex-col",
       "items-stretch",
-      "min-[390px]:flex-row",
-      "min-[390px]:items-center",
+      "sm:flex-row",
+      "sm:items-center",
       "border-success/30",
       "bg-success-soft"
     );
     expect(actionOwner).toHaveClass(
       "w-full",
       "[&_[data-slot=button]]:w-full",
-      "min-[390px]:w-auto",
-      "min-[390px]:[&_[data-slot=button]]:w-auto"
+      "sm:w-auto",
+      "sm:[&_[data-slot=button]]:w-auto"
     );
 
     for (const tone of ["accent", "success", "warning", "danger", "ai"] as const) {

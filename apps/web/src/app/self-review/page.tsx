@@ -245,9 +245,9 @@ async function SelfReviewPageContent() {
     return (
       <AccordionItem key={conversation.id} value={conversation.id} className="border-0">
       <Card size="sm" className="gap-0">
-        <CardHeader className="border-b pb-3">
+        <CardHeader className="grid-cols-[minmax(0,1fr)] border-b pb-3">
           <AccordionTrigger
-            className="w-full items-start gap-3 py-0 hover:no-underline"
+            className="min-w-0 w-full items-start gap-3 py-0 hover:no-underline"
             aria-label={`Разбор: ${conversation.subject}`}
           >
             <div className="flex min-w-0 flex-1 flex-col gap-2 text-left">
@@ -273,7 +273,7 @@ async function SelfReviewPageContent() {
           </AccordionTrigger>
         </CardHeader>
 
-        <AccordionContent className="pb-0">
+        <AccordionContent className="pb-0 [&_p:not(:last-child)]:mb-0">
         <CardContent className="flex flex-col gap-3 pt-3">
           <p className="text-sm text-foreground">{review.summary}</p>
           {review.feedbackComment?.trim() ? (
@@ -396,7 +396,7 @@ async function SelfReviewPageContent() {
                   {agentAppealNextSteps({ phase: appealPhase, dueAt: review.appealDueAt })}
                 </p>
               ) : null}
-              <div className="shrink-0">
+              <div className="min-w-0 w-full">
                 <AgentAppealForm
                   reviewId={review.id}
                   allowed={canOpenAppeal}

@@ -62,19 +62,19 @@ export function OtrsWebserviceChecklist({ baseUrl, config }: OtrsWebserviceCheck
         </h2>
         <CardDescription>Параметры, которые должны совпадать с GenericInterface в OTRS/Znuny/OTOBO.</CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-4">
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <CardContent className="grid min-w-0 grid-cols-1 gap-4">
+        <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-lg border p-3">
             <p className="text-xs font-medium text-muted-foreground">Продукт</p>
             <p className="text-sm font-medium">{profile.label}</p>
           </div>
           <div className="rounded-lg border p-3">
             <p className="text-xs font-medium text-muted-foreground">Имя WebService</p>
-            <p className="font-mono text-sm font-medium">{config.webServiceName}</p>
+            <p className="font-mono text-sm font-medium [overflow-wrap:anywhere]">{config.webServiceName}</p>
           </div>
           <div className="rounded-lg border p-3">
             <p className="text-xs font-medium text-muted-foreground">Базовый путь</p>
-            <p className="font-mono text-sm font-medium">{config.basePath}</p>
+            <p className="font-mono text-sm font-medium [overflow-wrap:anywhere]">{config.basePath}</p>
           </div>
           <div className="rounded-lg border p-3">
             <p className="text-xs font-medium text-muted-foreground">Переопределения маршрутов</p>
@@ -83,7 +83,7 @@ export function OtrsWebserviceChecklist({ baseUrl, config }: OtrsWebserviceCheck
             </Badge>
           </div>
         </div>
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
           <div className="rounded-lg border p-3">
             <p className="text-xs font-medium text-muted-foreground">Авторизация TicketSearch</p>
             <p className="text-sm font-medium">

@@ -332,6 +332,7 @@ export function ConnectSourceForm({
             <Field>
               <FieldLabel htmlFor="connect-source-select">Источник</FieldLabel>
               <Select
+                items={sources.map((source) => ({ value: source.source, label: source.label }))}
                 value={selectedSource}
                 onValueChange={(value) => {
                   if (value != null) {

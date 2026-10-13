@@ -183,7 +183,7 @@ export function ReportFocusPanel({
 }) {
   return (
     <Card>
-      <CardHeader className="border-b">
+      <CardHeader className="border-b has-data-[slot=card-action]:grid-cols-1 sm:has-data-[slot=card-action]:grid-cols-[minmax(0,1fr)_auto]">
         <div className="min-w-0">
           <CardDescription className="text-xs font-semibold uppercase tracking-wider">
             {kicker}
@@ -191,7 +191,7 @@ export function ReportFocusPanel({
           <CardTitle>{title}</CardTitle>
           <p className="text-sm text-muted-foreground">{description}</p>
         </div>
-        <CardAction>
+        <CardAction className="col-start-1 row-span-1 row-start-2 justify-self-start sm:col-start-2 sm:row-span-2 sm:row-start-1 sm:justify-self-end">
           <Button
             render={
               <Link

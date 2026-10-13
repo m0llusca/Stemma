@@ -9,12 +9,14 @@ import {
   type PointerEvent
 } from "react";
 import { useRouter } from "next/navigation";
+import { useChartPlotWidth } from "@/components/charts/use-chart-plot-width";
 import { ChartTooltipStatus } from "@/components/charts/chart-tooltip-status";
 import { DeferredChartVisual } from "@/components/charts/deferred-chart-visual.client";
 import { PairedAiDriftVisual } from "@/components/charts/recharts-visuals.client";
 import type { ChartModel } from "@/lib/charts/contracts";
 import {
   buildPairedAiDriftGeometry,
+  PAIRED_AI_DRIFT_VIEWBOX,
   viewBoxPercent
 } from "@/lib/charts/plot-geometry";
 import { openReportChartPointHref } from "@/lib/reports/report-evidence-links";
@@ -33,8 +35,9 @@ export function PairedAiDriftCharts({
   const instructionsId = useId();
   const tooltipId = useId();
   const plotRef = useRef<HTMLDivElement>(null);
+  const plotWidth = useChartPlotWidth(plotRef, PAIRED_AI_DRIFT_VIEWBOX.width);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const geometry = useMemo(() => buildPairedAiDriftGeometry(model), [model]);
+  const geometry = useMemo(() => buildPairedAiDriftGeometry(model, plotWidth), [model, plotWidth]);
   const activePoint =
     activeIndex == null ? undefined : model.points[activeIndex];
   const activeMarks =
@@ -178,7 +181,7 @@ export function PairedAiDriftCharts({
         ) : null}
         <DeferredChartVisual
           Visual={PairedAiDriftVisual}
-          componentProps={{ model }}
+          componentProps={{ model, geometry }}
         />
 
         {activePoint ? (

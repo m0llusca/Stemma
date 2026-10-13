@@ -49,7 +49,7 @@ export function AppNavPulseChrome({ items }: { items: WorkPulseItem[] }) {
               type="button"
               variant="ghost"
               size="icon-sm"
-              className="size-11 sm:hidden"
+              className="size-11 lg:hidden"
               aria-label="Рабочий пульс"
             />
           }
@@ -85,7 +85,7 @@ export function AppNavPulseChrome({ items }: { items: WorkPulseItem[] }) {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <div className="flex min-w-0 items-center gap-1">
+      <div className="hidden min-w-0 items-center gap-1 lg:flex">
         {items.map((item) => (
           <Link
             prefetch={false}
@@ -95,7 +95,7 @@ export function AppNavPulseChrome({ items }: { items: WorkPulseItem[] }) {
             aria-label={`${item.label}: ${item.value}`}
             className={cn(
               buttonVariants({ variant: "ghost", size: "sm" }),
-              "hidden h-8 shrink-0 gap-1.5 px-1.5 text-muted-foreground sm:inline-flex"
+              "inline-flex h-8 shrink-0 gap-1.5 px-1.5 text-muted-foreground"
             )}
           >
             <span className="text-xs">{item.label}</span>

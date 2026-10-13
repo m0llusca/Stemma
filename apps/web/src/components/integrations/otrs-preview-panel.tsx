@@ -69,7 +69,7 @@ function ManualPreviewButton() {
   const { pending } = useFormStatus();
 
   return (
-    <Button type="submit" disabled={pending}>
+    <Button type="submit" disabled={pending} className="h-auto min-h-8 max-w-full py-2 whitespace-normal">
       <Play data-icon="inline-start" aria-hidden="true" />
       {pending ? "Создаем предпросмотр" : "Предпросмотр TicketID"}
     </Button>
@@ -80,7 +80,7 @@ function SearchPreviewButton() {
   const { pending } = useFormStatus();
 
   return (
-    <Button type="submit" variant="outline" disabled={pending}>
+    <Button type="submit" variant="outline" disabled={pending} className="h-auto min-h-8 max-w-full py-2 whitespace-normal">
       <Search data-icon="inline-start" aria-hidden="true" />
       {pending ? "Ищем" : "Предпросмотр TicketSearch"}
     </Button>
@@ -91,7 +91,7 @@ function ImportSelectedButton({ disabled = false }: { disabled?: boolean }) {
   const { pending } = useFormStatus();
 
   return (
-    <Button type="submit" disabled={pending || disabled}>
+    <Button type="submit" disabled={pending || disabled} className="h-auto min-h-8 max-w-full py-2 whitespace-normal">
       <UploadCloud data-icon="inline-start" aria-hidden="true" />
       {pending ? "Ставим в очередь" : "Импортировать выбранные"}
     </Button>
@@ -168,9 +168,9 @@ export function OtrsPreviewPanel({ integrationId, latestPreviewRun }: OtrsPrevie
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="grid gap-4">
-        <div className="grid gap-4 xl:grid-cols-2">
-          <form action={previewAction} className="grid gap-3 rounded-lg border p-3">
+      <CardContent className="grid min-w-0 grid-cols-1 gap-4">
+        <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2">
+          <form action={previewAction} className="grid min-w-0 grid-cols-1 gap-3 rounded-lg border p-3">
             <ActionFlowGuard onResult={handlePreviewResult} />
             <input type="hidden" name="integrationId" value={integrationId} />
             <input type="hidden" name="mode" value="manual_ticket_ids" />
@@ -187,7 +187,7 @@ export function OtrsPreviewPanel({ integrationId, latestPreviewRun }: OtrsPrevie
             <ManualPreviewButton />
           </form>
 
-          <form action={previewAction} className="grid gap-3 rounded-lg border p-3">
+          <form action={previewAction} className="grid min-w-0 grid-cols-1 gap-3 rounded-lg border p-3">
             <ActionFlowGuard onResult={handlePreviewResult} />
             <input type="hidden" name="integrationId" value={integrationId} />
             <input type="hidden" name="mode" value="ticket_search" />
@@ -216,7 +216,7 @@ export function OtrsPreviewPanel({ integrationId, latestPreviewRun }: OtrsPrevie
         ) : null}
 
         {latestPreviewRun ? (
-          <form action={importAction} className="grid gap-3">
+          <form action={importAction} className="grid min-w-0 grid-cols-1 gap-3">
             <ActionFlowGuard
               onResult={(value) => {
                 const result = value as IntegrationImportActionState;

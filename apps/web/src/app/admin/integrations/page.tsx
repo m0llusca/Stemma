@@ -1063,7 +1063,7 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
                                     >
                                       {status.label}
                                     </ToneBadge>
-                                    <span className="text-xs tabular-nums text-muted-foreground">
+                                    <span className="text-xs tabular-nums text-muted-foreground [overflow-wrap:anywhere]">
                                       {formatCompactDate(run.startedAt)} · {run.redactedEndpoint ?? "адрес не сохранен"}
                                     </span>
                                   </div>
