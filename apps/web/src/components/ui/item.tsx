@@ -132,7 +132,7 @@ function ItemTitle({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="item-title"
       className={cn(
-        "line-clamp-1 flex w-fit items-center gap-2 text-sm leading-snug font-medium underline-offset-4",
+        "flex min-w-0 w-fit max-w-full items-center gap-2 text-sm leading-snug font-medium underline-offset-4 [overflow-wrap:anywhere]",
         className
       )}
       {...props}

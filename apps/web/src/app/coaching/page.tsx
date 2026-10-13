@@ -1028,13 +1028,13 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                     >
                       <CardHeader>
                         <div className="flex min-w-0 items-center gap-2 text-primary">
-                          <Target size={16} aria-hidden="true" />
-                          <CardTitle className="truncate text-foreground" title={plan.title}>{plan.title}</CardTitle>
+                          <Target size={16} className="shrink-0" aria-hidden="true" />
+                          <CardTitle className="min-w-0 flex-1 truncate text-foreground" title={plan.title}>{plan.title}</CardTitle>
                         </div>
-                        <CardAction>
+                        <CardAction className="row-span-1">
                           <Chip tone={planStatusTone(plan.status)}>{planStatusLabel(plan.status)}</Chip>
                         </CardAction>
-                        <CardDescription className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <CardDescription className="col-span-full flex flex-wrap items-center gap-x-3 gap-y-1">
                           <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
                             <UserRound size={14} aria-hidden="true" />
                             {plan.agentName}
@@ -1082,6 +1082,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                                   role="listitem"
                                   variant="outline"
                                   size="xs"
+                                  className="flex-col items-stretch sm:flex-row sm:items-center"
                                 >
                                   <ItemContent className="min-w-0">
                                     <ItemTitle>{assignment.title}</ItemTitle>
@@ -1092,7 +1093,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                                       </ItemDescription>
                                     ) : null}
                                   </ItemContent>
-                                  <Chip tone={trainingStatusTone(assignment.status)}>{trainingStatusLabel(assignment.status)}</Chip>
+                                  <Chip className="self-start sm:self-center" tone={trainingStatusTone(assignment.status)}>{trainingStatusLabel(assignment.status)}</Chip>
                                 </Item>
                               );
                             })}

@@ -1,10 +1,91 @@
+import { randomUUID } from "node:crypto";
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { prisma } from "@/lib/db";
+import { isLocalPlaywrightVerifyDatabase } from "@/lib/local-playwright-verify-database";
 import { findSeededDemoAdmin, findSeededDemoAgent, signInE2EUser } from "./helpers/auth";
 import { expectNoDocumentOverflow, rect } from "./helpers/layout";
 
 const widths = [320, 390, 768, 1280, 1914] as const;
+const fixtureRunId = randomUUID();
+const planId = `coaching-layout-plan-${fixtureRunId}`;
+const assignmentIds = ["done", "open"].map((status) => `coaching-layout-${status}-${fixtureRunId}`);
+const planTitle = "Развитие качества: корректная маршрутизация сложных обращений и согласование следующего шага с клиентом";
+const planFocusArea = "Неверная маршрутизация / Владение обращением / Сроки следующего обновления";
+const assignmentTitles = [
+  "Проверить маршрутизацию сложного обращения и назвать клиенту ответственного, срок и следующий шаг",
+  "Закрепить персонализированный ответ клиенту после передачи обращения в профильную команду"
+];
+let fixtureWorkspaceId: string | undefined;
 
 test.setTimeout(120_000);
+test.describe.configure({ mode: "default" });
+
+function requireDisposableVerifyDatabase() {
+  // Fixture writes must always target the canonical disposable database, even
+  // if an unrelated caller configured a custom Playwright database-name override.
+  if (!isLocalPlaywrightVerifyDatabase({ ...process.env, QC_PLAYWRIGHT_DATABASE_NAME: undefined })) {
+    throw new Error("Coaching layout fixtures require matching local qc_app_demo_verify:public DATABASE_URL and TEST_DATABASE_URL.");
+  }
+}
+
+test.beforeAll(async () => {
+  requireDisposableVerifyDatabase();
+  const [admin, agent] = await Promise.all([findSeededDemoAdmin(), findSeededDemoAgent()]);
+  expect(agent.workspaceId).toBe(admin.workspaceId);
+  const review = await prisma.review.findFirstOrThrow({
+    where: {
+      workspaceId: admin.workspaceId,
+      status: "FINALIZED",
+      reviewSource: "HUMAN",
+      conversation: { assigneeId: agent.id }
+    },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, conversationId: true }
+  });
+  fixtureWorkspaceId = admin.workspaceId;
+  await prisma.$transaction(async (transaction) => {
+    await transaction.coachingPlan.create({
+      data: {
+        id: planId,
+        workspaceId: admin.workspaceId,
+        agentName: agent.name,
+        title: planTitle,
+        focusArea: planFocusArea,
+        status: "active",
+        reviewId: review.id,
+        conversationId: review.conversationId,
+        createdById: admin.id
+      }
+    });
+    await transaction.trainingAssignment.createMany({
+      data: assignmentIds.map((id, index) => ({
+        id,
+        workspaceId: admin.workspaceId,
+        reviewId: review.id,
+        assigneeId: agent.id,
+        assigneeName: agent.name,
+        assignedById: admin.id,
+        coachingPlanId: planId,
+        title: assignmentTitles[index],
+        description: "Разобрать контекст обращения, объяснить причину передачи, согласовать срок следующего обновления и проверить, что клиент понимает дальнейшие действия команды поддержки.",
+        status: index === 0 ? "done" : "open"
+      }))
+    });
+  });
+});
+
+test.afterAll(async () => {
+  requireDisposableVerifyDatabase();
+  if (!fixtureWorkspaceId) return;
+  await prisma.$transaction(async (transaction) => {
+    await transaction.trainingAssignment.deleteMany({
+      where: { id: { in: assignmentIds }, workspaceId: fixtureWorkspaceId, coachingPlanId: planId }
+    });
+    await transaction.coachingPlan.deleteMany({
+      where: { id: planId, workspaceId: fixtureWorkspaceId }
+    });
+  });
+});
 
 async function expectChildrenContained(container: Locator) {
   const violations = await container.evaluate((element) => {
@@ -21,6 +102,46 @@ async function expectChildrenContained(container: Locator) {
 }
 
 async function expectCoachingGeometry(page: Page, width: number) {
+  const populatedPlan = page.locator(`[id="coaching-plan-${planId}"]`);
+  await expect(populatedPlan).toBeVisible();
+  await expect(populatedPlan.getByRole("heading", { name: planTitle, exact: true })).toBeVisible();
+  await expectChildrenContained(populatedPlan);
+  await expectChildrenContained(populatedPlan.locator(':scope > [data-slot="card"]'));
+  const progress = populatedPlan.getByRole("progressbar", { name: `Прогресс плана «${planTitle}»`, exact: true });
+  await expect(progress).toHaveAttribute("aria-valuenow", "1");
+  await expect(progress).toHaveAttribute("aria-valuemax", "2");
+  await expect(progress).toHaveAttribute("aria-valuetext", "1/2 закрыто");
+  await expect.poll(async () => {
+    const track = await rect(progress.locator('[data-slot="progress-track"]'));
+    const indicator = await rect(progress.locator('[data-slot="progress-indicator"]'));
+    return indicator.width / track.width;
+  }, { message: "one completed assignment out of two paints 50% progress" }).toBeCloseTo(0.5, 2);
+  await expect(populatedPlan.getByText("1/2 закрыто", { exact: true })).toBeVisible();
+  await expect(populatedPlan.getByText(planFocusArea, { exact: true })).toBeVisible();
+  await expect(populatedPlan.getByRole("link", { name: "Исходная проверка", exact: true })).toBeVisible();
+  const planAssignments = populatedPlan.getByRole("list", { name: `Задания плана «${planTitle}»`, exact: true });
+  await expect(planAssignments.getByRole("listitem")).toHaveCount(2);
+  for (const title of assignmentTitles) {
+    await expect(planAssignments.getByText(title, { exact: true })).toBeVisible();
+  }
+  if (width < 640) {
+    for (const item of await planAssignments.getByRole("listitem").all()) {
+      const [itemBox, contentBox, statusBox] = await Promise.all([
+        rect(item), rect(item.locator('[data-slot="item-content"]')), rect(item.locator(':scope > [data-slot="badge"]'))
+      ]);
+      expect(contentBox.width, "mobile plan assignment keeps a full readable text column").toBeGreaterThan(itemBox.width - 24);
+      expect(statusBox.y, "status follows the full assignment text on mobile").toBeGreaterThanOrEqual(contentBox.y + contentBox.height);
+    }
+  }
+  await expect(planAssignments.getByText("Готово", { exact: true })).toBeVisible();
+  await expect(planAssignments.getByText("Новая", { exact: true })).toBeVisible();
+  for (const block of await populatedPlan.locator('[data-slot="card-header"], [data-slot="card-content"], [data-slot="card-footer"], [data-slot="item"], [data-slot="item-content"]').all()) {
+    await expectChildrenContained(block);
+  }
+  await expectChildrenContained(progress.locator(".."));
+  if (width === 320 || width === 1280) {
+    await populatedPlan.screenshot({ path: test.info().outputPath("populated-coaching-plan.png"), caret: "initial" });
+  }
   if (width < 640) {
     for (const name of ["Планы коучинга", "Правила для разбора"]) {
       const section = page.getByLabel(name, { exact: true });
